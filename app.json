@@ -1,8 +1,20 @@
 {
   "expo": {
+    "plugins": [
+      "./app.plugin.js"
+    ],
     "extra": {
       "eas": {
         "projectId": "4f117d70-5a5b-463f-bce3-4e40fd35dc63"
+      }
+    },
+    "android": {
+      "package": "com.alfianelvrisan.reactapp"
+    },
+    "ios": {
+      "bundleIdentifier": "com.alfianelvrisan.reactapp",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
       }
     }
   }
