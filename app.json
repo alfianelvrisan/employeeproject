@@ -1,43 +1,9 @@
 {
   "expo": {
-    "name": "ReactApp",
-    "slug": "ReactApp",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/images/logo1.png",
-    "scheme": "myapp",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "ios": {
-      "supportsTablet": true
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logo1.png",
-        "backgroundColor": "#228bdd"
-      },
-      "package": "com.its_shri_20.demo1",
-      "softwareKeyboardLayoutMode": "pan"
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/logo1.png"
-    },
-    "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/logo1.png",
-          "imageWidth": "100%",
-          "resizeMode": "contain",
-          "backgroundColor": "#228bdd"
-        }
-      ]
-    ],
-    "experiments": {
-      "typedRoutes": true
+    "extra": {
+      "eas": {
+        "projectId": "4f117d70-5a5b-463f-bce3-4e40fd35dc63"
+      }
     }
   }
 }

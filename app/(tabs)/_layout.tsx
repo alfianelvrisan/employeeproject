@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   Alert,
   StyleSheet,
@@ -6,195 +6,213 @@ import {
   View,
   Image,
   Text,
-} from 'react-native';
-import { CurvedBottomBarExpo } from 'react-native-curved-bottom-bar';
-import { useNavigation } from '@react-navigation/native';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import Index from './index';
-import Explore from './explore';
-import Profile from '../profile/profile';
-import Notif from '../notification/notification';
-import Cards from '../card/card';
+  Button,
+} from "react-native";
+import { CurvedBottomBarExpo } from "react-native-curved-bottom-bar";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import Index from "./index";
+import Explore from "./explore";
+import Profile from "../profile/profile";
+import Carts from "../cart/cart";
+import { router, Stack, useRouter } from "expo-router";
+import { AuthProvider } from "../../context/AuthContext";
+import { MaterialIcons } from "@expo/vector-icons";
+import Gift from "../gift/Gift";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 
 const Home = () => {
-  return <View>
-    <Text><Index/>
-    </Text>
-  </View>
+  return <Index />;
 };
 
-const Screen2 = () => {
-  return <View style={styles.screen2}>
-    <Text><Explore/></Text>
-  </View>
+const giftcard = () => {
+  return (
+    <View style={styles.screen2}>
+        <Gift />
+    </View>
+  );
 };
 const Profiles = () => {
-  return <View>
-    <Text><Profile/></Text>
-  </View>
-};
-
-const Notification = () => {
-  return <View>
-    <Text><Notif/></Text>
-  </View>
-}
-const Cart = () => {
-  return <View>
-    <Text><Cards/></Text>
-  </View>
-}
-const HeaderRightComponent = () => {
-  const navigation = useNavigation();
-
   return (
-    <TouchableOpacity onPress={() => navigation.navigate('Notification')}>
-      <Ionicons
-        name="notifications-outline"
-        size={24}
-        color="white"
-        style={{ marginRight: 15 }}
-      />
-      <Text style={styles.notifalert}>13</Text>
+  <Profile />
+ );
+};
+const Cart = () => {
+  return (
+    <View>
+        <Carts />
+    </View>
+  );
+};
+const HeaderRightComponent = () => {
+  return (
+    <TouchableOpacity
+      onPress={() => router.push("/notification/notification")}
+      style={{ marginRight: 15 }}
+    >
+      <View style={{ position: "relative" }}>
+        <Ionicons name="notifications-outline" size={24} color="white" />
+        <View style={styles.notifBadge}>
+          <Text style={styles.notifText}>13</Text>
+        </View>
+      </View>
     </TouchableOpacity>
   );
 };
 export default function App() {
-  const _renderIcon = (routeName, selectedTab) => {
-    let icon = '';
-
+  const _renderIcon = (routeName: any, selectedTab: any) => {
+    let icon = "";
+  
     switch (routeName) {
-      case 'Home':
-        icon = 'home';
+      case "Home":
+        icon = routeName === selectedTab ? "home" : "home-outline";
         break;
-      case 'Settings':
-        icon = 'gift';
+      case "Settings":
+        icon = routeName === selectedTab ? "gift" : "gift-outline";
         break;
-      case 'Profiles':
-        icon = 'person';
+      case "Profiles":
+        icon = routeName === selectedTab ? "person" : "person-outline";
         break;
-      case 'Notifi':
-        icon = 'notifications-outline';
+      case "Notifi":
+        icon = routeName === selectedTab ? "notifications" : "notifications-outline";
         break;
-      case 'Barcode':
-      icon = 'qr-code-outline';
-      break;
-      case 'Cart':
-      icon = 'cart';
-      break;
+      case "Barcode":
+        icon = "qr-code"; // Tidak ada "qr-code-outline" di Ionicons
+        break;
+      case "Cart":
+        icon = routeName === selectedTab ? "cart" : "cart-outline";
+        break;
     }
-
+  
     return (
       <Ionicons
-        name={icon}
+        name={icon as keyof typeof Ionicons.glyphMap}
         size={25}
-        color={routeName === selectedTab ? '#115f9f' : 'gray'}
+        color={routeName === selectedTab ? "#115f9f" : "gray"}
       />
     );
   };
   const renderTabBar = ({ routeName, selectedTab, navigate }) => {
     return (
       <TouchableOpacity
-        onPress={() => navigate(routeName)}
+      onPress={() => navigate(routeName)}
         style={styles.tabbarItem}
       >
         {_renderIcon(routeName, selectedTab)}
       </TouchableOpacity>
     );
   };
+const insets = useSafeAreaInsets(); 
+
 
   return (
     <>
+    <AuthProvider>
       <CurvedBottomBarExpo.Navigator
-  type="DOWN"
-  style={[styles.bottomBar, styles.shadow]}
-  shadowStyle={styles.shadow}
-  height={55}
-  circleWidth={50}
-  bgColor="white" 
-  initialRouteName="Home"
-  // borderTopLeftRight={true}
-  renderCircle={({ selectedTab, navigate }) => (
-    <View style={styles.btnCircleUp}>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => Alert.alert('Click Action')}
+        type="DOWN"
+        style={[styles.bottomBar, { paddingBottom: insets.bottom }]}
+        shadowStyle={styles.shadow}
+        height={55}
+        circleWidth={50}
+        bgColor="white"
+        initialRouteName="Home"
+        id="mainNavigator" // Unique ID for the navigator
+        screenOptions={{ headerShown: false }} // Example screen options
+        borderColor="transparent" // Example border color
+        borderWidth={0} // Example border width
+        renderCircle={({  }) => (
+          <View style={styles.btnCircleUp}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => router.push("/scan/scanqrcode")}
+            >
+              <MaterialIcons name={"qr-code-scanner"} color="#115f9f" size={25} />
+            </TouchableOpacity>
+          </View>
+        )}
+        tabBar={renderTabBar}
       >
-        <Ionicons name={'qr-code-outline'} color="#115f9f" size={25} />
-      </TouchableOpacity>
-    </View>
-  )}
-  tabBar={renderTabBar}
->
-  <CurvedBottomBarExpo.Screen
-    name="Home"
-    position="LEFT"
-    component={() => <Home/>}
-    options={{
-      headerShown: true,
-      headerStyle: {
-        backgroundColor: '#c3eaff',
-        elevation: 0,
-        shadowOpacity: 0,
-      },
-      headerTintColor: '#fff',
-      headerTitle: () => (
-        <Image
-          source={require('@/assets/images/logo1.png')}
-          style={{ width: 150, resizeMode: 'contain' }}
+        <CurvedBottomBarExpo.Screen
+          name="Home"
+          position="LEFT"
+          component={Index}
+          options={{
+            headerShown: false,
+          }}
         />
-      ),
-      headerRight:() => <HeaderRightComponent />
-    }}
-  />
-  <CurvedBottomBarExpo.Screen
-    name="Settings"
-    position="RIGHT"
-    component={() => <Screen2 />}
-    options={{
-      headerShown: false,
-    }}
-  />
-  <CurvedBottomBarExpo.Screen
-    name="Cart"
-    position="LEFT"
-    component={() => <Cards />}
-    options={{
-      headerShown: false,
-    }}
-  />
-  <CurvedBottomBarExpo.Screen
-    name="Profiles"
-    position="RIGHT"
-    component={() => <Profiles />}
-    options={{
-      headerShown: false,
-    }}
-  />
-</CurvedBottomBarExpo.Navigator>
+        <CurvedBottomBarExpo.Screen
+          name="Settings"
+          position="RIGHT"
+          component={()=> <Gift />}
+          options={{
+            headerShown: true,
+            headerTitle: "GiftLbi",
+            headerTitleAlign: "center",
+            headerStyle: {
+              elevation: 0, 
+              shadowOpacity: 0, 
+            },
+            headerTintColor: "#115f9f",
+          }}
+        />
+        <CurvedBottomBarExpo.Screen
+          name="Cart"
+          position="LEFT"
+          component={() => <Carts />}
+          options={{  
+            headerShown: true,
+            headerTitle: "Pesanan",
+            headerTitleAlign: "center",
+            headerStyle: {
+              elevation: 0, 
+              shadowOpacity: 0, 
+            },
+            headerTintColor: "#115f9f",
+          }}
+        />
+        <CurvedBottomBarExpo.Screen
+          name="Profiles"
+          position="RIGHT"
+          component={() => <Profiles />}
+          options={{
+            headerShown: false,
+            headerStyle: {
+              backgroundColor: "#fff", // Latar belakang putih
+            },
+          }}
+          
+        />
+        
+      </CurvedBottomBarExpo.Navigator>
+      </AuthProvider>
     </>
   );
 }
+
+
+
+
 
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
   },
-  shawdow: {
-    shadowColor: '#000', // Warna shadow
-    shadowOffset: { width: 0, height: -2 }, // Posisi shadow
-    shadowOpacity: 0.1, // Transparansi shadow
-    shadowRadius: 4, // Radius blur shadow
-    elevation: 5,
+  shadow: {
+    shadowColor: "transparent",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   button: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   bottomBar: {
     bottom: 0,
+    elevation: 0,
+    // borderRadius:0
     // zIndex: 1000,
     // position: 'fixed',
   },
@@ -202,25 +220,25 @@ export const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#c3eaff',
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#c3eaff",
     bottom: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
-    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
   },
   imgCircle: {
     width: 30,
     height: 30,
-    tintColor: 'gray',
+    tintColor: "gray",
   },
   tabbarItem: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   img: {
     width: 30,
@@ -228,22 +246,33 @@ export const styles = StyleSheet.create({
   },
   screen1: {
     flex: 1,
-    backgroundColor: '#4287f5',
+    backgroundColor: "#4287f5",
   },
   screen2: {
     flex: 1,
-    backgroundColor: '#FFEBCD',
+    backgroundColor: "#FFEBCD",
   },
-  notifalert : {
-    position:'absolute',
-    width:15,
-    height:15,
-    backgroundColor:'#115f9f',
-    borderRadius:100,
-    fontSize:9,
-    color:'#fff',
-    marginHorizontal:'auto',
-    textAlign:'center',
-    fontWeight:'bold',
+  notifBadge: {
+    position: "absolute",
+    top: -5,
+    right: -10,
+    backgroundColor: "red",
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    minWidth: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  notifText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "bold",
+  },
+  textnotif : {
+    color: "#115f9f",
+    fontSize: 18,
+    fontWeight: "medium",
+    marginRight: 20,
   }
 });

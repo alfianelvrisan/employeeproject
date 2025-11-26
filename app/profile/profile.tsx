@@ -148,32 +148,46 @@ export default function Profile() {
             onScroll={handleScroll}
             scrollEventThrottle={16}
           >
-            <View style={styles.infoCard}>
-              <View>
-                <Text style={styles.profileName}>
-                  {profil?.nama || "Member LBI"}
-                </Text>
-                <Text style={styles.profilePhone}>
-                  {profil?.no_tlp ? `${profil.no_tlp}` : "Nomor belum ada"}
-                </Text>
-                <Text style={styles.profileId}>
-                  {profil?.member_card ? `ID: ${profil.member_card}` : ""}
-                </Text>
+            <View style={styles.infoRow}>
+              <View style={styles.infoCard}>
+                <View>
+                  <Text style={styles.profileName}>
+                    {profil?.nama || "Member LBI"}
+                  </Text>
+                  <Text style={styles.profilePhone}>
+                    {profil?.no_tlp ? `${profil.no_tlp}` : "Nomor belum ada"}
+                  </Text>
+                  <Text style={styles.profileId}>
+                    {profil?.member_card ? `ID: ${profil.member_card}` : ""}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.levelBadge}>
-                <Text style={styles.levelLabel}>Level</Text>
-                <Text
-                  style={[
-                    styles.levelText,
-                    { color: levelTheme.text },
-                  ]}
-                >
-                  {rank || "Member"}
-                </Text>
-              </View>
+              <TouchableOpacity
+                style={styles.barcodeButton}
+                onPress={toggleModal}
+              >
+                <Ionicons
+                  name="qr-code-outline"
+                  size={22}
+                  color="#115f9f"
+                  style={{ marginBottom: 6 }}
+                />
+                <Text style={styles.barcodeText}>Barcode</Text>
+              </TouchableOpacity>
             </View>
             <View style={styles.goldRow}>
               <View style={styles.goldContainer}>
+                <View style={[styles.levelBadgeInline, { backgroundColor: levelTheme.bg }]}>
+                  <Text style={styles.levelLabel}>Level</Text>
+                  <Text
+                    style={[
+                      styles.levelText,
+                      { color: levelTheme.text },
+                    ]}
+                  >
+                    {rank || "Member"}
+                  </Text>
+                </View>
                 <Image
                   source={
                     rank === "bronze"
@@ -205,18 +219,6 @@ export default function Profile() {
                   ]}
                 />
               </View>
-              <TouchableOpacity
-                style={styles.barcodeButton}
-                onPress={toggleModal}
-              >
-                <Ionicons
-                  name="qr-code-outline"
-                  size={22}
-                  color="#115f9f"
-                  style={{ marginBottom: 6 }}
-                />
-                <Text style={styles.barcodeText}>Barcode</Text>
-              </TouchableOpacity>
             </View>
             <View style={styles.menuContainer}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -243,17 +245,6 @@ export default function Profile() {
                     />
                   </View>
                 </View>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.menuItem} onPress={toggleModal}>
-                <View style={styles.menuContent}>
-                  <Ionicons
-                    name="qr-code-outline"
-                    size={18}
-                    style={styles.icon}
-                  />
-                  <Text style={styles.menuText}>Barcode Member</Text>
-                </View>
-                <Ionicons name="arrow-forward" size={18} style={styles.arrow} />
               </TouchableOpacity>
               <Text style={styles.titleprofile}>Akun</Text>
               <Link href="/profile/subProfil/profil" asChild>
@@ -493,7 +484,7 @@ const styles = StyleSheet.create({
     color: "#ccc",
   },
   cardmember: {
-    width: "88%",
+    width: "100%",
     height: 120,
     borderRadius: 14,
     marginHorizontal: 0,
@@ -566,8 +557,8 @@ const styles = StyleSheet.create({
     position: "relative",
     justifyContent: "center",
     alignItems: "center",
-    width: "92%",
-    alignSelf: "center",
+    flex: 1,
+    alignSelf: "stretch",
     marginTop: 8,
   },
   goldRow: {
@@ -584,9 +575,20 @@ const styles = StyleSheet.create({
     height: 120,
     resizeMode: "contain",
   },
+  levelBadgeInline: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignItems: "flex-start",
+    minWidth: 88,
+    zIndex: 5,
+  },
   barcodeButton: {
-    width: 64,
-    height: 110,
+    width: 88,
+    height: 120,
     borderRadius: 14,
     backgroundColor: "#fff",
     borderWidth: 1,
@@ -683,16 +685,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   infoCard: {
-    width: "92%",
-    alignSelf: "center",
+    flex: 1,
     backgroundColor: "#fff",
     borderRadius: 14,
     padding: 16,
-    marginTop: 12,
-    marginBottom: 8,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     shadowColor: "#0a3e7a",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
@@ -702,7 +698,6 @@ const styles = StyleSheet.create({
     borderColor: "rgba(17,95,159,0.08)",
   },
   levelBadge: {
-    backgroundColor: "#e6f3ff",
     borderRadius: 12,
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -719,6 +714,15 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#115f9f",
     textTransform: "capitalize",
+  },
+  infoRow: {
+    width: "92%",
+    alignSelf: "center",
+    marginTop: 12,
+    marginBottom: 8,
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 12,
   },
 });
 function setOriginalBrightness(currentBrightness: number) {

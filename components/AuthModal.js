@@ -15,7 +15,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import { useAuth } from "../context/AuthContext"; // Sesuaikan path jika perlu
 import { LinearGradient } from "expo-linear-gradient";
-import { BlurView } from "expo-blur";
 
 // Import komponen & tema
 import { COLORS, SIZES, FONTS } from "../constants/theme";
@@ -250,7 +249,7 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       onRequestClose={onClose}
     >
@@ -259,23 +258,20 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
         style={styles.modalBackdrop}
       >
         <TouchableWithoutFeedback onPress={onClose}>
-            <View style={styles.modalBackdropFlex}/>
+          <View style={styles.modalBackdropFlex} />
         </TouchableWithoutFeedback>
+        <View style={styles.centerWrapper} pointerEvents="box-none">
+          <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <Ionicons name="close" size={22} color="#7b7b7b" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>{getTitle()}</Text>
 
-        <View style={styles.sheetWrapper}>
-          <BlurView intensity={28} tint="light" style={styles.sheetBlur}>
-            <View style={styles.modalInner}>
-              <View style={styles.modalHandle} />
-              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                <Ionicons name="close" size={22} color="#7b7b7b" />
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>{getTitle()}</Text>
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-              {renderContent()}
-            </View>
-          </BlurView>
+            {renderContent()}
+          </View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -285,25 +281,32 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
 const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
-    justifyContent: "flex-end",
+    position: "relative",
   },
   modalBackdropFlex: {
-      flex: 1,
-      backgroundColor: "rgba(0, 0, 0, 0.5)",
+    flex: 1,
+    backgroundColor: "rgba(5, 12, 31, 0.9)",
   },
-  sheetWrapper: {
-    paddingHorizontal: SIZES.medium,
-    paddingBottom: SIZES.large,
-  },
-  sheetBlur: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    overflow: "hidden",
-    minHeight: "50%",
-    backgroundColor: "rgba(255,255,255,0.78)",
+  centerWrapper: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: SIZES.large,
   },
   modalContent: {
-    display: "none",
+    width: "100%",
+    maxWidth: 420,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    padding: SIZES.extraLarge,
+    borderRadius: 28,
+    overflow: "hidden",
+    shadowColor: "#0a3e7a",
+    shadowOpacity: 0.32,
+    shadowOffset: { width: 0, height: 24 },
+    shadowRadius: 28,
+    elevation: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.65)",
   },
   modalHandle: {
     alignSelf: "center",

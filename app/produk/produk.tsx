@@ -1,288 +1,662 @@
-import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { Text, View, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  FlatList,
+  TextInput,
+  Modal,
+  RefreshControl,
+} from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { router } from "expo-router";
+import { useAuth } from "../../context/AuthContext";
+import {
+  fetchProducts,
+  fetchCategories,
+  sendLike,
+} from "../../services/productService";
+import { fetchProfile } from "../../services/profileServices";
+import { fetchDeliveryServices } from "../../services/deliveryServices";
 
+const getCategoryIcon = (item: any) => {
+  const label = (item?.kategory || "").toLowerCase();
+  if (label.includes("sayuran basah")) {
+    return require("../../assets/icons/sayuran.png");
+  }
+  if (item?.icon) {
+    return { uri: item.icon };
+  }
+  return require("../../assets/icons/sayuran.png");
+};
 
-const categories = [
-  { name: 'Buah Lokal', icon: require('@/assets/icons/buah_lokal.png') },
-  { name: 'Buah Import', icon: require('@/assets/icons/buah_import.png') },
-  { name: 'Snack', icon: require('@/assets/icons/snack.png') },
-  { name: 'Minuman', icon: require('@/assets/icons/minuman.png') },
-  { name: 'Roti', icon: require('@/assets/icons/roti.png') },
-  { name: 'Sayuran', icon: require('@/assets/icons/sayuran.png') },
-  { name: 'Frozen Food', icon: require('@/assets/icons/frozen_food.png') },
-  { name: 'Grosir', icon: require('@/assets/icons/grosir.png') },
-];
+const Produk = ({ idStore }: any) => {
+  const [selectedCategory, setSelectedCategory] = useState(0);
+  const [likedProducts, setLikedProducts] = useState<number[]>([]);
+  const [produck, setProducts] = useState<any[]>([]);
+  const [categorys, setCategory] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [showCartAlert, setShowCartAlert] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const { userToken } = useAuth();
+  const [idUser, setIdUser] = useState<number | null>(null);
 
-const products = [
-  { id:1,name: 'APEL FUJI A', image: require('@/assets/buah/apel_fj.jpg'),rating: 4.5 ,harga:20000,satuan:'1.00 kg'},
-  { id:2,name: 'ANGGUR HIJAU', image: require('@/assets/buah/anggur_hijau.png'),rating: 4.5 ,harga:20000,satuan:'1.00 kg'},
-  { id:3,name: 'KELENGKENG MERAH', image: require('@/assets/buah/kelengkeng.png'),rating: 4.1 ,harga:20000,satuan:'1.00 kg'},
-  { id:4,name: 'PISANG', image: require('@/assets/buah/pisang.png'),rating: 4.1 ,harga:20000,satuan:'1.00 Dus : 6.30 kg'},
-  { id:5,name: 'PISANG', image: require('@/assets/buah/pisang.png'),rating: 4.1 ,harga:20000,satuan:'1.00 Dus : 6.30 kg'},
-  { id:6,name: 'PISANG', image: require('@/assets/buah/pisang.png'),rating: 4.1 ,harga:20000,satuan:'1.00 Dus : 6.30 kg'},
-  { id:7,name: 'PISANG', image: require('@/assets/buah/pisang.png'),rating: 4.1 ,harga:20000,satuan:'1.00 Dus : 6.30 kg'},
-  { id:8,name: 'PISANG', image: require('@/assets/buah/pisang.png'),rating: 4.1 ,harga:20000,satuan:'1.00 Dus : 6.30 kg'},
-  { id:9,name: 'PISANG', image: require('@/assets/buah/pisang.png'),rating: 4.1 ,harga:20000,satuan:'1.00 Dus : 6.30 kg'},
-  { id:10,name: 'PISANG', image: require('@/assets/buah/pisang.png'),rating: 4.1 ,harga:20000,satuan:'1.00 Dus : 6.30 kg'},
-  { id:11,name: 'PISANG', image: require('@/assets/buah/pisang.png'),rating: 4.1 ,harga:20000,satuan:'1.00 Dus : 6.30 kg'},
-];
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const response = await fetchProfile(userToken || "");
+        if (response) {
+          setIdUser(response.id);
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+      }
+    };
 
-export default function Produk() {
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const shakeAnimation = useSharedValue(0);
+    fetchUserProfile();
+  }, [userToken]);
 
-  const handleCategoryPress = (categoryName: string) => {
-    setSelectedCategory(categoryName);
-    shakeAnimation.value = withSequence(
-      withTiming(-5, { duration: 50 }),
-      withTiming(5, { duration: 50 }),
-      withTiming(-5, { duration: 50 }),
-      withTiming(0, { duration: 50 })
-    );
+  const fetchAndSetProducts = useCallback(async () => {
+    if (!idStore || isLoading) return;
+    setIsLoading(true);
+    try {
+      const products = await fetchProducts(idStore, 1, userToken || "", new Set<number>());
+      setProducts(products); // Replace, no pagination
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [idStore, userToken, isLoading]);
+
+  useEffect(() => {
+    if (!idStore) return;
+    fetchAndSetProducts();
+  }, [idStore]);
+
+  useEffect(() => {
+    if (!idStore) return;
+
+    fetchCategories(idStore)
+      .then((json) => setCategory(json))
+      .catch((err) => console.error(err));
+  }, [idStore]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchAndSetProducts();
+    setRefreshing(false);
   };
 
-  const [likedProducts, setLikedProducts] = useState<number[]>([]);
+  const filteredProducts = useMemo(() => {
+    return produck.filter((p) => {
+      const matchCategory =
+        selectedCategory === 0 || p.categoryid === selectedCategory;
+      const matchSearch =
+        search === "" ||
+        p.name_produk?.toLowerCase().includes(search.toLowerCase()) ||
+        p.cate?.toLowerCase().includes(search.toLowerCase()) ||
+        p.name_store?.toLowerCase().includes(search.toLowerCase());
+      return matchCategory && matchSearch;
+    });
+  }, [produck, search, selectedCategory]);
 
-  const handleLikePress = (productId: number) => {
-    if (likedProducts.includes(productId)) {
-      setLikedProducts(likedProducts.filter((id) => id !== productId));
-    } else {
-      setLikedProducts([...likedProducts, productId]);
+  const handleLikePress = async (productId: number) => {
+    const isLiked =
+      likedProducts.includes(productId) ||
+      produck.find((p) => p.id === productId)?.liked !== 0;
+
+    setLikedProducts((prev) =>
+      isLiked ? prev.filter((id) => id !== productId) : [...prev, productId]
+    );
+    setProducts((prevProducts) =>
+      prevProducts.map((product) =>
+        product.id === productId
+          ? {
+              ...product,
+              likes: isLiked ? product.likes - 1 : product.likes + 1,
+              liked: isLiked ? 0 : 1,
+            }
+          : product
+      )
+    );
+
+    try {
+      await sendLike(userToken || "", productId, idStore);
+    } catch (error) {
+      console.error("Failed to like/unlike product:", error);
+      setLikedProducts((prev) =>
+        isLiked ? [...prev, productId] : prev.filter((id) => id !== productId)
+      );
+      setProducts((prevProducts) =>
+        prevProducts.map((product) =>
+          product.id === productId
+            ? {
+                ...product,
+                likes: isLiked ? product.likes + 1 : product.likes - 1,
+                liked: isLiked ? 1 : 0,
+              }
+            : product
+        )
+      );
     }
   };
 
+  const handleAddToCart = useCallback(
+    async (id: any) => {
+      if (isLoading) return;
+      setIsLoading(true);
+      try {
+        if (idUser === null) {
+          alert("Terjadi kesalahan. Silakan coba lagi.");
+          return;
+        }
+
+        const response = await fetchDeliveryServices(
+          id,
+          idStore,
+          idUser,
+          userToken || ""
+        );
+
+        if (response) {
+          if (
+            Array.isArray(response) &&
+            response[0]?.corp_api_save_trx_member === 1
+          ) {
+            setShowCartAlert(true);
+            setTimeout(() => {
+              setShowCartAlert(false);
+            }, 1000);
+          } else if (
+            response[0]?.corp_api_save_trx_member === 0 ||
+            response[0]?.corp_api_save_trx_member === 99
+          ) {
+            alert("Gagal menambahkan ke keranjang. Silakan coba lagi.");
+          } else {
+            console.error("Unexpected response format:", response);
+            alert("Terjadi kesalahan. Silakan coba lagi.");
+          }
+        } else {
+          console.error("No response received from delivery services.");
+          alert("Terjadi kesalahan. Silakan coba lagi.");
+        }
+      } catch (error) {
+        console.error("Error fetching delivery services:", error);
+        alert("Terjadi kesalahan. Silakan coba lagi.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [idUser, idStore, userToken, isLoading]
+  );
+
+  const renderFooter = () => {
+    if (isLoading && produck.length === 0) {
+      return (
+        <View style={styles.loadingContainer}>
+          {[...Array(4)].map((_, index) => (
+            <View key={index} style={styles.loadingCard}>
+              <View style={styles.loadingImage} />
+              <View style={styles.loadingText} />
+              <View style={styles.loadingTextSmall} />
+            </View>
+          ))}
+        </View>
+      );
+    }
+    return null;
+  };
+  
+
   return (
     <View style={styles.container}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        {categories.map((category, index) => {
-          const animatedStyle = useAnimatedStyle(() => ({
-            transform: [{ translateX: selectedCategory === category.name ? shakeAnimation.value : 0 }],
-          }));
+      {/* Alert Keranjang */}
+      <Modal
+        transparent={true}
+        visible={showCartAlert}
+        animationType="fade"
+        onRequestClose={() => setShowCartAlert(false)}
+      >
+        <View style={styles.alertOverlay}>
+          <View style={styles.alertContainer}>
+            <Ionicons name="checkmark-circle" size={50} color="green" />
+            <Text style={styles.alertText}>
+              Produk berhasil dimasukkan ke keranjang
+            </Text>
+          </View>
+        </View>
+      </Modal>
 
-          return (
-            <TouchableOpacity
-              key={index}
+      <View style={styles.searchContainer}>
+        <Ionicons
+          name="search-outline"
+          size={20}
+          color="#aaa"
+          style={styles.searchIcon}
+        />
+        <TextInput
+          style={styles.searchBar}
+          placeholder="Search something..."
+          placeholderTextColor="#aaa"
+          value={search}
+          onChangeText={(text) => setSearch(text)}
+        />
+      </View>
+      <FlatList
+        horizontal
+        data={categorys}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={[
+              styles.categoryBadge,
+              selectedCategory === item.id && styles.selectedCategoryBadge,
+            ]}
+            onPress={() => setSelectedCategory(item.id)}
+          >
+            <View style={styles.iconContainer}>
+              <Image source={getCategoryIcon(item)} style={styles.icons} />
+            </View>
+            <Text
               style={[
-                styles.card,
-                selectedCategory === category.name && styles.selectedCard,
+                styles.categoryText,
+                selectedCategory === item.id && styles.selectedCategoryText,
               ]}
-              onPress={() => handleCategoryPress(category.name)}
             >
-              <Animated.View style={animatedStyle}>
-                <Image source={category.icon} style={styles.icon} />
-                <Text
-                  style={[
-                    styles.text,
-                    selectedCategory === category.name && styles.selectedText,
-                  ]}
-                >
-                  {category.name}
+              {item.kategory || "Unknown Category"}
+            </Text>
+          </TouchableOpacity>
+        )}
+        style={styles.categoryContainer}
+        showsHorizontalScrollIndicator={false}
+      />
+      <FlatList
+        data={filteredProducts}
+        keyExtractor={(item, index) => `${item.id}-${index}`}
+        numColumns={2}
+        columnWrapperStyle={styles.row}
+        onEndReached={fetchAndSetProducts}
+        onEndReachedThreshold={0.8}
+        ListFooterComponent={renderFooter}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        } // Add RefreshControl
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.productCard}
+            onPress={() => {
+              const storeParam =
+                idStore ||
+                item.id_store ||
+                item.store_id ||
+                item.storeid ||
+                item.idStore;
+              router.push(
+                `/produk/produkDetail?detailId=${item.id}&idStore=${storeParam}&nameProduk=${item.name_produk}&idProduk=${item.id}`
+              );
+            }}
+          >
+            <View style={styles.imageWrapper}>
+              <Image source={{ uri: item.foto }} style={styles.productImage} />
+              {item.discount !== 0 ? (
+                <View style={styles.discountBadge}>
+                  <Text style={styles.discountText}>
+                    -{Math.round((item.discount / item.price) * 100)}%
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            <View style={styles.productInfo}>
+              <Text style={styles.productName} numberOfLines={2}>
+                {item.name_produk}
+              </Text>
+
+              <View style={styles.storeRow}>
+                <View style={styles.storeChip}>
+                  <Ionicons name="storefront-outline" size={12} color="#115f9f" />
+                  <Text style={styles.storeText} numberOfLines={1}>
+                    {item.name_store}
+                  </Text>
+                </View>
+                <Text style={styles.categoryPill} numberOfLines={1}>
+                  {item.cate}
                 </Text>
-              </Animated.View>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-        <View style={styles.productContainer}>
-          {products.map((product) => {
-            const isLiked = likedProducts.includes(product.id);
-            const loveAnimation = useSharedValue(0);
+              </View>
 
-            const animatedStyle = useAnimatedStyle(() => ({
-              transform: [{ scale: loveAnimation.value }],
-              opacity: loveAnimation.value,
-            }));
+              <Text style={styles.productUOM}>{item.uom}</Text>
 
-            const handleLoveAnimation = () => {
-              loveAnimation.value = withTiming(1, { duration: 300 }, () => {
-                loveAnimation.value = withTiming(0, { duration: 300 });
-              });
-            };
+              <View style={styles.priceRow}>
+                {item.discount !== 0 ? (
+                  <>
+                    <Text style={styles.productPriceDiscount}>
+                      Rp {(item.price - item.discount).toLocaleString()}
+                    </Text>
+                    <Text style={styles.productPriceOriginal}>
+                      Rp {item.price.toLocaleString()}
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={styles.productPrice}>
+                    Rp {item.price.toLocaleString()}
+                  </Text>
+                )}
+              </View>
 
-            return (
-              <View key={product.id} style={styles.productCard}>
-                <Image source={product.image} style={styles.productImage} />
-                <Ionicons name='add' size={20} style={styles.add_cart}></Ionicons>
-                <Text style={styles.productName}>{product.name}</Text>
-                <Text style={styles.satuan}>{product.satuan}</Text>
-                <Text style={styles.price}>Rp {product.harga}</Text>
-                <Text style={styles.totalLikesText}>{likedProducts.length} Like</Text>
+              <View style={styles.actionContainer}>
                 <TouchableOpacity
-                  onPress={() => {
-                    handleLikePress(product.id);
-                    handleLoveAnimation();
-                  }}
-                  style={styles.heartContainer}
+                  onPress={() => handleAddToCart(item.id)}
+                  style={styles.actionButton}
+                >
+                  <Ionicons name="cart-outline" size={18} color="#115f9f" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleLikePress(item.id)}
+                  style={styles.actionButton}
                 >
                   <Ionicons
-                    name={isLiked ? "heart" : "heart-outline"}
-                    size={19}
-                    color={isLiked ? "red" : "#fff"}
-                    style={styles.stars}
+                    name={
+                      likedProducts.includes(item.id) || item.liked !== 0
+                        ? "heart"
+                        : "heart-outline"
+                    }
+                    size={18}
+                    color={
+                      likedProducts.includes(item.id) || item.liked !== 0
+                        ? "red"
+                        : "#115f9f"
+                    }
                   />
-                  <Text style={styles.ratings}></Text>
-                  <Animated.View style={[styles.loveAnimation, animatedStyle]}>
-                    <Text style={styles.loveText}>💙</Text>
-                  </Animated.View>
                 </TouchableOpacity>
+                <Text style={styles.totalLikesText}>
+                  {item.likes !== 0 ? `${item.likes} Likes` : "Belum ada Like"}
+                </Text>
               </View>
-            );
-          })}
-        </View>
+            </View>
+          </TouchableOpacity>
+        )}
+      />
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 30,
-    paddingHorizontal: 10,
-    top: 175,
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingTop: 16,
+    marginBottom: 140,
   },
-  card: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
+  categoryContainer: {
+    flexDirection: "row",
+    marginBottom: 10,
+  },
+  categoryBadge: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
     borderRadius: 10,
-    padding: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
     marginRight: 10,
-    shadowColor: '#000',
+    marginBottom: 10,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 1,
-    width: 80,
-    height: 80, 
+    elevation: 0.1,
+    width: 100,
+    height: 50,
   },
-  selectedCard: {
-    backgroundColor: '#c3eaff',
+  selectedCategoryBadge: {
+    backgroundColor: "#115f9f",
   },
-  icon: {
-    width: 25,
-    height: 25,
-    marginBottom: 5,
-    resizeMode: 'contain',
-    marginHorizontal: 'auto',
+  iconContainer: {
+    width: 30,
+    height: 30,
+    borderRadius: 25,
+    backgroundColor: "#f0f0f0",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  text: {
-    fontSize: 12,
-    color: '#333',
-    textAlign: 'center',
+  icons: {
+    width: 20,
+    height: 20,
+    alignItems: "center",
   },
-  selectedText: {
-    color: '#fff',
+  categoryText: {
+    fontSize: 10,
+    opacity: 0.8,
+    color: "#000",
+    textAlign: "center",
   },
-  containers: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 10,
-    top:10,
+  selectedCategoryText: {
+    color: "#fff",
   },
-  scrollableProductContainer: {
-    top: 2,
-    height: 400,
-  },
-  productContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    top: 15,
-    marginBottom: '65%',
+  row: {
+    justifyContent: "space-between",
+    marginBottom: 10,
   },
   productCard: {
-    backgroundColor: '#fff',
-    width: '49%', // Ensure two cards per row
+    backgroundColor: "#f4f8ff",
+    borderRadius: 18,
+    padding: 12,
+    marginBottom: 10,
+    shadowColor: "#0a3e7a",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 6,
+    width: "49%",
+  },
+  imageWrapper: {
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: "#e9f1ff",
+    marginBottom: 10,
+  },
+  productImage: {
+    width: "100%",
+    height: 140,
+    resizeMode: "contain",
+  },
+  discountBadge: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: "#115f9f",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  discountText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  productInfo: {
+    marginBottom: 10,
+  },
+  productName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1b2b40",
+  },
+  storeRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginVertical: 6,
+  },
+  storeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#e6f1ff",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 10,
+    maxWidth: "70%",
+  },
+  storeText: {
+    fontSize: 12,
+    color: "#115f9f",
+    marginLeft: 6,
+  },
+  categoryPill: {
+    backgroundColor: "#f5f7fb",
+    color: "#4a6078",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    fontSize: 11,
+    maxWidth: "40%",
+    textAlign: "right",
+  },
+  productUOM: {
+    fontSize: 12,
+    color: "#6b7a90",
+  },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 8,
+    marginTop: 6,
+  },
+  productPrice: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#115f9f",
+  },
+  productPriceOriginal: {
+    fontSize: 12,
+    color: "#9aa4b4",
+    textDecorationLine: "line-through",
+  },
+  productPriceDiscount: {
+    fontSize: 16,
+    color: "#115f9f",
+    fontWeight: "700",
+  },
+  actionContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 10,
+  },
+  actionButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: "#e8f2ff",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  totalLikesText: {
+    fontSize: 11,
+    color: "#6b7a90",
+    marginLeft: "auto",
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 52,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "rgba(17,95,159,0.16)",
+    elevation: 6,
+    shadowColor: "#0a3e7a",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    marginTop: 6,
+    marginBottom: 16,
+  },
+  searchBar: {
+    flex: 1,
+    height: 44,
+    paddingHorizontal: 12,
+    fontSize: 16,
+  },
+  searchIcon: {
+    marginRight: 12,
+    color: "#115f9f",
+  },
+  searchResult: {
+    marginTop: 10,
+    fontSize: 14,
+    color: "#333",
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    paddingHorizontal: 10,
+    marginTop: 0,
+  },
+  loadingCard: {
+    backgroundColor: "#f0f0f0",
     borderRadius: 10,
     padding: 10,
-    marginBottom: 10,
-    shadowColor: '#000',
+    marginBottom: 5,
+    width: "49%", // Sama dengan card produk asli
+    height: 300, // Sama dengan card produk asli
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
-    alignItems: 'center',
+    elevation: 0.1,
   },
-  productImage: {
-    width: '100%',
-    height: 100,
-    resizeMode: 'contain',
-    bottom: 10,
+  loadingImage: {
+    backgroundColor: "#e0e0e0",
+    borderRadius: 10,
+    width: "100%",
+    height: 120, // Sama dengan tinggi gambar pada card produk asli
+    marginBottom: 10,
   },
-  productName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
-    alignSelf: 'flex-start',
+  loadingText: {
+    backgroundColor: "#e0e0e0",
+    borderRadius: 5,
+    width: "70%",
+    height: 10,
+    marginBottom: 5,
   },
-  ratings:{
-    position:'absolute',
-    alignSelf: 'flex-end',
-    backgroundColor: '#115f9f',
-    color: '#fff',
-    padding: 3,
-    borderTopRightRadius: 10,
-    borderBottomLeftRadius: 10,
-    width: 40,
-    left:-29.5,
+  loadingTextSmall: {
+    backgroundColor: "#e0e0e0",
+    borderRadius: 5,
+    width: "50%",
+    height: 10,
   },
-  stars : {
-    zIndex:1,
-    position:'absolute',
-    alignSelf: 'flex-end',
-    right: 5,
-    padding: 3,
+  alertOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
-  price:{
-    fontSize: 14,
-    color: '#115f9f',
-    alignSelf: 'flex-start',
-    top: 5,
-  },
-  satuan:{
-    fontSize: 12,
-    color: '#333',
-    alignSelf: 'flex-start',
-    top: 5,
-    bottom: 5,
-    opacity: 0.5,
-  },
-  heartContainer: {
-    position: 'absolute',
-    alignSelf: 'flex-end',
-    right: 5,
-    padding: 3,
-  },
-  loveAnimation: {
-    position: 'absolute',
-    alignSelf: 'center',
-    top: -20,
-  },
-  loveText: {
-    fontSize: 20,
-    color: '#115f9f',
-  },
-  totalLikesText: {
-    fontSize: 12,
-    color: '#333',
-    position: 'absolute',
-    bottom: 7,
-    alignSelf: 'flex-end',
-    right: 5,
-    opacity: 0.5,
-  },
-  add_cart : {
-    alignSelf: 'flex-end',
-    backgroundColor: '#115f9f',
-    padding: 3,
-    borderRadius: 100,
-    color: '#fff',
-    shadowColor: '#000',
+  alertContainer: {
+    width: "80%",
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
-    elevation: 3,
-  }
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  alertText: {
+    marginTop: 10,
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+    textAlign: "center",
+  },
 });
+
+export default Produk;
