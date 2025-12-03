@@ -29,6 +29,34 @@ const goldlogo2 = require("../../assets/images/goldslogo.png");
 const premiumlogo = require("../../assets/images/premiumlogo.png");
 const diamond = require("../../assets/images/diamond.png");
 
+const benefitsMap: Record<string, string[]> = {
+  silver: [
+    "Diskon 5% untuk pembelian buah segar.",
+    "Akses prioritas ke promo mingguan.",
+    "Poin loyalitas: 1 poin setiap belanja Rp10.000.",
+    "Undangan ke event bazar khusus anggota.",
+    "Layanan pelanggan khusus member.",
+  ],
+  gold: [
+    "Diskon 10% untuk semua produk buah dan olahan.",
+    "Double poin loyalitas: 2 poin setiap belanja Rp10.000.",
+    "Akses eksklusif ke pre-order buah impor dan musiman.",
+    "Bonus ulang tahun berupa voucher belanja Rp50.000.",
+    "Layanan pengantaran prioritas.",
+    "Undangan khusus ke pelatihan dan workshop kewirausahaan buah.",
+  ],
+  Platinum: [
+    "Diskon 15% + cashback 5% setiap pembelian.",
+    "Triple poin loyalitas: 3 poin setiap belanja Rp10.000.",
+    "Produk eksklusif & edisi terbatas.",
+    "Undangan gathering nasional Laskar Buah.",
+    "Undangan ke gathering nasional Laskar Buah.",
+    "Prioritas kerjasama sebagai mitra distribusi/toko.",
+    "Bonus voucher tahunan senilai Rp500.000.",
+    "Dukungan branding dan promosi toko (bagi mitra).",
+  ],
+};
+
 export default function Profile() {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
@@ -52,18 +80,29 @@ export default function Profile() {
     no_tlp: string;
     rankd: string;
   } | null>(null);
+  const normalizedRank = (rank || "").toLowerCase();
+  const displayRank =
+    normalizedRank === "silver" || normalizedRank === "bronze" || normalizedRank === ""
+      ? "Silver"
+      : normalizedRank.charAt(0).toUpperCase() + normalizedRank.slice(1);
+  const benefitKey =
+    normalizedRank === "silver" || normalizedRank === "bronze" || normalizedRank === ""
+      ? "silver"
+      : normalizedRank;
   const levelTheme = React.useMemo(() => {
-    switch ((rank || "").toLowerCase()) {
+    switch (normalizedRank) {
+      case "silver":
       case "bronze":
-        return { bg: "#f8e3c0", text: "#b87429" };
-      case "premium":
+      case "":
+        return { bg: "#e6f3ff", text: "#535353ff" };
+      case "gold":
         return { bg: "#fff4cf", text: "#c18a00" };
       case "platinum":
         return { bg: "#e7edf5", text: "#4a6078" };
       default:
         return { bg: "#e6f3ff", text: "#115f9f" };
     }
-  }, [rank]);
+  }, [normalizedRank]);
 
   const [isLogoutModalVisible, setLogoutModalVisible] = useState(false);
 
@@ -135,12 +174,12 @@ export default function Profile() {
   return (
     <AuthProvider>
       <SafeAreaProvider>
-        <LinearGradient
-          colors={["#cde7ff", "#e6f3ff", "#ffffff"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 0.4 }}
-          style={styles.gradientBg}
-        >
+      <LinearGradient
+        colors={["#124c7bff", "#e2eeffff", "#ffffffff"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: -1, y: 1 }}
+        style={styles.gradientBg}
+      >
         <SafeAreaView style={[styles.container]}>
           <ScrollView
             style={styles.scrollView}
@@ -148,36 +187,48 @@ export default function Profile() {
             onScroll={handleScroll}
             scrollEventThrottle={16}
           >
-            <View style={styles.infoRow}>
-              <View style={styles.infoCard}>
-                <View>
-                  <Text style={styles.profileName}>
-                    {profil?.nama || "Member LBI"}
-                  </Text>
-                  <Text style={styles.profilePhone}>
-                    {profil?.no_tlp ? `${profil.no_tlp}` : "Nomor belum ada"}
-                  </Text>
-                  <Text style={styles.profileId}>
-                    {profil?.member_card ? `ID: ${profil.member_card}` : ""}
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={styles.barcodeButton}
-                onPress={toggleModal}
+            <View style={styles.profileCard}>
+              <LinearGradient
+                colors={["#4ad2ff", "rgba(74,210,255,0.2)", "rgba(8,16,26,0.95)"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: -1, y: 1 }}
+                style={styles.profileShell}
               >
-                <Ionicons
-                  name="qr-code-outline"
-                  size={22}
-                  color="#115f9f"
-                  style={{ marginBottom: 6 }}
-                />
-                <Text style={styles.barcodeText}>Barcode</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.goldRow}>
-              <View style={styles.goldContainer}>
-                <View style={[styles.levelBadgeInline, { backgroundColor: levelTheme.bg }]}>
+                <View style={styles.profileHeaderRow}>
+                  <View style={styles.profileIdentityCard}>
+                    <Text style={styles.profileName}>
+                      {profil?.nama || "Member LBI"}
+                    </Text>
+                    <Text style={styles.profilePhone}>
+                      {profil?.no_tlp ? `${profil.no_tlp}` : "Nomor belum ada"}
+                    </Text>
+                    <Text style={styles.profileId}>
+                      {profil?.member_card ? `ID: ${profil.member_card}` : ""}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.barcodeButton}
+                    onPress={toggleModal}
+                  >
+                    <Ionicons
+                      name="qr-code-outline"
+                      size={22}
+                      color="#b7e9ff"
+                      style={{ marginBottom: 6 }}
+                    />
+                    <Text style={[styles.barcodeText, { color: "#d9f6ff" }]}>
+                      Barcode
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </LinearGradient>
+              <View style={styles.memberCardShell}>
+                <View
+                  style={[
+                    styles.levelBadgeInline,
+                    { backgroundColor: levelTheme.bg },
+                  ]}
+                >
                   <Text style={styles.levelLabel}>Level</Text>
                   <Text
                     style={[
@@ -185,39 +236,49 @@ export default function Profile() {
                       { color: levelTheme.text },
                     ]}
                   >
-                    {rank || "Member"}
+                    {displayRank}
                   </Text>
                 </View>
                 <Image
                   source={
-                    rank === "bronze"
+                    normalizedRank === "silver" || normalizedRank === "bronze" || normalizedRank === ""
                       ? goldmember
-                      : rank === "premium"
+                      : normalizedRank === "gold"
                       ? gold2
-                      : rank === "platinum"
+                      : normalizedRank === "platinum"
                       ? diamond
                       : goldmember
                   }
-                  style={styles.cardmember}
+                  style={[styles.cardmember, styles.memberCardImage]}
                 />
                 <Animated.Image
                   source={
-                    rank === "bronze"
+                    normalizedRank === "silver" || normalizedRank === "bronze" || normalizedRank === ""
                       ? goldlogo
-                      : rank === "premium"
+                      : normalizedRank === "gold"
                       ? goldlogo2
-                      : rank === "premium"
+                      : normalizedRank === "platinum"
                       ? premiumlogo
                       : goldlogo
                   }
                   style={[
                     styles.goldlogo,
+                    styles.memberCardLogo,
                     {
                       transform: [{ scale: scaleAnim }],
                       opacity: opacityAnim,
                     },
                   ]}
                 />
+              </View>
+              <View style={styles.benefitsBlock}>
+                <Text style={styles.benefitsTitle}>Keuntungan Member</Text>
+                {(benefitsMap[benefitKey] || benefitsMap.silver).map((item, idx) => (
+                  <View key={`${item}-${idx}`} style={styles.benefitItem}>
+                    <View style={styles.benefitDot} />
+                    <Text style={styles.benefitText}>{item}</Text>
+                  </View>
+                ))}
               </View>
             </View>
             <View style={styles.menuContainer}>
@@ -322,19 +383,30 @@ export default function Profile() {
                   <Text style={styles.menuText}>Pusat Bantuan</Text>
                 </View>
                 <Ionicons name="arrow-forward" size={18} style={styles.arrow} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.menuItem, { marginTop: 20 }]}
-                onPress={handleLogout}
-              >
-                <View style={styles.menuContent}>
-                  <Ionicons name="log-out" size={18} style={styles.icon2} />
-                  <Text style={styles.menuText2}>Keluar</Text>
-                </View>
-                <Ionicons name="arrow-forward" size={18} style={styles.arrow} />
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.menuItem, { marginTop: 20 }]}
+                  onPress={handleLogout}
+                >
+                  <View style={styles.menuContent}>
+                    <Ionicons name="log-out" size={18} style={styles.icon2} />
+                    <Text style={styles.menuText2}>Keluar</Text>
+                  </View>
+                  <Ionicons name="arrow-forward" size={18} style={styles.arrow} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.menuItem, { marginTop: 10 }]}
+                  onPress={() => {}}
+                >
+                  <View style={styles.menuContent}>
+                    <Ionicons name="trash-outline" size={18} style={styles.icon2} />
+                    <Text style={styles.menuText2}>Delete Akun</Text>
+                  </View>
+                  <Ionicons name="arrow-forward" size={18} style={styles.arrow} />
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          <View style={styles.bottomFill} pointerEvents="none" />
           {/* modal */}
           <Modal
             visible={isModalVisible}
@@ -414,24 +486,32 @@ const styles = StyleSheet.create({
   contentContainer: {
     flexGrow: 1,
     backgroundColor: "transparent",
-    paddingBottom: 32,
+    paddingBottom: 120,
   },
   gradientBg: {
     flex: 1,
   },
+  bottomFill: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 50,
+    backgroundColor: "#ffffff",
+  },
   profileName: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#0f4d92",
+    color: "#e8f5ff",
   },
   profilePhone: {
     fontSize: 13,
-    color: "#4a6078",
+    color: "#cde9ff",
     marginTop: 4,
   },
   profileId: {
     fontSize: 12,
-    color: "#7c8ca4",
+    color: "#a8d7f3",
     marginTop: 2,
   },
   menuContainer: {
@@ -559,7 +639,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
     alignSelf: "stretch",
-    marginTop: 8,
+    marginTop: 4,
   },
   goldRow: {
     flexDirection: "row",
@@ -571,9 +651,12 @@ const styles = StyleSheet.create({
   },
   goldlogo: {
     position: "absolute",
-    width: 120,
-    height: 120,
+    width: 140,
+    height: 140,
     resizeMode: "contain",
+    top: "50%",
+    left: "20%",
+    transform: [{ translateX: -70 }, { translateY: -70 }],
   },
   levelBadgeInline: {
     position: "absolute",
@@ -588,23 +671,108 @@ const styles = StyleSheet.create({
   },
   barcodeButton: {
     width: 88,
-    height: 120,
+    height: 88,
     borderRadius: 14,
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(12,24,38,0.9)",
     borderWidth: 1,
-    borderColor: "rgba(17,95,159,0.12)",
+    borderColor: "rgba(74,210,255,0.35)",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#0a3e7a",
+    shadowColor: "#4ad2ff",
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  barcodeText: {
-    color: "#115f9f",
+    barcodeText: {
+      color: "#0f9ed0",
+      fontWeight: "700",
+      fontSize: 13,
+    },
+  benefitsBlock: {
+    marginTop: 12,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "rgba(17,95,159,0.08)",
+  },
+  benefitsTitle: {
+    fontSize: 15,
     fontWeight: "700",
-    fontSize: 12,
+    color: "#115f9f",
+    marginBottom: 8,
+  },
+  benefitItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6,
+  },
+  benefitDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#115f9f",
+  },
+  benefitText: {
+    fontSize: 13,
+    color: "#4a6078",
+    flex: 1,
+  },
+  profileIdentityCard: {
+    flex: 1,
+    backgroundColor: "transparent",
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+    profileCard: {
+      width: "92%",
+      alignSelf: "center",
+      marginTop: 12,
+      marginBottom: 10,
+    },
+    profileShell: {
+      borderRadius: 18,
+      padding: 2,
+      shadowColor: "#4ad2ff",
+      shadowOpacity: 0.25,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: 0 },
+      elevation: 10,
+    },
+  profileHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "rgba(8,16,26,0.95)",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: "rgba(74,210,255,0.35)",
+  },
+    profileIdentity: {
+      flex: 1,
+    },
+  memberCardShell: {
+    marginTop: 14,
+    borderRadius: 14,
+    overflow: "hidden",
+    position: "relative",
+    backgroundColor: "#e9f1ff",
+    padding: 10,
+  },
+  memberCardImage: {
+    width: "100%",
+    height: 140,
+    borderRadius: 12,
+  },
+  memberCardLogo: {
+    width: 120,
+    height: 120,
+    top: "22%",
   },
   titleprofile: {
     fontSize: 16,

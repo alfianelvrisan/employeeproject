@@ -27,33 +27,15 @@ type ReelBase = {
 
 type ReelItem = ReelBase & { loopKey?: string; mirrorId?: string };
 
-const reels: ReelBase[] = [
-  {
-    id: "1",
-    title: "LBI Reels 1",
-    description: "Geser untuk melihat video lainnya.",
-    source: require("../../assets/images/reels/vidio1.mp4"),
-  },
-  {
-    id: "2",
-    title: "LBI Reels 2",
-    description: "Video kedua dari Laskar Buah.",
-    source: require("../../assets/images/reels/vidio2.mp4"),
-  },
-  {
-    id: "3",
-    title: "LBI Reels 3",
-    description: "Video ketiga dari Laskar Buah.",
-    source: require("../../assets/images/reels/vidio3.mp4"),
-  },
-];
-
 export default function GiftReels() {
   const navigation = useNavigation<any>();
   const router = useRouter();
+  const [reels, setReels] = useState<ReelBase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [likeCountMap, setLikeCountMap] = useState<Record<string, number>>({});
-  const [activeId, setActiveId] = useState<string>(reels[0]?.id || "");
+  const [activeId, setActiveId] = useState<string>("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [loopIndex, setLoopIndex] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
@@ -70,7 +52,7 @@ export default function GiftReels() {
       ...reels.map((item) => ({ ...item, loopKey: `main-${item.id}`, mirrorId: item.id })),
       { ...first, loopKey: `loop-head-${first.id}`, mirrorId: first.id },
     ];
-  }, []);
+  }, [reels]);
 
   useEffect(() => {
     const parent = navigation.getParent?.();
@@ -85,12 +67,53 @@ export default function GiftReels() {
   }, [navigation]);
 
   useEffect(() => {
+    let isMounted = true;
+    const fetchReels = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch("https://api.laskarbuah.com/api/ListProdukFoto");
+        const json = await res.json();
+        if (!isMounted) return;
+        const filtered: ReelBase[] = (json || [])
+          .filter((item: any) => {
+            const foto = typeof item?.foto === "string" ? item.foto : "";
+            const kategori = typeof item?.nama_kategori === "string" ? item.nama_kategori.toLowerCase() : "";
+            const isVideoCategory = kategori === "vidio";
+            const isMp4 = foto.toLowerCase().endsWith(".mp4");
+            return isVideoCategory && isMp4;
+          })
+          .map((item: any) => ({
+            id: String(item.id_produk ?? item.kode_produk ?? Math.random()),
+            title: item.name_produk ?? "Video",
+            description: item.nama_kategori ?? "Vidio",
+            source: { uri: item.foto },
+          }));
+        setReels(filtered);
+        setError(null);
+      } catch (err: any) {
+        if (isMounted) {
+          setError("Gagal memuat video");
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    fetchReels();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     const initial: Record<string, number> = {};
     reels.forEach((item, idx) => {
       initial[item.id] = 1200 + idx * 37;
     });
     setLikeCountMap(initial);
-  }, []);
+    setActiveId(reels[0]?.id || "");
+    setActiveIndex(0);
+    setLoopIndex(reels.length ? 1 : 0);
+  }, [reels]);
 
   useEffect(() => {
     return () => {
@@ -130,6 +153,7 @@ export default function GiftReels() {
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 }).current;
 
   const handleMomentumEnd = () => {
+    if (!reels.length) return;
     if (loopIndex === 0) {
       listRef.current?.scrollToIndex({ index: reels.length, animated: false });
     } else if (loopIndex === loopedData.length - 1) {
@@ -239,7 +263,7 @@ export default function GiftReels() {
           data={loopedData}
           keyExtractor={(item) => item.loopKey || item.id}
           renderItem={renderItem}
-          initialScrollIndex={1}
+          initialScrollIndex={loopedData.length > 1 ? 1 : 0}
           pagingEnabled
           snapToInterval={CARD_HEIGHT}
           snapToAlignment="start"
@@ -247,6 +271,13 @@ export default function GiftReels() {
           disableIntervalMomentum
           bounces={false}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>
+              {loading ? "Memuat video..." : error ? error : "Tidak ada video tersedia"}
+            </Text>
+          </View>
+        }
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
         onMomentumScrollEnd={handleMomentumEnd}
@@ -263,7 +294,6 @@ export default function GiftReels() {
         windowSize={2}
         removeClippedSubviews
         />
-        <View style={styles.bottomPanel} />
         <LinearGradient
           pointerEvents="none"
           colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.75)"]}
@@ -333,16 +363,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     height: 240,
   },
-  bottomPanel: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 140,
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-  },
   cardVideo: {
     width: "100%",
     height: "100%",
@@ -410,6 +430,15 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontWeight: "700",
+  },
+  emptyState: {
+    height: CARD_HEIGHT,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyText: {
+    color: "#fff",
+    fontSize: 16,
   },
 });
 

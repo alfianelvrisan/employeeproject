@@ -21,6 +21,12 @@ import {
 import { fetchProfile } from "../../services/profileServices";
 import { fetchDeliveryServices } from "../../services/deliveryServices";
 
+type ProdukProps = {
+  idStore: any;
+  searchQuery?: string;
+  showSearchBar?: boolean;
+};
+
 const getCategoryIcon = (item: any) => {
   const label = (item?.kategory || "").toLowerCase();
   if (label.includes("sayuran basah")) {
@@ -32,13 +38,17 @@ const getCategoryIcon = (item: any) => {
   return require("../../assets/icons/sayuran.png");
 };
 
-const Produk = ({ idStore }: any) => {
+const Produk = ({
+  idStore,
+  searchQuery = "",
+  showSearchBar = true,
+}: ProdukProps) => {
   const [selectedCategory, setSelectedCategory] = useState(0);
   const [likedProducts, setLikedProducts] = useState<number[]>([]);
   const [produck, setProducts] = useState<any[]>([]);
   const [categorys, setCategory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(searchQuery);
   const [showCartAlert, setShowCartAlert] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const { userToken } = useAuth();
@@ -76,6 +86,10 @@ const Produk = ({ idStore }: any) => {
     if (!idStore) return;
     fetchAndSetProducts();
   }, [idStore]);
+
+  useEffect(() => {
+    setSearch(searchQuery);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (!idStore) return;
@@ -126,6 +140,8 @@ const Produk = ({ idStore }: any) => {
 
     try {
       await sendLike(userToken || "", productId, idStore);
+      // Sinkronkan kembali dengan data server agar hitungan like konsisten antar pengguna
+      await fetchAndSetProducts();
     } catch (error) {
       console.error("Failed to like/unlike product:", error);
       setLikedProducts((prev) =>
@@ -231,21 +247,23 @@ const Produk = ({ idStore }: any) => {
         </View>
       </Modal>
 
-      <View style={styles.searchContainer}>
-        <Ionicons
-          name="search-outline"
-          size={20}
-          color="#aaa"
-          style={styles.searchIcon}
-        />
-        <TextInput
-          style={styles.searchBar}
-          placeholder="Search something..."
-          placeholderTextColor="#aaa"
-          value={search}
-          onChangeText={(text) => setSearch(text)}
-        />
-      </View>
+      {showSearchBar && (
+        <View style={styles.searchContainer}>
+          <Ionicons
+            name="search-outline"
+            size={20}
+            color="#aaa"
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchBar}
+            placeholder="Search something..."
+            placeholderTextColor="#aaa"
+            value={search}
+            onChangeText={(text) => setSearch(text)}
+          />
+        </View>
+      )}
       <FlatList
         horizontal
         data={categorys}
@@ -311,8 +329,13 @@ const Produk = ({ idStore }: any) => {
               ) : null}
             </View>
 
-            <View style={styles.productInfo}>
-              <Text style={styles.productName} numberOfLines={2}>
+              <View style={styles.productInfo}>
+              <Text
+                style={styles.productName}
+                numberOfLines={2}
+                adjustsFontSizeToFit
+                minimumFontScale={0.9}
+              >
                 {item.name_produk}
               </Text>
 
@@ -485,6 +508,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
     color: "#1b2b40",
+    flexShrink: 1,
   },
   storeRow: {
     flexDirection: "row",
@@ -505,6 +529,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#115f9f",
     marginLeft: 6,
+    flexShrink: 1,
   },
   categoryPill: {
     backgroundColor: "#f5f7fb",
@@ -513,8 +538,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 10,
     fontSize: 11,
-    maxWidth: "40%",
+    maxWidth: "42%",
     textAlign: "right",
+    flexShrink: 1,
   },
   productUOM: {
     fontSize: 12,

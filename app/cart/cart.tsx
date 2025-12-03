@@ -868,6 +868,7 @@ const Cart = () => {
         <Stack.Screen
           options={{
             headerShown: true,
+            headerTitleAlign: "left",
             headerTitle: () => (
               <View style={styles.headerTitleWrapper}>
                 <Text style={styles.headerTitleText}>Pesanan</Text>
@@ -884,6 +885,14 @@ const Cart = () => {
                 style={styles.headerBackgroundGradient}
               />
             ),
+            headerStyle: {
+              height: 78,
+            },
+            headerTitleContainerStyle: {
+              height: 10,
+              marginBottom: 12,
+            },
+            headerShadowVisible: false,
             headerTintColor: "#fff",
           }}
         />
@@ -1185,7 +1194,9 @@ const styles = StyleSheet.create({
     marginLeft: "auto",
   },
   checkoutWrapper: {
-    paddingHorizontal: 20,
+    width: "92%",
+    alignSelf: "center",
+    paddingHorizontal: 0,
     paddingBottom: 12,
     paddingTop: 8,
     marginTop: 6,
@@ -1570,7 +1581,8 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   headerTitleWrapper: {
-    alignItems: "center",
+    alignItems: "flex-start",
+    marginTop: -4,
   },
   headerTitleText: {
     fontSize: 18,

@@ -93,14 +93,6 @@ const App = () => {
                 }, ${profil?.alamat || "-"}`}
               </Text>
             </View>
-            <View>
-              <TouchableOpacity
-                style={styles.inputContainer2}
-                onPress={() => router.push('/scan/ScanKTP')}
-                >
-                  <Text style={{marginHorizontal:"auto",color:"#fff"}}>Update Profile</Text>
-                </TouchableOpacity>
-            </View>
           </ScrollView>
         </SafeAreaView>
       </SafeAreaProvider>

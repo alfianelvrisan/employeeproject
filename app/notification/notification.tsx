@@ -13,13 +13,32 @@ import {
 } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import CustomHeader from "../../components/CustomHeader";
-const imagesbaner = { uri: 'https://webportallaskarbuah.is3.cloudhost.id/webportallaskarbuah/news_media/hxFTh725jTwjldhAL4sWeTHtTwSofLRomTc4UmEa.jpg' };
+const imagesbaner = require("../../assets/images/bannernotification1.jpg");
 
 const category = [
-  { id: 4, name: 'Diskon' },
+  { id: 1, name: "Yang Baru" },
+  { id: 4, name: "Diskon" },
 ];
 
-const notifikasi: any[] = [];
+const notifikasi: any[] = [
+  {
+    title: "Rilis Aplikasi Baru LBI Mobile",
+    description:
+      "Versi terbaru siap dicoba! Update untuk tampilan lebih segar dan notifikasi real-time.",
+    date: "2025-02-01",
+    category: "Yang Baru",
+    image: imagesbaner,
+  },
+  {
+    title: "Diskon Buah Segar 20%",
+    description: "Nikmati potongan 20% untuk buah favoritmu sepanjang minggu ini.",
+    date: "2025-02-05",
+    category: "Diskon",
+    image: {
+      uri: "https://webportallaskarbuah.is3.cloudhost.id/webportallaskarbuah/news_media/j40fMq4gqFOhd1S8O3zIauETGveriQ1TZlh3f2XT.png",
+    },
+  },
+];
 
 const App = () => {
   const [selectedCategory, setSelectedCategory] = useState('Diskon');
@@ -34,12 +53,11 @@ const App = () => {
       <SafeAreaProvider>
         <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
           <CustomHeader title="Notification" />
-           <Stack.Screen
-                  name="/subProfil/profil"
-                  options={{
-                    headerShown: false, // Hide header for the main profile screen
-                  }}
-                />
+          <Stack.Screen
+            options={{
+              headerShown: false, // Hide header for the main profile screen
+            }}
+          />
           <ScrollView style={styles.scrollView}>
             {/* Horizontal scrollable category section */}
             <ScrollView

@@ -5,23 +5,36 @@ import {
   FlatList,
   Image,
   TouchableOpacity,
+  TextInput,
 } from "react-native";
 import Produk from "../produk/produk";
 import { HelloWave } from "../../components/HelloWave";
 import Cardhome from "../cardHome/cardhome";
 import Location from "../location/location";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { fetchProfile } from "../../services/profileServices";
 import useScrollHeader from "../../hooks/useScrollHeader";
-import { Animated } from "react-native";
+import { Animated, Alert } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
+import Constants from "expo-constants";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
 
 export default function Index() {
   const [selectedLocation, setSelectedLocation] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const { userToken } = useAuth();
   const { logout } = useAuth();
   const [profil, setProfile] = React.useState<{
@@ -35,6 +48,10 @@ export default function Index() {
   const [refreshing, setRefreshing] = useState(false);
   const [produkKey, setProdukKey] = useState(0); // Key to force re-render Produk
   const { headerStyle, handleScroll } = useScrollHeader();
+  // Default 1 agar badge merah muncul untuk notifikasi contoh
+  const [unreadCount, setUnreadCount] = useState(1);
+  const notificationListener = useRef<Notifications.Subscription | null>(null);
+  const responseListener = useRef<Notifications.Subscription | null>(null);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -42,8 +59,8 @@ export default function Index() {
       if (userToken) {
         const profile = await fetchProfile(userToken);
         setProfile(profile);
-        if(profile===undefined){
-          logout()
+        if (profile === undefined) {
+          logout();
         }
         setProdukKey((prevKey) => prevKey + 1); // Update Produk key to refresh it
       }
@@ -62,6 +79,55 @@ export default function Index() {
     }
   }, [userToken]);
 
+  useEffect(() => {
+    const registerForPushNotificationsAsync = async () => {
+      if (!Device.isDevice) {
+        Alert.alert("Notifikasi", "Push notifikasi memerlukan perangkat fisik.");
+        return;
+      }
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== "granted") {
+        Alert.alert("Notifikasi", "Izin notifikasi ditolak.");
+        return;
+      }
+      try {
+        const projectId =
+          Constants.expoConfig?.extra?.eas?.projectId ??
+          Constants.easConfig?.projectId;
+        if (!projectId) {
+          console.warn("Project ID untuk push token tidak ditemukan.");
+          return;
+        }
+        await Notifications.getExpoPushTokenAsync({ projectId });
+      } catch (e) {
+        console.warn("Gagal mengambil push token:", e);
+      }
+    };
+
+    registerForPushNotificationsAsync();
+
+    notificationListener.current =
+      Notifications.addNotificationReceivedListener(() => {
+        setUnreadCount((prev) => prev + 1);
+      });
+
+    responseListener.current =
+      Notifications.addNotificationResponseReceivedListener(() => {
+        setUnreadCount(0);
+        router.push("/notification/notification");
+      });
+
+    return () => {
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
+    };
+  }, []);
+
   return (
     <SafeAreaProvider>
       <LinearGradient
@@ -70,60 +136,117 @@ export default function Index() {
         end={{ x: 0, y: 0.4 }}
         style={styles.gradientBg}
       >
-      <SafeAreaView style={styles.container}>
-        <Animated.View style={[styles.floatingHeader, headerStyle]}>
-          <Image
-            source={require("../../assets/images/update_logolbimobile.png")}
-            style={styles.headerLogo}
-          />
-          <TouchableOpacity
-            style={styles.notifButton}
-            onPress={() => router.push("/notification/notification")}
-          >
-            <Ionicons name="notifications-outline" size={22} color="#fff" />
-            <View style={styles.notifBadge}>
-              <Text style={styles.notifText}>13</Text>
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
-        <FlatList
-          data={[]}
-          keyExtractor={() => `${userToken}`}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => null}
-          scrollEventThrottle={16}
-          onScroll={handleScroll}
-          ListHeaderComponent={
-            <>
-              <View style={styles.headerSpacer} />
-              <View style={styles.heroBg}>
-                <View style={styles.section}>
-                  <Text style={styles.greetingTitle}>
-                    {profil?.greeting || "Good morning"},
-                  </Text>
-                  <View style={styles.greetingRow}>
-                    <Text style={styles.greetingName}>
-                      {profil?.nama || "Sobat Laskar Buah"}
-                    </Text>
-                    <HelloWave />
-                  </View>
-                  <Text style={styles.greetingSubtitle}>
-                    Semoga harimu menyenangkan dan penuh energi.
+        <SafeAreaView style={styles.container}>
+          <Animated.View style={[styles.floatingHeader, headerStyle]}>
+            <LinearGradient
+              colors={["#115f9f", "#0b2850"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.headerGradientOverlay}
+            />
+            <Image
+              source={require("../../assets/images/update_logolbimobile.png")}
+              style={styles.headerLogo}
+            />
+            <TouchableOpacity
+              style={styles.notifButton}
+              onPress={() => {
+                setUnreadCount(0);
+                router.push("/notification/notification");
+              }}
+            >
+              <Ionicons name="notifications-outline" size={22} color="#fff" />
+              {unreadCount > 0 && (
+                <View style={styles.notifBadge}>
+                  <Text style={styles.notifText}>
+                    {unreadCount > 99 ? "99+" : unreadCount}
                   </Text>
                 </View>
-              </View>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
+          <FlatList
+            data={[]}
+            keyExtractor={() => `${userToken}`}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => null}
+            scrollEventThrottle={16}
+            onScroll={handleScroll}
+            ListHeaderComponent={
+              <>
+                <View style={styles.headerSpacer} />
+                <View style={styles.heroBg}>
+                  <View style={styles.section}>
+                    <Text style={styles.greetingTitle}>
+                      {profil?.greeting || "Good morning"},
+                    </Text>
+                    <View style={styles.greetingRow}>
+                      <Text style={styles.greetingName}>
+                        {profil?.nama || "Sobat Laskar Buah"}
+                      </Text>
+                      <HelloWave />
+                    </View>
+                    <Text style={styles.greetingSubtitle}>
+                      Semoga harimu menyenangkan dan penuh energi.
+                    </Text>
+                  </View>
+                </View>
 
-              <Cardhome />
-              <Location onSelectStore={setSelectedLocation} />
-              <Produk idStore={selectedLocation} key={produkKey} /> 
-            </>
-          }
-          bounces={false}
-          overScrollMode="never"
-          onRefresh={handleRefresh}
-          refreshing={refreshing}
-        />
-      </SafeAreaView>
+                <Cardhome />
+                <Location onSelectStore={setSelectedLocation} />
+                <View style={styles.searchWrapper}>
+                  <LinearGradient
+                    colors={[
+                      "rgba(74,210,255,0.45)",
+                      "rgba(74,210,255,0.08)",
+                    ]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.neonShell}
+                  >
+                    <View style={styles.neonSearch}>
+                      <Ionicons
+                        name="search-outline"
+                        size={18}
+                        color="#b7e9ff"
+                        style={styles.neonIcon}
+                      />
+                      <TextInput
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        placeholder="cari produk favoritmu"
+                        placeholderTextColor="#cde9ff"
+                        style={styles.neonInput}
+                        selectionColor="#4ad2ff"
+                      />
+                      <TouchableOpacity
+                        onPress={() => setSearchQuery("")}
+                        style={styles.neonAction}
+                        accessibilityLabel="Hapus pencarian"
+                      >
+                        <Ionicons
+                          name="close-circle-outline"
+                          size={16}
+                          color="#d9f6ff"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </LinearGradient>
+                </View>
+                <Produk
+                  idStore={selectedLocation}
+                  key={produkKey}
+                  searchQuery={searchQuery}
+                  showSearchBar={false}
+                />
+              </>
+            }
+            bounces={false}
+            overScrollMode="never"
+            onRefresh={handleRefresh}
+            refreshing={refreshing}
+          />
+        </SafeAreaView>
       </LinearGradient>
     </SafeAreaProvider>
   );
@@ -176,7 +299,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 78,
-    backgroundColor: "rgba(17,95,159,0.95)",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 10,
@@ -188,6 +310,13 @@ const styles = StyleSheet.create({
     paddingTop: 26,
     paddingHorizontal: 16,
     flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(17,95,159,0.2)",
+  },
+  headerGradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   headerLogo: {
     width: 100,
@@ -201,24 +330,70 @@ const styles = StyleSheet.create({
   },
   notifBadge: {
     position: "absolute",
-    top: 2,
-    right: 2,
+    top: -4,
+    right: -6,
     backgroundColor: "red",
-    borderRadius: 10,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    minWidth: 18,
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    minWidth: 20,
     alignItems: "center",
     justifyContent: "center",
+    transform: [{ scale: 1 }],
   },
   notifText: {
     color: "#fff",
     fontSize: 10,
     fontWeight: "700",
+    textAlign: "center",
   },
   searchWrapper: {
-    marginTop: 10,
-    marginBottom: 10,
+    marginTop: 12,
+    marginBottom: 12,
+    paddingHorizontal: 0,
+    marginHorizontal: "2%",
+  },
+  neonShell: {
+    borderRadius: 18,
+    padding: 2,
+  },
+  neonSearch: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 16,
+    backgroundColor: "rgba(8,16,26,0.95)",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: "rgba(74,210,255,0.5)",
+    shadowColor: "#4ad2ff",
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 10,
+  },
+  neonIcon: {
+    marginRight: 10,
+  },
+  neonInput: {
+    flex: 1,
+    color: "#e8f5ff",
+    fontSize: 15,
+  },
+  neonAction: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(74,210,255,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(7, 124, 162, 0.12)",
+    shadowColor: "#4ad2ff",
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 6,
   },
   // Spacer agar konten tidak tertutup header animasi
   headerSpacer: {

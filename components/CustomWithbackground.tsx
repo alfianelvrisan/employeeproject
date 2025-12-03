@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function CustomHeader({ title }: { title: string }) {
   const router = useRouter();
@@ -10,20 +11,24 @@ export default function CustomHeader({ title }: { title: string }) {
     <>
       <StatusBar backgroundColor="transparent" barStyle="light-content" translucent />
       <View style={styles.headerContainer}>
-        <View style={styles.backgroundOverlay}>
-          {/* Back Button */}
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={24} color="#fff" />
-          </TouchableOpacity>
+        <LinearGradient
+          colors={["#4ad2ff", "rgba(74,210,255,0.2)", "rgba(8,16,26,0.95)"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradientShell}
+        >
+          <View style={styles.headerCard}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+              <Ionicons name="chevron-back" size={22} color="#b7e9ff" />
+            </TouchableOpacity>
 
-          {/* Title */}
-          <Text style={styles.headerTitle}>{title}</Text>
+            <Text style={styles.headerTitle}>{title}</Text>
 
-          {/* Cart Icon */}
-          <TouchableOpacity onPress={() => router.push("/cart/cart")} style={styles.cartButton}>
-            <Ionicons name="cart-outline" size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity onPress={() => router.push("/cart/cart")} style={styles.iconButton}>
+              <Ionicons name="cart-outline" size={22} color="#b7e9ff" />
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
       </View>
     </>
   );
@@ -31,37 +36,48 @@ export default function CustomHeader({ title }: { title: string }) {
 
 const styles = StyleSheet.create({
   headerContainer: {
-    height: 60,
-    backgroundColor: "transparent", // Make the background transparent
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center", // Center content horizontally
-    paddingHorizontal: 15,
-    top: 30,
-    zIndex: 1000, // Ensure the header is above other content
-    
+    backgroundColor: "transparent",
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    zIndex: 1000,
   },
-  backgroundOverlay: {
+  gradientShell: {
+    borderRadius: 18,
+    padding: 2,
+  },
+  headerCard: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between", // Distribute items evenly
-    backgroundColor: "rgba(31, 95, 214, 0.9)", // Biru palet utama dengan opasitas
-    width: "100%", // Full width
-    paddingHorizontal: 10,
+    justifyContent: "space-between",
+    width: "100%",
+    backgroundColor: "rgba(8,16,26,0.95)",
+    borderRadius: 16,
+    paddingHorizontal: 5,
     paddingVertical: 5,
-    borderRadius:20
-  },
-  backButton: {
-    marginLeft: 10, // Add spacing to the left
+    borderWidth: 1,
+    borderColor: "rgba(74,210,255,0.35)",
+    shadowColor: "#4ad2ff",
+    shadowOpacity: 0.3,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 10,
   },
   headerTitle: {
-    fontSize: 18,
-    color: "#fff", // Set text color to white
-    fontWeight: "bold",
-    textAlign: "center", // Center the title
-    flex: 1, // Allow the title to take up available space
+    fontSize: 17,
+    color: "#e8f5ff",
+    fontWeight: "800",
+    textAlign: "center",
+    flex: 1,
+    textTransform: "capitalize",
   },
-  cartButton: {
-    marginRight: 10, // Add spacing to the right
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(74,210,255,0.35)",
+    backgroundColor: "rgba(12,24,38,0.9)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

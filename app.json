@@ -1,18 +1,39 @@
 {
   "expo": {
+    "name": "LBI MOBILE",
+    "slug": "reactapp",
+    "version": "1.1.0",
+    "scheme": "reactapp",
     "plugins": [
       "./app.plugin.js"
     ],
+    "icon": "./assets/images/lbilogo.png",
+    "splash": {
+      "image": "./assets/images/lbilogo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
     "extra": {
       "eas": {
         "projectId": "4f117d70-5a5b-463f-bce3-4e40fd35dc63"
       }
     },
     "android": {
-      "package": "com.alfianelvrisan.reactapp"
+      "package": "com.prastyaneki.lbimobile",
+      "icon": "./assets/images/lbilogo_padded.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/lbilogo_padded.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "splash": {
+        "image": "./assets/images/lbilogo.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#FFFFFF"
+      }
     },
     "ios": {
-      "bundleIdentifier": "com.alfianelvrisan.reactapp",
+      "bundleIdentifier": "com.prastyaneki.lbimobile",
+      "icon": "./assets/images/lbilogo.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }

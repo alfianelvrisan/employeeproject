@@ -153,8 +153,9 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.2)",
   },
   logo: {
-    height: 72,
+    height: 84,
     width: 84,
+    borderRadius: 15,
     resizeMode: "contain",
   },
   title: {

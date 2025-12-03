@@ -2,7 +2,7 @@ export const paymentMidtrans = async (
   id: number,
   userToken: string,
   total: number,
-  idMember: string,
+  customerName: string,
   phone: string,
   products: {
     id_produk: string;
@@ -10,9 +10,20 @@ export const paymentMidtrans = async (
     harga: number;
     qty: number;
   }[],
-  description: string,
+  description: string
 ) => {
-  console.log(id, userToken, total, idMember, phone, products, description);
+  const sanitizedProducts = products.map((item) => ({
+    id_produk: String(item.id_produk),
+    nama_produk: item.nama_produk,
+    harga: Number(item.harga) || 0,
+    qty: Number(item.qty) || 0,
+  }));
+  const derivedTotal = sanitizedProducts.reduce(
+    (sum, item) => sum + item.harga * item.qty,
+    0
+  );
+  const amount = derivedTotal > 0 ? derivedTotal : total;
+
   try {
     const response = await fetch(`https://api.laskarbuah.com/api/SnapApi`, {
       method: "POST",
@@ -22,11 +33,11 @@ export const paymentMidtrans = async (
       },
       body: JSON.stringify({
         id: id,
-        Amount: total,
-        CustomerName: idMember,
+        Amount: amount,
+        CustomerName: customerName,
         Phone: phone,
-        Products: products,
-        Address:description
+        Products: sanitizedProducts,
+        Address: description || "-",
       }),
     });
 
@@ -38,7 +49,7 @@ export const paymentMidtrans = async (
     const result = await response.json();
     return result;
   } catch (error) {
-    throw error;
     console.error("Error creating Midtrans transaction:", error);
+    throw error;
   }
 };

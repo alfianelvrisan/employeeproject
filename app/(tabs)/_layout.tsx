@@ -68,7 +68,7 @@ export default function App() {
         icon = routeName === selectedTab ? "home" : "home-outline";
         break;
       case "Settings":
-        icon = routeName === selectedTab ? "gift" : "gift-outline";
+        icon = routeName === selectedTab ? "play-circle" : "play-circle-outline";
         break;
       case "Profiles":
         icon = routeName === selectedTab ? "person" : "person-outline";
@@ -93,9 +93,16 @@ export default function App() {
     );
   };
   const renderTabBar = ({ routeName, selectedTab, navigate }) => {
+    const handlePress = () => {
+      if (routeName === "Settings") {
+        router.push("/gift/Gift");
+      } else {
+        navigate(routeName);
+      }
+    };
     return (
       <TouchableOpacity
-      onPress={() => navigate(routeName)}
+      onPress={handlePress}
         style={styles.tabbarItem}
       >
         {_renderIcon(routeName, selectedTab)}
@@ -114,7 +121,7 @@ const insets = useSafeAreaInsets();
         shadowStyle={styles.shadow}
         height={55}
         circleWidth={50}
-        bgColor="#000"
+        bgColor="white"
         initialRouteName="Home"
         id="mainNavigator" // Unique ID for the navigator
         screenOptions={{ headerShown: false }} // Example screen options
