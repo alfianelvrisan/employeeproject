@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useRef, useState } from "react";
+import React, { ReactNode, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -11,8 +11,6 @@ import {
   ScrollView,
   RefreshControl,
   Button,
-  Animated,
-  TextStyle,
   Modal,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -36,8 +34,19 @@ import {
 } from "../../services/_cekStatusPayment";
 import * as Clipboard from "expo-clipboard";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import { opacity } from "react-native-reanimated/lib/typescript/Colors";
 import useScrollHeader from "../../hooks/useScrollHeader";
+
+const SEARCH_NEON_GRADIENT = [
+  "rgba(255, 255, 255, 0.45)",
+  "rgba(74,210,255,0.08)",
+];
+const SEARCH_NEON_MUTED = [
+  "rgba(255, 255, 255, 0.15)",
+  "rgba(74,210,255,0.02)",
+];
+
+const NEON_GRADIENT = ["#0b1427", "#0c1b35", "#115f9f"];
+const TAB_DISABLED_GRADIENT = ["#ffffffff", "#f8f9ffff"];
 
 const Cart = () => {
   const { userToken } = useAuth();
@@ -77,29 +86,7 @@ const Cart = () => {
   const [orderIds, setOrderId] = useState<string>("");
   const [responsePayment, setResponsePayment] = useState<any>(null);
   const [responseByorderId, setResponseByorderId] = useState<any>(null);
-  const [isFocused, setIsFocused] = useState(false);
-  const labelAnim = useRef(new Animated.Value(0)).current;
   const { headerStyle, handleScroll } = useScrollHeader();
-
-  const handleFocus = () => {
-    setIsFocused(true);
-    Animated.timing(labelAnim, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const handleBlur = () => {
-    if (!description) {
-      setIsFocused(false);
-      Animated.timing(labelAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: false,
-      }).start();
-    }
-  };
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -206,15 +193,6 @@ const Cart = () => {
           },
         },
       ]
-    );
-  };
-
-  const handleQuantityChange = (id: number, value: string) => {
-    const newQty = parseFloat(value) || 0;
-    setCartItems((prevItems) =>
-      prevItems.map((item) =>
-        item.id === id ? { ...item, qty: newQty } : item
-      )
     );
   };
 
@@ -442,141 +420,132 @@ const Cart = () => {
     }
   };
 
-  const labelStyle: Animated.WithAnimatedObject<TextStyle> = {
-    position: "absolute",
-    left: 10,
-    top: labelAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [18, -10],
-    }),
-    fontSize: labelAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [16, 12],
-    }),
-    color: isFocused ? "#115f9f" : "#888",
-    backgroundColor: "white",
-    paddingHorizontal: 5,
+  type TabButtonProps = {
+    label: string;
+    isActive: boolean;
+    onPress: () => void;
   };
+
+  const TabButton = ({ label, isActive, onPress }: TabButtonProps) => (
+    <TouchableOpacity
+      style={styles.tabButtonWrapper}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+        <LinearGradient
+          colors={isActive ? NEON_GRADIENT : TAB_DISABLED_GRADIENT}
+          style={[
+            styles.tabButtonGradient,
+            isActive && styles.tabButtonGradientActive,
+          ]}
+        >
+        <Text
+          style={[
+            styles.tabButtonText,
+            isActive && styles.tabButtonTextActive,
+          ]}
+        >
+          {label}
+        </Text>
+      </LinearGradient>
+    </TouchableOpacity>
+  );
 
   const renderTabContent = () => {
     if (selectedTab === "List Belanja") {
       return (
-        <View>
+        <View style={styles.cardList}>
           {cartItems.length > 0 ? (
-            cartItems.map((item) => (
+            cartItems.map((item) => {
+              const isDisabled =
+                Boolean(
+                  selectedStore &&
+                    selectedStore !== item.name_store &&
+                    !selectedItems.includes(item.id)
+                );
+              const hasDiscount =
+                typeof item.disc_member === "number" &&
+                item.disc_member > 0;
+              const finalPrice = hasDiscount
+                ? item.price_origin - item.disc_member
+                : item.price_origin;
+              return (
               <View
                 key={item.id}
                 style={[
                   styles.cartItem,
-                  selectedStore &&
-                  selectedStore !== item.name_store &&
-                  !selectedItems.includes(item.id)
-                    ? styles.disabledCard
-                    : null,
+                  isDisabled ? styles.disabledCard : null,
                 ]}
               >
-                <TouchableOpacity
-                  style={styles.checkboxContainer}
-                  onPress={() => handleToggleSelection(item.id)}
-                  disabled={Boolean(
-                    selectedStore &&
-                      selectedStore !== item.name_store &&
-                      !selectedItems.includes(item.id)
-                  )}
-                >
-                  <Ionicons
-                    name={
-                      selectedItems.includes(item.id)
-                        ? "radio-button-on"
-                        : "radio-button-off"
-                    }
-                    size={24}
-                    color="#115f9f"
-                  />
-                </TouchableOpacity>
-                <Image source={{ uri: item.foto }} style={styles.itemImage} />
-                <View style={styles.itemDetails}>
-                  <Text style={styles.itemName}>{item.name_produk}</Text>
-                  <Text style={styles.itemPrice}>{item.name_store}</Text>
-                  <Text style={styles.itemStock}>
-                    Stock : {item.qty_stock}
-                    <Text style={styles.uom}> /{item.uom}</Text>
-                  </Text>
-                  <Text
-                    style={
-                      typeof item.disc_member === "number" &&
-                      item.disc_member > 0
-                        ? styles.itemPrice2
-                        : styles.itemPrice
-                    }
-                  >
-                    Rp {item.price_origin.toLocaleString()}
-                    <Text style={styles.uom}>/{item.uom}</Text>
-                  </Text>
-                  {typeof item.disc_member === "number" &&
-                    item.disc_member > 0 && (
-                      <Text style={styles.itemPrice}>
-                        Rp{" "}
-                        {(
-                          item.price_origin - item.disc_member
-                        ).toLocaleString()}
-                      </Text>
-                    )}
-
-                  <View style={styles.quantityContainer}>
+                  <View style={styles.cartItemContent}>
                     <TouchableOpacity
-                      onPress={() => handleDecreaseQuantity(item.id)}
-                      disabled={Boolean(
-                        selectedStore &&
-                          selectedStore !== item.name_store &&
-                          !selectedItems.includes(item.id)
-                      )}
+                      style={styles.checkboxContainer}
+                      onPress={() => handleToggleSelection(item.id)}
+                      disabled={isDisabled}
                     >
                       <Ionicons
-                        name="remove-circle-outline"
-                        size={24}
+                        name={
+                          selectedItems.includes(item.id)
+                            ? "radio-button-on"
+                            : "radio-button-off"
+                        }
+                        size={22}
                         color="#115f9f"
                       />
                     </TouchableOpacity>
-                    <TextInput
-                      style={styles.quantityInput}
-                      keyboardType="numeric"
-                      value={item.qty.toString()}
-                      editable={false}
-                      onChangeText={(value) =>
-                        handleQuantityChange(item.id, value)
-                      }
-                    />
+                    <Image source={{ uri: item.foto }} style={styles.itemImage} />
+                    <View style={styles.itemSummary}>
+                      <Text style={styles.itemName}>{item.name_produk}</Text>
+                      <Text style={styles.storeName}>{item.name_store}</Text>
+                      <View style={styles.priceRow}>
+                        <Text style={styles.currentPrice}>
+                          Rp {finalPrice.toLocaleString()}
+                        </Text>
+                        {hasDiscount && (
+                          <Text style={styles.originalPrice}>
+                            Rp {item.price_origin.toLocaleString()}
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={styles.stockText}>
+                        Stock: {item.qty_stock} <Text style={styles.uom}>/{item.uom}</Text>
+                      </Text>
+                    </View>
                     <TouchableOpacity
-                      onPress={() =>
-                        handleIncreaseQuantity(item.id, Number(item.idh))
-                      }
-                      disabled={Boolean(
-                        selectedStore &&
-                          selectedStore !== item.name_store &&
-                          !selectedItems.includes(item.id)
-                      )}
+                      style={styles.deleteIconContainer}
+                      onPress={() => handleRemoveItem(item.id)}
+                      disabled={isDisabled}
                     >
-                      <Ionicons
-                        name="add-circle-outline"
-                        size={24}
-                        color="#115f9f"
-                      />
+                      <Ionicons name="trash-outline" size={20} color="#d7263d" />
                     </TouchableOpacity>
                   </View>
+                  <View style={styles.quantitySection}>
+                    <Text style={styles.sectionLabel}>Jumlah</Text>
+                    <View style={styles.quantityControls}>
+                      <TouchableOpacity
+                        style={styles.qtyButton}
+                        onPress={() => handleDecreaseQuantity(item.id)}
+                        disabled={isDisabled}
+                      >
+                        <Ionicons name="remove" size={20} color="#115f9f" />
+                      </TouchableOpacity>
+                      <View style={styles.qtyValue}>
+                        <Text style={styles.qtyValueText}>{item.qty}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.qtyButton}
+                        onPress={() =>
+                          handleIncreaseQuantity(item.id, Number(item.idh))
+                        }
+                        disabled={isDisabled}
+                      >
+                        <Ionicons name="add" size={20} color="#115f9f" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </View>
-                <TouchableOpacity
-                  onPress={() => handleRemoveItem(item.id)}
-                  disabled={Boolean(
-                    selectedStore &&
-                      selectedStore !== item.name_store &&
-                      !selectedItems.includes(item.id)
-                  )}
-                >
-                  <Ionicons name="trash-outline" size={24} color="red" />
-                </TouchableOpacity>
-              </View>
-            ))
+              );
+            })
           ) : (
             <Text
               style={{ textAlign: "center", alignItems: "center", top: 100 }}
@@ -588,153 +557,142 @@ const Cart = () => {
       );
     } else if (selectedTab === "Belum Bayar") {
       return (
-        <View>
+        <View style={styles.paymentListWrapper}>
           {responsePayment?.length > 0 &&
           responsePayment.some(
             (payment: any) => payment.status !== "settlement"
           ) ? (
             responsePayment
-              .filter((payment: any) => payment.status !== "settlement") // Filter untuk mengecualikan status settlement
+              .filter((payment: any) => payment.status !== "settlement")
               .map((payment: any, index: number) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.paymentCard,
-                    (payment.status === "expire" || payment.status === null) &&
-                      styles.disabledCards,
-                  ]}
-                >
-                  {/* Header */}
-                  <Text style={styles.groupName}>
-                    {payment.strukDetailsList?.[0]?.group_name || "Nama Toko"}
-                  </Text>
-                  <Text style={styles.slogan}>
-                    {payment.strukDetailsList?.[0]?.slogan || "Slogan Toko"}
-                  </Text>
-                  <Text style={styles.address}>
-                    {payment.strukDetailsList?.[0]?.alamat_store ||
-                      "Alamat Toko"}
-                  </Text>
-
-                  {/* Informasi Transaksi */}
-                  <View style={styles.transactionDetails}>
-                    <Text style={styles.transactionText}>
-                      No Transaksi:{" "}
-                      {payment.strukDetailsList?.[0]?.trx_num || "N/A"}
+                <View key={index} style={styles.paymentCardShell}>
+                  <View
+                    style={[
+                      styles.paymentCard,
+                      (payment.status === "expire" || payment.status === null) &&
+                        styles.disabledCards,
+                    ]}
+                  >
+                    <Text style={styles.groupName}>
+                      {payment.strukDetailsList?.[0]?.group_name || "Nama Toko"}
                     </Text>
-                    <Text style={styles.transactionText}>
-                      Status:{" "}
-                      <Text
-                        style={[
-                          payment.status === "pending"
-                            ? { color: "orange" }
-                            : payment.status === "expire"
-                            ? { color: "red" }
-                            : { color: "black" },
-                        ]}
-                      >
-                        {payment.status || "N/A"}
+                    <Text style={styles.slogan}>
+                      {payment.strukDetailsList?.[0]?.slogan || "Slogan Toko"}
+                    </Text>
+                    <Text style={styles.address}>
+                      {payment.strukDetailsList?.[0]?.alamat_store ||
+                        "Alamat Toko"}
+                    </Text>
+
+                    <View style={styles.transactionDetails}>
+                      <Text style={styles.transactionText}>
+                        No Transaksi:{" "}
+                        {payment.strukDetailsList?.[0]?.trx_num || "N/A"}
                       </Text>
-                    </Text>
-                  </View>
-                  <View style={styles.transactionDetails}>
-                    <Text style={styles.transactionText}>
-                      Store:{" "}
-                      {payment.strukDetailsList?.[0]?.name_store || "N/A"}
-                    </Text>
-                    <Text style={styles.transactionText}>
-                      Member:{" "}
-                      {payment.strukDetailsList?.[0]?.user_name || "N/A"}
-                    </Text>
-                  </View>
-
-                  {/* Produk */}
-                  <View style={styles.productList}>
-                    {payment.strukDetailsList?.map((item: any, idx: number) => (
-                      <>
-                        <View key={idx} style={styles.productItem}>
-                          <Text style={styles.productName}>
-                            {idx + 1}. {item.name_produk}
-                          </Text>
-                        </View>
-                        <View style={styles.productDetails}>
-                          <Text style={styles.productQty}>Qty: {item.qty}</Text>
-                          <Text style={styles.productPrice}>
-                            Harga: Rp {item.price.toLocaleString("id-ID")}
-                          </Text>
-                        </View>
-                      </>
-                    ))}
-                  </View>
-
-                  {/* Footer */}
-                  <Text style={styles.detailRow}>
-                    Expired At: {payment.expired_at || "N/A"}
-                  </Text>
-                  <Text style={styles.detailRow}>
-                    Payment Type: {payment.payment_type || "N/A"}
-                  </Text>
-                  <Text style={styles.detailRow}>
-                    Tanggal:{" "}
-                    {payment.strukDetailsList?.[0]?.create_date
-                      ? new Date(
-                          payment.strukDetailsList[0].create_date
-                        ).toLocaleString("id-ID", {
-                          day: "2-digit",
-                          month: "long",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "Tanggal tidak tersedia"}
-                  </Text>
-                  {payment.va && payment.va.length > 0 && (
-                    <View>
-                      {payment.va.map(
-                        (
-                          vaItem: {
-                            bank: string;
-                            va_number: string;
-                          },
-                          index: React.Key | null | undefined
-                        ) => (
-                          <View key={index}>
-                            <Text>Bank: {vaItem.bank}</Text>
-                            <View style={styles.detailRow}>
-                              <Text style={styles.detailRow}>
-                                VA Number: {vaItem.va_number}
-                              </Text>
-                              <TouchableOpacity
-                                onPress={() =>
-                                  typeof vaItem.va_number === "string" &&
-                                  handleCopy(vaItem.va_number)
-                                }
-                              >
-                                <Icon
-                                  name="content-copy"
-                                  size={20}
-                                  color="#007AFF"
-                                />
-                              </TouchableOpacity>
-                            </View>
-                          </View>
-                        )
-                      )}
+                      <View style={styles.statusPill}>
+                        <Text
+                          style={[
+                            styles.statusPillText,
+                            payment.status === "pending" && styles.statusPending,
+                            payment.status === "expire" && styles.statusExpire,
+                            payment.status === "settlement" &&
+                              styles.statusSettlement,
+                          ]}
+                        >
+                          {payment.status || "N/A"}
+                        </Text>
+                      </View>
                     </View>
-                  )}
-                  {(payment.status === null || payment.status === "expire") && (
-                    <TouchableOpacity>
-                      <Text
-                        style={[styles.deleteButton, { opacity: 1 }]}
+                    <View style={styles.transactionDetails}>
+                      <Text style={styles.transactionText}>
+                        Store:{" "}
+                        {payment.strukDetailsList?.[0]?.name_store || "N/A"}
+                      </Text>
+                      <Text style={styles.transactionText}>
+                        Member:{" "}
+                        {payment.strukDetailsList?.[0]?.user_name || "N/A"}
+                      </Text>
+                    </View>
+
+                    <View style={styles.productList}>
+                      {payment.strukDetailsList?.map((item: any, idx: number) => (
+                        <React.Fragment key={idx}>
+                          <View style={styles.productItem}>
+                            <Text style={styles.productName}>
+                              {idx + 1}. {item.name_produk}
+                            </Text>
+                          </View>
+                          <View style={styles.productDetails}>
+                            <Text style={styles.productQty}>Qty: {item.qty}</Text>
+                            <Text style={styles.productPrice}>
+                              Harga: Rp {item.price.toLocaleString("id-ID")}
+                            </Text>
+                          </View>
+                        </React.Fragment>
+                      ))}
+                    </View>
+
+                    <View style={styles.transactionDetails}>
+                      <Text style={styles.transactionText}>
+                        Subtotal: Rp{" "}
+                        {payment?.strukDetailsList?.[0]?.total_price?.toLocaleString(
+                          "id-ID"
+                        ) || "N/A"}
+                      </Text>
+                      <Text style={styles.transactionText}>
+                        PPN: Rp{" "}
+                        {payment?.strukDetailsList?.[0]?.ppn?.toLocaleString(
+                          "id-ID"
+                        ) || 0}
+                      </Text>
+                    </View>
+                    <View style={styles.transactionDetails}>
+                      <Text style={styles.transactionText}>
+                        Grand Total: Rp{" "}
+                        {payment?.strukDetailsList?.[0]?.total?.toLocaleString(
+                          "id-ID"
+                        ) || "N/A"}
+                      </Text>
+                    </View>
+
+                    <View style={styles.transactionDetails}>
+                      <Text style={styles.transactionText}>
+                        Bank: {payment.va_numbers?.[0]?.bank || "N/A"}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.copyRow}
                         onPress={() =>
-                          handleDelete(payment.strukDetailsList[0].id)
+                          typeof payment.va_numbers?.[0]?.va_number === "string" &&
+                          handleCopy(payment.va_numbers[0].va_number)
                         }
                       >
-                        <Ionicons name="trash" size={15} />
-                        Delete
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+                        <Text style={styles.transactionText}>
+                          VA:{" "}
+                          {payment.va_numbers?.[0]?.va_number ||
+                            payment.permata_va_number ||
+                            "-"}
+                        </Text>
+                        <Icon name="content-copy" size={18} color="#115f9f" />
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.vaHint}>
+                      Note: Lakukan pembayaran melalui VA di atas.
+                    </Text>
+
+                    {(payment.status === null || payment.status === "expire") && (
+                      <TouchableOpacity>
+                        <Text
+                          style={[styles.deleteButton, { opacity: 1 }]}
+                          onPress={() =>
+                            handleDelete(payment.strukDetailsList[0].id)
+                          }
+                        >
+                          <Ionicons name="trash" size={15} />
+                          Delete
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
               ))
           ) : (
@@ -903,71 +861,55 @@ const Cart = () => {
       <LinearGradient
         colors={["#cde7ff", "#e6f3ff", "#ffffff"]}
         start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 0.4 }}
+        end={{ x: 0, y: 1 }}
         style={styles.gradientBg}
       >
       <View style={styles.container}>
-        <Stack.Screen options={{ headerShown: false }} />
-        <Animated.View
-          style={[
-            styles.floatingHeader,
-            headerStyle,
-          ]}
-        >
-          <Text style={styles.floatingTitle}>Pesanan</Text>
-        </Animated.View>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[
-              styles.button,
-              selectedTab === "List Belanja" && styles.activeButton,
-            ]}
+        <Stack.Screen
+          options={{
+            headerShown: true,
+            headerTitle: () => (
+              <View style={styles.headerTitleWrapper}>
+                <Text style={styles.headerTitleText}>Pesanan</Text>
+                <Text style={styles.headerSubtitleText}>
+                  Kelola keranjang dan pembayaran
+                </Text>
+              </View>
+            ),
+            headerBackground: () => (
+              <LinearGradient
+                colors={["#115f9f", "#0b2850"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.headerBackgroundGradient}
+              />
+            ),
+            headerTintColor: "#fff",
+          }}
+        />
+        <View style={styles.tabRow}>
+          <TabButton
+            label="List Belanja"
+            isActive={selectedTab === "List Belanja"}
             onPress={() => setSelectedTab("List Belanja")}
-          >
-            <Text
-              style={[
-                styles.buttonText,
-                selectedTab === "List Belanja" && styles.activeButtonText,
-              ]}
-            >
-              List Belanja
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.button,
-              selectedTab === "Belum Bayar" && styles.activeButton,
-            ]}
+          />
+          <TabButton
+            label="Belum Bayar"
+            isActive={selectedTab === "Belum Bayar"}
             onPress={() => setSelectedTab("Belum Bayar")}
-          >
-            <Text
-              style={[
-                styles.buttonText,
-                selectedTab === "Belum Bayar" && styles.activeButtonText,
-              ]}
-            >
-              Belum Bayar
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.button,
-              selectedTab === "Selesai" && styles.activeButton,
-            ]}
+          />
+          <TabButton
+            label="Selesai"
+            isActive={selectedTab === "Selesai"}
             onPress={() => setSelectedTab("Selesai")}
-          >
-            <Text
-              style={[
-                styles.buttonText,
-                selectedTab === "Selesai" && styles.activeButtonText,
-              ]}
-            >
-              Selesai
-            </Text>
-          </TouchableOpacity>
+          />
         </View>
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          style={styles.scrollArea}
+          contentContainerStyle={[
+            styles.scrollContent,
+            selectedTab === "List Belanja" && styles.listScrollPadding,
+          ]}
           scrollEventThrottle={16}
           onScroll={handleScroll}
           refreshControl={
@@ -976,64 +918,115 @@ const Cart = () => {
         >
           {renderTabContent()}
           {selectedTab === "List Belanja" && cartItems.length > 0 ? (
-            <View style={styles.footer}>
-              <Text style={styles.totalText}>
-                Total: Rp{totalPrice.toLocaleString()}
-              </Text>
-              <Animated.Text style={labelStyle}>
-                Tambahkan deskripsi Wajib
-              </Animated.Text>
-              <TextInput
-                style={styles.descriptionInput}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
-                onChangeText={(text) => setDescription(text)}
-                value={description}
-              />
-              <TouchableOpacity
-                style={[
-                  styles.checkoutButton,
-                  selectedItems.length === 0 && styles.disabledButton, // Tambahkan gaya jika tombol dinonaktifkan
-                ]}
-                onPress={() => handleCheckout()}
-                disabled={selectedItems.length === 0} // Nonaktifkan tombol jika tidak ada item yang dipilih
+            <View style={styles.checkoutWrapper}>
+              <LinearGradient
+                colors={NEON_GRADIENT}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.checkoutCardGradient}
               >
-                <Text style={styles.checkoutButtonText}>Bayar sekarang</Text>
-              </TouchableOpacity>
+                <View style={styles.checkoutCard}>
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalLabel}>Total</Text>
+                    <Text style={styles.totalText}>
+                      Rp{totalPrice.toLocaleString()}
+                    </Text>
+                  </View>
+                  <TextInput
+                    style={styles.descriptionInput}
+                    onChangeText={(text) => setDescription(text)}
+                    value={description}
+                    placeholder="Tambahkan deskripsi pesanan (opsional)"
+                    placeholderTextColor="#6c7b9c"
+                  />
+                  <TouchableOpacity
+                    onPress={handleCheckout}
+                    disabled={selectedItems.length === 0}
+                    activeOpacity={0.8}
+                    style={styles.checkoutButtonWrapper}
+                  >
+                    <LinearGradient
+                      colors={
+                        selectedItems.length === 0
+                          ? ["#ffffff", "#f5f6ff"]
+                          : NEON_GRADIENT
+                      }
+                      style={[
+                        styles.checkoutButtonGradient,
+                        selectedItems.length === 0 &&
+                          styles.checkoutButtonGradientDisabled,
+                      ]}
+                    >
+                      <View style={styles.buyNowContent}>
+                        <Text
+                          style={[
+                            styles.checkoutButtonText,
+                            selectedItems.length === 0 &&
+                              styles.checkoutButtonTextDisabled,
+                          ]}
+                        >
+                          Bayar sekarang
+                        </Text>
+                        <Ionicons
+                          name="cart-outline"
+                          size={22}
+                          color={
+                            selectedItems.length === 0 ? "#1a1a1a" : "#fff"
+                          }
+                          style={styles.checkoutIcon}
+                        />
+                      </View>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              </LinearGradient>
             </View>
           ) : null}
         </ScrollView>
-        <View style={styles.container}>
-          <Modal
-            transparent={true}
-            visible={isModalVisible}
-            animationType="fade"
-            onRequestClose={() => setModalVisible(false)}
-          >
-            <View style={styles.overlay}>
-              <View style={styles.modalContainer}>
-                <Text style={styles.modalTitle}>Konfirmasi Checkout</Text>
-                <Text style={styles.modalMessage}>
-                  Apakah Anda yakin ingin membuat pesanan?
-                </Text>
-                <View style={styles.buttonContainer}>
-                  <TouchableOpacity
-                    style={styles.cancelButton}
-                    onPress={() => setModalVisible(false)}
+        <View style={styles.bottomFill} pointerEvents="none" />
+        <Modal
+          transparent={true}
+          visible={isModalVisible}
+          animationType="fade"
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.overlay}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Konfirmasi Checkout</Text>
+              <Text style={styles.modalMessage}>
+                Apakah Anda yakin ingin membuat pesanan?
+              </Text>
+              <View style={styles.modalButtonRow}>
+                <TouchableOpacity
+                  onPress={() => setModalVisible(false)}
+                  activeOpacity={0.8}
+                  style={styles.modalButtonWrapper}
+                >
+                  <LinearGradient
+                    colors={["#f1f2f4", "#d8dce1"]}
+                    style={styles.modalButtonGradient}
                   >
-                    <Text style={styles.cancelButtonText}>Batal</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.confirmButton}
-                    onPress={confirmCheckout}
+                    <Text style={styles.modalButtonText}>Batal</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={confirmCheckout}
+                  activeOpacity={0.8}
+                  style={styles.modalButtonWrapper}
+                >
+                  <LinearGradient
+                    colors={["#52c7ff", "#2f89ff", "#1f5fd6"]}
+                    style={styles.modalButtonGradient}
                   >
-                    <Text style={styles.confirmButtonText}>OK</Text>
-                  </TouchableOpacity>
-                </View>
+                    <Text style={[styles.modalButtonText, styles.modalButtonTextPrimary]}>
+                      OK
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
               </View>
             </View>
-          </Modal>
-        </View>
+          </View>
+        </Modal>
       </View>
       </LinearGradient>
     </AuthProvider>
@@ -1043,13 +1036,27 @@ const Cart = () => {
 const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 100,
-    paddingTop: 90,
+    paddingBottom: 40,
+    paddingTop: 10,
+    backgroundColor: "transparent",
+  },
+  listScrollPadding: {
+    paddingBottom: 80,
+  },
+  cardList: {
+    width: "100%",
+    alignItems: "center",
+    paddingTop: 0,
+    paddingBottom: 12,
   },
   gradientBg: {
     flex: 1,
   },
   container: {
+    flex: 1,
+    backgroundColor: "transparent",
+  },
+  scrollArea: {
     flex: 1,
     backgroundColor: "transparent",
   },
@@ -1110,16 +1117,21 @@ const styles = StyleSheet.create({
     width: "50%",
   },
   cartItem: {
+    backgroundColor: "#fff",
+    padding: 14,
+    marginBottom: 12,
+    borderRadius: 20,
+    shadowColor: "#0a3e7a",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 4,
+    width: "92%",
+    alignSelf: "center",
+  },
+  cartItemContent: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    padding: 10,
-    marginBottom: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 0.1,
   },
   disabledCard: {
     backgroundColor: "#f0f0f0",
@@ -1134,74 +1146,157 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginRight: 10,
   },
-  itemDetails: {
-    flex: 1,
-  },
   itemName: {
     fontSize: 16,
     fontWeight: "bold",
     color: "#333",
   },
-  itemPrice: {
-    fontSize: 14,
-    color: "#666",
-    marginVertical: 5,
+  itemSummary: {
+    flex: 1,
   },
-  itemPrice2: {
-    fontSize: 14,
-    color: "#666",
-    marginVertical: 5,
-    textDecorationLine: "line-through",
+  storeName: {
+    fontSize: 13,
+    color: "#4a6078",
+    marginBottom: 6,
   },
-  quantityContainer: {
+  priceRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 5,
+    marginBottom: 4,
   },
-  quantityInput: {
-    width: 50,
-    height: "auto",
+  currentPrice: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#115f9f",
+  },
+  originalPrice: {
+    fontSize: 12,
+    color: "#9aa4bc",
+    textDecorationLine: "line-through",
+  },
+  stockText: {
+    fontSize: 12,
+    color: "#606060",
+  },
+  deleteIconContainer: {
+    padding: 6,
+    borderRadius: 12,
+    backgroundColor: "#ffecec",
+    marginLeft: "auto",
+  },
+  checkoutWrapper: {
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    paddingTop: 8,
+    marginTop: 6,
+  },
+  checkoutCardGradient: {
+    borderRadius: 30,
+    padding: 3,
+    shadowColor: "#0d60d3",
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.35,
+    shadowRadius: 26,
+    elevation: 18,
+  },
+  checkoutCard: {
+    borderRadius: 28,
+    padding: 18,
+    backgroundColor: "rgba(255,255,255,0.98)",
+  },
+  totalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  totalLabel: {
+    fontSize: 14,
+    color: "#7284a3",
+    fontWeight: "600",
+  },
+  totalGlass: {
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    backgroundColor: "rgba(255,255,255,0.95)",
     borderWidth: 1,
-    borderColor: "#ddd",
-    textAlign: "center",
-    fontSize: 10,
-    marginHorizontal: 5,
-    backgroundColor: "#f9f9f9",
-  },
-  footer: {
-    backgroundColor: "#fff",
-    padding: 15,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
-    elevation: 0.1,
-    top: 15,
+    borderColor: "rgba(17,95,159,0.1)",
+    shadowColor: "#0a3e7a",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 4,
+    marginBottom: 12,
   },
   totalText: {
     fontSize: 18,
-    fontWeight: "medium",
+    fontWeight: "700",
     color: "#115f9f",
-    marginBottom: 10,
     textAlign: "right",
     fontFamily: "bolder",
+    marginRight: 8,
   },
-  checkoutButton: {
+  checkoutButtonWrapper: {
     borderRadius: 30,
     overflow: "hidden",
-    backgroundColor: "#115f9f",
-    height: 50,
-    justifyContent: "center",
-    alignItems: "center",
+    marginTop: 10,
+    width: "100%",
   },
-  checkoutGradient: {
-    paddingVertical: 15,
+  checkoutButtonGradient: {
+    height: 52,
     alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 30,
+    borderWidth: 0,
+    shadowColor: "#0d60d3",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.65,
+    shadowRadius: 25,
+    elevation: 12,
+  },
+  checkoutButtonGradientDisabled: {
+    opacity: 0.9,
   },
   checkoutButtonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  checkoutButtonTextDisabled: {
+    color: "#1a1a1a",
+  },
+  buyNowContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  checkoutIcon: {
+    marginLeft: 6,
+  },
+  checkoutButtonFull: {
+    width: "100%",
+  },
+  bottomFill: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 50,
+    backgroundColor: "#ffffff",
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+  },
+  bottomFill: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 50,
+    backgroundColor: "#ffffff",
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
   },
   uom: {
     fontSize: 10,
@@ -1209,72 +1304,87 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontWeight: "bold",
   },
-  buttonContainer: {
+  quantitySection: {
+    marginTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: "#eef5ff",
+    paddingTop: 14,
     flexDirection: "row",
-    justifyContent: "center",
-    marginVertical: 0,
+    alignItems: "center",
+    justifyContent: "space-between",
   },
-  button: {
-    flex: 1,
-    backgroundColor: "#fff",
-    paddingVertical: 10,
-    marginHorizontal: "0%",
+  sectionLabel: {
+    fontSize: 13,
+    color: "#4a6078",
+    fontWeight: "600",
+  },
+  quantityControls: {
+    flexDirection: "row",
     alignItems: "center",
   },
-  activeButton: {
-    backgroundColor: "#115f9f",
-  },
-  button1: {
-    flex: 1,
-    backgroundColor: "#c3eaff",
-    paddingVertical: 10,
-    marginHorizontal: "0%",
-    // borderRadius: 8,
-    borderEndEndRadius: 10,
-    borderTopRightRadius: 10,
-    alignItems: "center",
-  },
-  button2: {
-    flex: 1,
-    backgroundColor: "#c3eaff",
-    paddingVertical: 10,
-    marginHorizontal: "0%",
-    // borderRadius: 8,
-    borderTopLeftRadius: 10,
-    borderBottomLeftRadius: 10,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#115f9f",
-    fontSize: 14,
-    fontWeight: "bold",
-    fontFamily: "arial",
-  },
-  activeButtonText: {
-    color: "#fff",
-  },
-  floatingHeader: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 78,
-    backgroundColor: "rgba(17,95,159,0.95)",
+  qtyButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 20,
-    elevation: 10,
-    shadowColor: "#0a3e7a",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 18,
-    paddingTop: 26,
-    paddingHorizontal: 16,
+    backgroundColor: "#eef5ff",
+    marginHorizontal: 4,
   },
-  floatingTitle: {
-    fontSize: 18,
+  qtyValue: {
+    minWidth: 46,
+    borderRadius: 10,
+    backgroundColor: "#f0f5ff",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  qtyValueText: {
+    fontSize: 15,
     fontWeight: "700",
-    color: "#fff",
+    color: "#115f9f",
+  },
+  tabRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "92%",
+    alignSelf: "center",
+    paddingVertical: 12,
+    marginTop: 6,
+    backgroundColor: "transparent",
+  },
+  tabButtonWrapper: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  tabButtonGradient: {
+    borderRadius: 18,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "transparent",
+    shadowColor: "transparent",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  tabButtonGradientActive: {
+    borderColor: "rgba(255,255,255,0.2)",
+    shadowColor: "#4ad2ff",
+    shadowOpacity: 0.65,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 12,
+  },
+  tabButtonText: {
+    color: "#111",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  tabButtonTextActive: {
+    color: "#ffffffff",
   },
   itemStock: {
     fontSize: 12,
@@ -1283,27 +1393,41 @@ const styles = StyleSheet.create({
   },
   descriptionInput: {
     borderWidth: 1,
-    borderColor: "#115f9f",
-    padding: 10,
+    borderColor: "rgba(17,95,159,0.35)",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     marginBottom: 10,
     fontSize: 14,
-    color: "#333",
-    borderRadius: 25,
+    color: "#1a1a1a",
+    borderRadius: 22,
+    backgroundColor: "rgba(244,248,255,0.92)",
   },
   belumBayar: {
     top: 100,
     fontSize: 100,
   },
+  paymentListWrapper: {
+    width: "100%",
+    alignItems: "center",
+    paddingTop: 6,
+    paddingBottom: 30,
+  },
+  paymentCardShell: {
+    width: "92%",
+    borderRadius: 28,
+    padding: 3,
+    marginBottom: 18,
+    backgroundColor: "rgba(17,95,159,0.12)",
+  },
   paymentCard: {
     backgroundColor: "#fff",
-    padding: 10,
-    marginVertical: 5,
-    borderRadius: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    borderRadius: 24,
+    padding: 18,
+    shadowColor: "#0a3e7a",
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 0.1,
+    shadowRadius: 18,
+    elevation: 6,
   },
   paymentOrderId: {
     fontSize: 14,
@@ -1350,7 +1474,8 @@ const styles = StyleSheet.create({
   transactionDetails: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 3,
+    alignItems: "center",
+    marginBottom: 8,
   },
   transactionText: {
     fontSize: 14,
@@ -1413,6 +1538,52 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginBottom: 4,
   },
+  statusPill: {
+    backgroundColor: "rgba(17,95,159,0.08)",
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+  },
+  statusPillText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#115f9f",
+    textTransform: "capitalize",
+  },
+  statusPending: {
+    color: "#f5a524",
+  },
+  statusExpire: {
+    color: "#d7263d",
+  },
+  statusSettlement: {
+    color: "#1c8d3a",
+  },
+  copyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  vaHint: {
+    fontSize: 12,
+    color: "#6a7a96",
+    marginTop: 6,
+  },
+  headerTitleWrapper: {
+    alignItems: "center",
+  },
+  headerTitleText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  headerSubtitleText: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.85)",
+  },
+  headerBackgroundGradient: {
+    flex: 1,
+  },
 
   label: {
     width: 120, // atur lebar agar sejajar
@@ -1421,6 +1592,32 @@ const styles = StyleSheet.create({
 
   value: {
     flex: 1,
+  },
+  modalButtonRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    marginTop: 10,
+  },
+  modalButtonWrapper: {
+    flex: 1,
+    marginHorizontal: 6,
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  modalButtonGradient: {
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+  },
+  modalButtonText: {
+    fontSize: 15,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  modalButtonTextPrimary: {
+    color: "#fff",
   },
   deleteButton: {
     color: "red",
@@ -1484,32 +1681,6 @@ const styles = StyleSheet.create({
   //   justifyContent: "space-between",
   //   width: "100%",
   // },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: "#ddd",
-    padding: 10,
-    borderRadius: 5,
-    marginRight: 10,
-    alignItems: "center",
-  },
-  cancelButtonText: {
-    color: "#333",
-    fontWeight: "bold",
-  },
-  confirmButton: {
-    flex: 1,
-    backgroundColor: "#115f9f",
-    padding: 10,
-    borderRadius: 5,
-    alignItems: "center",
-  },
-  confirmButtonText: {
-    color: "white",
-    fontWeight: "bold",
-  },
-  disabledButton: {
-    backgroundColor: "#ccc", // Warna latar belakang untuk tombol dinonaktifkan
-  },
 });
 
 export default Cart;

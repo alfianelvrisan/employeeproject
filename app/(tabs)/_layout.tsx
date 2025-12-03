@@ -114,7 +114,7 @@ const insets = useSafeAreaInsets();
         shadowStyle={styles.shadow}
         height={55}
         circleWidth={50}
-        bgColor="white"
+        bgColor="#000"
         initialRouteName="Home"
         id="mainNavigator" // Unique ID for the navigator
         screenOptions={{ headerShown: false }} // Example screen options
@@ -212,9 +212,6 @@ export const styles = StyleSheet.create({
   bottomBar: {
     bottom: 0,
     elevation: 0,
-    // borderRadius:0
-    // zIndex: 1000,
-    // position: 'fixed',
   },
   btnCircleUp: {
     width: 60,

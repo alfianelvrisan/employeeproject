@@ -1,493 +1,420 @@
-import { Stack } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  Image,
-  TouchableOpacity,
-  ScrollView,
   Animated,
+  Dimensions,
+  FlatList,
+  TouchableOpacity,
+  StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import useScrollHeader from "../../hooks/useScrollHeader";
 import { LinearGradient } from "expo-linear-gradient";
+import { Stack, useNavigation, useRouter } from "expo-router";
+import { Video, ResizeMode } from "expo-av";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
-const categories = [
-  { id: 1, name: "Semua" },
-  { id: 2, name: "Diskon" },
-  { id: 3, name: "Cashback" },
-  { id: 4, name: "Gratis" },
-];
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+const CARD_HEIGHT = SCREEN_HEIGHT;
 
-const promos = [
+type ReelBase = {
+  id: string;
+  title: string;
+  description: string;
+  source: any;
+};
+
+type ReelItem = ReelBase & { loopKey?: string; mirrorId?: string };
+
+const reels: ReelBase[] = [
   {
-    id: 1,
-    title: "Diskon 50%",
-    description: "Dapatkan diskon hingga 50% untuk semua produk.",
-    image:
-      "https://webportallaskarbuah.is3.cloudhost.id/webportallaskarbuah/test_img/2025/03/17/a75e37dd-da7f-4f52-8d0e-3dc1d5ddc508.jpg",
-    category: "Diskon",
-    validUntil: "2023-10-15",
+    id: "1",
+    title: "LBI Reels 1",
+    description: "Geser untuk melihat video lainnya.",
+    source: require("../../assets/images/reels/vidio1.mp4"),
   },
   {
-    id: 2,
-    title: "Cashback 20%",
-    description: "Nikmati cashback 20% untuk setiap transaksi.",
-    image:
-      "https://webportallaskarbuah.is3.cloudhost.id/webportallaskarbuah/news_media/hxFTh725jTwjldhAL4sWeTHtTwSofLRomTc4UmEa.jpg",
-    category: "Cashback",
-    validUntil: "2023-10-20",
+    id: "2",
+    title: "LBI Reels 2",
+    description: "Video kedua dari Laskar Buah.",
+    source: require("../../assets/images/reels/vidio2.mp4"),
   },
   {
-    id: 3,
-    title: "Gratis Ongkir",
-    description: "Gratis ongkir untuk pembelian di atas Rp100.000.",
-    image:
-      "https://webportallaskarbuah.is3.cloudhost.id/webportallaskarbuah/news_media/j40fMq4gqFOhd1S8O3zIauETGveriQ1TZlh3f2XT.png",
-    category: "Gratis",
-    validUntil: "2023-10-25",
-  },
-  {
-    id: 4,
-    title: "Diskon Spesial",
-    description: "Diskon spesial untuk pelanggan setia.",
-    image:
-      "https://webportallaskarbuah.is3.cloudhost.id/webportallaskarbuah/news_media/1QJk7s8Bs5otxpgvVsU6NBvpBwgRFXtf3swNrrZF.jpg",
-    category: "Diskon",
-    validUntil: "2023-10-30",
+    id: "3",
+    title: "LBI Reels 3",
+    description: "Video ketiga dari Laskar Buah.",
+    source: require("../../assets/images/reels/vidio3.mp4"),
   },
 ];
 
-const tabs = [
-  {
-    id: 1,
-    name: "🥈 Member Silver",
-    description:
-      "Tingkat Dasar – Cocok untuk pelanggan baru yang ingin mulai bergabung dengan Laskar Buah.",
-    benefits: [
-      "Diskon 5% untuk pembelian buah segar.",
-      "Akses prioritas ke promo mingguan.",
-      "Poin loyalitas: 1 poin setiap belanja Rp10.000.",
-      "Undangan ke event bazar khusus anggota.",
-      "Layanan pelanggan khusus member.",
-    ],
-  },
-  {
-    id: 2,
-    name: "🥇 Member Premium",
-    description:
-      "Tingkat Menengah – Untuk pelanggan setia yang ingin lebih banyak manfaat.",
-    benefits: [
-      "Diskon 10% untuk semua produk buah dan olahan.",
-      "Double poin loyalitas: 2 poin setiap belanja Rp10.000.",
-      "Akses eksklusif ke pre-order buah impor dan musiman.",
-      "Bonus ulang tahun berupa voucher belanja Rp50.000.",
-      "Layanan pengantaran prioritas (jika tersedia).",
-      "Undangan khusus ke pelatihan dan workshop kewirausahaan buah.",
-    ],
-  },
-  {
-    id: 3,
-    name: "💎 Member Platinum",
-    description:
-      "Tingkat Tertinggi – Untuk mitra dan pelanggan VIP yang mendukung visi 1000 toko Laskar Buah.",
-    benefits: [
-      "Diskon 15% + cashback 5% setiap pembelian.",
-      "Triple poin loyalitas: 3 poin setiap belanja Rp10.000.",
-      "Konsultasi bisnis dan kemitraan gratis (1-on-1).",
-      "Akses ke produk eksklusif dan edisi terbatas.",
-      "Undangan ke gathering nasional Laskar Buah.",
-      "Prioritas kerjasama sebagai mitra distribusi/toko.",
-      "Bonus voucher tahunan senilai Rp500.000.",
-      "Dukungan branding dan promosi toko (bagi mitra).",
-    ],
-  },
-];
+export default function GiftReels() {
+  const navigation = useNavigation<any>();
+  const router = useRouter();
+  const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
+  const [likeCountMap, setLikeCountMap] = useState<Record<string, number>>({});
+  const [activeId, setActiveId] = useState<string>(reels[0]?.id || "");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [loopIndex, setLoopIndex] = useState(1);
+  const [isPaused, setIsPaused] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(false);
+  const hideControlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const listRef = useRef<FlatList<ReelItem>>(null);
 
-const instagramImages = [
-  {
-    id: 1,
-    image:
-      "https://webportallaskarbuah.is3.cloudhost.id/webportallaskarbuah/test_img/2025/03/17/a75e37dd-da7f-4f52-8d0e-3dc1d5ddc508.jpg",
-    link: "https://laskarbuah.com/news/Anggur-Hijau-Muscat-Keharuman-Memikat-dan-Rasa-Menyegarkan-Hanya-di-Laskar-Buah",
-  },
-  {
-    id: 2,
-    image:
-      "https://webportallaskarbuah.is3.cloudhost.id/webportallaskarbuah/news_media/hxFTh725jTwjldhAL4sWeTHtTwSofLRomTc4UmEa.jpg",
-    link: "https://laskarbuah.com/news/Alpukat-Mentega-Kelezatan-Premium-yang-Mudah-Anda-Temukan-di-Seluruh-Laskar-Buah",
-  },
-  {
-    id: 3,
-    image:
-      "https://webportallaskarbuah.is3.cloudhost.id/webportallaskarbuah/news_media/j40fMq4gqFOhd1S8O3zIauETGveriQ1TZlh3f2XT.png",
-    link: "https://laskarbuah.com/news/Apel-Merah-Top-Red-Merah-Merona-Manis-Menyegarkan-Hanya-di-Laskar-Buah",
-  },
-  {
-    id: 4,
-    image:
-      "https://webportallaskarbuah.is3.cloudhost.id/webportallaskarbuah/news_media/1QJk7s8Bs5otxpgvVsU6NBvpBwgRFXtf3swNrrZF.jpg",
-    link: "https://laskarbuah.com/news/Apel-Fuji-Manisnya-Menyegarkan-Renyahnya-Menggoda-Tersedia-dalam-Berbagai-Ukuran-di-Laskar-Buah",
-  },
-  {
-    id: 5,
-    image:
-      "https://webportallaskarbuah.is3.cloudhost.id/webportallaskarbuah/news_media/RAM9IyLWUj7xOTJ8ioXdUxiHoW77kYMhdXYWI5f2.webp",
-    link: "https://laskarbuah.com/news/Anggur-Hitam-Lokal-Manis-Alami-dan-Segar-Dukung-Petani-Kita-Bersama-Laskar-Buah",
-  },
-];
+  const loopedData: ReelItem[] = useMemo(() => {
+    if (!reels.length) return [];
+    const first = reels[0];
+    const last = reels[reels.length - 1];
+    return [
+      { ...last, loopKey: `loop-tail-${last.id}`, mirrorId: last.id },
+      ...reels.map((item) => ({ ...item, loopKey: `main-${item.id}`, mirrorId: item.id })),
+      { ...first, loopKey: `loop-head-${first.id}`, mirrorId: first.id },
+    ];
+  }, []);
 
-const Promo = () => {
-  const [selectedCategory, setSelectedCategory] = useState("Semua");
-  const [selectedTab, setSelectedTab] = useState("🥈 Member Silver");
+  useEffect(() => {
+    const parent = navigation.getParent?.();
+    parent?.setOptions({ tabBarStyle: { display: "none" } });
+    const unsubFocus = navigation.addListener("focus", () => setIsPaused(false));
+    const unsubBlur = navigation.addListener("blur", () => setIsPaused(true));
+    return () => {
+      parent?.setOptions({ tabBarStyle: undefined });
+      unsubFocus?.();
+      unsubBlur?.();
+    };
+  }, [navigation]);
 
-const { headerStyle, handleScroll } = useScrollHeader();
+  useEffect(() => {
+    const initial: Record<string, number> = {};
+    reels.forEach((item, idx) => {
+      initial[item.id] = 1200 + idx * 37;
+    });
+    setLikeCountMap(initial);
+  }, []);
 
-const filteredPromos =
-    selectedCategory === "Semua"
-      ? promos
-      : promos.filter((promo) => promo.category === selectedCategory);
+  useEffect(() => {
+    return () => {
+      if (hideControlsTimer.current) {
+        clearTimeout(hideControlsTimer.current);
+      }
+    };
+  }, []);
 
-  const selectedTabDetails = tabs.find((tab) => tab.name === selectedTab);
+  const showControlsTemporarily = () => {
+    setControlsVisible(true);
+    if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+    hideControlsTimer.current = setTimeout(() => setControlsVisible(false), 1200);
+  };
+
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: any[] }) => {
+      if (viewableItems?.length > 0 && viewableItems[0].item?.id) {
+        const loopIdx = viewableItems[0].index ?? 0;
+        setLoopIndex(loopIdx);
+        const mirrorId = viewableItems[0].item?.mirrorId ?? viewableItems[0].item?.id;
+        if (loopIdx === 0) {
+          setActiveIndex(reels.length - 1);
+          setActiveId(reels[reels.length - 1]?.id || mirrorId);
+        } else if (loopIdx === loopedData.length - 1) {
+          setActiveIndex(0);
+          setActiveId(reels[0]?.id || mirrorId);
+        } else {
+          setActiveIndex(loopIdx - 1);
+          setActiveId(mirrorId);
+        }
+        setIsPaused(false);
+        setControlsVisible(false);
+      }
+    }
+  ).current;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 }).current;
+
+  const handleMomentumEnd = () => {
+    if (loopIndex === 0) {
+      listRef.current?.scrollToIndex({ index: reels.length, animated: false });
+    } else if (loopIndex === loopedData.length - 1) {
+      listRef.current?.scrollToIndex({ index: 1, animated: false });
+    }
+  };
+
+  const renderItem = ({ item, index }: { item: ReelItem; index: number }) => {
+    const isActiveVisible = index === loopIndex;
+    return (
+      <View style={[styles.card, { height: CARD_HEIGHT }]}>
+        <Video
+          source={item.source}
+          style={styles.cardVideo}
+          resizeMode={ResizeMode.COVER}
+          shouldPlay={
+            isActiveVisible && activeId === (item.mirrorId || item.id) && !isPaused
+          }
+          isLooping
+          isMuted={false}
+          useNativeControls={false}
+        />
+        <LinearGradient
+          colors={["rgba(0,0,0,0.15)", "rgba(0,0,0,0.6)"]}
+          style={styles.overlay}
+        />
+        <View style={styles.cardContent}>
+          <Text style={styles.title} numberOfLines={2}>
+            {item.title}
+          </Text>
+          <Text style={styles.desc} numberOfLines={2}>
+            {item.description}
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={styles.pauseOverlay}
+          activeOpacity={1}
+          onPress={() => {
+            setIsPaused((prev) => !prev);
+            showControlsTemporarily();
+          }}
+        >
+          <Ionicons
+            name={isPaused ? "play" : "pause"}
+            size={48}
+            color="rgba(255,255,255,0.35)"
+            style={{ opacity: controlsVisible ? 1 : 0 }}
+          />
+        </TouchableOpacity>
+        <View style={styles.actionColumn}>
+          <View style={styles.avatarWrap}>
+            <View style={styles.avatarCircle}>
+              <Animated.Image
+                source={require("../../assets/images/update_logolbi.png")}
+                style={styles.avatar}
+              />
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => {
+              const current = likedMap[item.id] ?? false;
+              setLikedMap((prev) => ({ ...prev, [item.id]: !current }));
+              setLikeCountMap((prev) => {
+                const base = prev[item.id] ?? 1200 + index * 37;
+                return { ...prev, [item.id]: current ? Math.max(0, base - 1) : base + 1 };
+              });
+            }}
+          >
+            <Ionicons
+              name={likedMap[item.id] ? "heart" : "heart-outline"}
+              size={26}
+              color={likedMap[item.id] ? "#ff4d6d" : "#fff"}
+            />
+            <Text style={styles.actionCount}>
+              {formatCount(likeCountMap[item.id] ?? 1200 + index * 37)}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
 
   return (
     <LinearGradient
-      colors={["#cde7ff", "#e6f3ff", "#ffffff"]}
+      colors={["#000000", "#000000", "#000000"]}
       start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 0.4 }}
+      end={{ x: 0, y: 1 }}
       style={styles.gradientBg}
     >
-    <SafeAreaView style={styles.safeArea}>
-    <Animated.View style={[styles.floatingHeader, headerStyle]}>
-      <Text style={styles.headerTitle}>Gift Laskar Buah</Text>
-    </Animated.View>
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      onScroll={handleScroll}
-      scrollEventThrottle={16}
-    >
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
-      <View style={styles.headerSpacer} />
-      {/* Horizontal scrollable category section */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoryContainer}
-      >
-        {categories.map((category) => (
+      <SafeAreaView style={styles.safeArea} edges={["left", "right", "bottom"]}>
+        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+        <Stack.Screen options={{ headerShown: false }} />
+        <View style={styles.floatingHeader}>
           <TouchableOpacity
-            key={category.id}
-            style={[
-              styles.badge,
-              selectedCategory === category.name && styles.selectedBadge,
-            ]}
-            onPress={() => setSelectedCategory(category.name)}
-          >
-            <Text
-              style={[
-                styles.badgeText,
-                selectedCategory === category.name && styles.selectedBadgeText,
-              ]}
-            >
-              {category.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-      {/* Promo cards */}
-      {filteredPromos.map((promo) => (
-        <TouchableOpacity key={promo.id} style={styles.card}>
-          <Image source={{ uri: promo.image }} style={styles.cardImage} />
-          <View style={styles.cardContent}>
-            <Text style={styles.cardTitle}>{promo.title}</Text>
-            <Text style={styles.cardDescription}>{promo.description}</Text>
-            <View style={styles.cardFooter}>
-              <Text style={styles.cardDate}>
-                Berlaku hingga: {promo.validUntil}
-              </Text>
-              <View style={styles.categoryBadge}>
-                <Text style={styles.categoryBadgeText}>{promo.category}</Text>
-              </View>
-            </View>
-          </View>
-        </TouchableOpacity>
-      ))}
-      <Text style={styles.header}>Keuntungan Member</Text>
-      {/* Tab Navigation */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.tabContainer}
-      >
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab.id}
-            style={[styles.tab, selectedTab === tab.name && styles.selectedTab]}
-            onPress={() => setSelectedTab(tab.name)}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                selectedTab === tab.name && styles.selectedTabText,
-              ]}
-            >
-              {tab.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-      {/* Benefits Section */}
-      <View style={styles.benefitsContainer}>
-        <Text style={styles.benefitsHeader}>{selectedTab}</Text>
-        <Text style={styles.description}>
-          {selectedTabDetails?.description}
-        </Text>
-        {selectedTabDetails?.benefits.map((benefit, index) => (
-          <View key={index} style={styles.benefitItem}>
-            <Text style={styles.benefitText}>• {benefit}</Text>
-          </View>
-        ))}
-      </View>
-      <Text style={styles.header}>Galeri Laskar Buah </Text>
-      {/* Instagram Image Cards */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.instagramContainer}
-      >
-        {instagramImages.map((item) => (
-          <TouchableOpacity
-            key={item.id}
-            style={styles.instagramCard}
+            style={styles.backButton}
             onPress={() => {
-              // Open Instagram link
+              router.replace("/");
             }}
           >
-            <Image source={{ uri: item.image }} style={styles.instagramImage} />
+            <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
-        ))}
-      </ScrollView>
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
-    </SafeAreaView>
+          <Text style={styles.headerTitle}>LBI Reels</Text>
+        </View>
+        <FlatList
+          ref={listRef}
+          data={loopedData}
+          keyExtractor={(item) => item.loopKey || item.id}
+          renderItem={renderItem}
+          initialScrollIndex={1}
+          pagingEnabled
+          snapToInterval={CARD_HEIGHT}
+          snapToAlignment="start"
+          decelerationRate="fast"
+          disableIntervalMomentum
+          bounces={false}
+        showsVerticalScrollIndicator={false}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        onMomentumScrollEnd={handleMomentumEnd}
+        getItemLayout={(_, index) => ({
+          length: CARD_HEIGHT,
+          offset: CARD_HEIGHT * index,
+          index,
+        })}
+        scrollEventThrottle={16}
+        contentInsetAdjustmentBehavior="never"
+        contentContainerStyle={styles.listContent}
+        initialNumToRender={1}
+        maxToRenderPerBatch={1}
+        windowSize={2}
+        removeClippedSubviews
+        />
+        <View style={styles.bottomPanel} />
+        <LinearGradient
+          pointerEvents="none"
+          colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.75)"]}
+          locations={[0, 1]}
+          style={styles.bottomGradient}
+        />
+      </SafeAreaView>
     </LinearGradient>
   );
-};
+}
 
 const styles = StyleSheet.create({
   gradientBg: {
     flex: 1,
+    backgroundColor: "#000",
   },
   safeArea: {
     flex: 1,
-    backgroundColor: "transparent",
-  },
-  container: {
-    flex: 1,
-    backgroundColor: "transparent",
-    padding: 10,
-  },
-  contentContainer: {
-    paddingBottom: 16,
-  },
-  header: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 12,
-    marginTop: 12,
-    textAlign: "center",
-    color: "#115f9f",
+    backgroundColor: "#000",
   },
   floatingHeader: {
     position: "absolute",
-    top: 0,
+    top: 50,
     left: 0,
     right: 0,
-    height: 78,
-    backgroundColor: "rgba(17,95,159,0.95)",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 10,
-    elevation: 10,
-    shadowColor: "#0a3e7a",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 18,
-    paddingTop: 26,
+    paddingTop: 0,
     paddingHorizontal: 16,
-    flexDirection: "row",
+    height: 80,
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: 10,
+    zIndex: 20,
   },
   headerTitle: {
     color: "#fff",
-    fontSize: 18,
+    top:-40,
+    fontSize: 19,
     fontWeight: "800",
+    textAlign: "center",
+    alignSelf: "center",
   },
-  headerSpacer: {
-    height: 56,
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.3)",
   },
-  categoryContainer: {
-    flexDirection: "row",
-    marginBottom: 15,
-  },
-  badge: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    marginRight: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  badgeText: {
-    color: "#000",
-    fontSize: 14,
-  },
-  selectedBadge: {
-    backgroundColor: "#115f9f",
-  },
-  selectedBadgeText: {
-    color: "#fff",
+  listContent: {
+    paddingTop: 0,
+    paddingBottom: 0,
   },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    marginBottom: 12,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardImage: {
     width: "100%",
-    height: 150,
-    resizeMode: "cover",
+    height: CARD_HEIGHT,
+    borderRadius: 0,
+    overflow: "hidden",
+    backgroundColor: "#000",
+  },
+  bottomGradient: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 240,
+  },
+  bottomPanel: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 140,
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+  },
+  cardVideo: {
+    width: "100%",
+    height: "100%",
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
   },
   cardContent: {
-    padding: 15,
+    position: "absolute",
+    bottom: 50,
+    left: 5,
+    right: 0,
+    padding: 20,
   },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 5,
+  title: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 6,
   },
-  cardDescription: {
+  desc: {
+    color: "#e8f5ff",
     fontSize: 14,
-    color: "#666",
-    marginBottom: 10,
+    marginBottom: 14,
   },
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  pauseOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
     alignItems: "center",
   },
-  cardDate: {
-    fontSize: 12,
-    color: "#999",
+  actionColumn: {
+    position: "absolute",
+    right: 20,
+    bottom: 120,
+    alignItems: "center",
+    gap: 20,
   },
-  categoryBadge: {
-    backgroundColor: "#115f9f",
-    borderRadius: 5,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
+  avatarWrap: {
+    marginBottom: 4,
   },
-  categoryBadgeText: {
-    fontSize: 12,
-    color: "#fff",
-    fontWeight: "bold",
-  },
-  tabContainer: {
-    flexDirection: "row",
-    marginBottom: 12,
-  },
-  tab: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    marginRight: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    marginBottom: 8,
-  },
-  selectedTab: {
-    backgroundColor: "#115f9f",
-  },
-  tabText: {
-    color: "#000",
-    fontSize: 14,
-  },
-  selectedTabText: {
-    color: "#fff",
-  },
-  benefitsContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 15,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  benefitsHeader: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 10,
-  },
-  description: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 15,
-  },
-  benefitItem: {
-    marginBottom: 5,
-  },
-  benefitText: {
-    fontSize: 14,
-    color: "#666",
-  },
-  instagramContainer: {
-    flexDirection: "row",
-    marginBottom: 16,
-  },
-  instagramCard: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    marginRight: 10,
+  avatarCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 2,
+    borderColor: "#fff",
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    marginBottom: 16,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  instagramImage: {
-    width: 300,
-    height: 300,
+  avatar: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: "#fff",
     resizeMode: "cover",
-    // marginBottom:500
   },
-  bottomSpacer: {
-    height: 80,
-    backgroundColor: "#fff",
+  actionButton: {
+    alignItems: "center",
+    gap: 4,
+  },
+  actionCount: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
   },
 });
 
-export default Promo;
+function formatCount(val: number) {
+  if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}jt`;
+  if (val >= 1000) return `${(val / 1000).toFixed(1)}rb`;
+  return `${val}`;
+}
