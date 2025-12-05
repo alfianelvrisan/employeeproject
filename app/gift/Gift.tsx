@@ -8,12 +8,17 @@ import {
   FlatList,
   TouchableOpacity,
   StatusBar,
+  Modal,
+  ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Stack, useNavigation, useRouter } from "expo-router";
 import { Video, ResizeMode } from "expo-av";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useAuth } from "../../context/AuthContext";
+import { fetchProducts } from "../../services/productService";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const CARD_HEIGHT = SCREEN_HEIGHT;
@@ -27,9 +32,12 @@ type ReelBase = {
 
 type ReelItem = ReelBase & { loopKey?: string; mirrorId?: string };
 
+const DEFAULT_STORE_ID = "1";
+
 export default function GiftReels() {
   const navigation = useNavigation<any>();
   const router = useRouter();
+  const { userToken } = useAuth();
   const [reels, setReels] = useState<ReelBase[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +48,11 @@ export default function GiftReels() {
   const [loopIndex, setLoopIndex] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(false);
+  const [isBadgeModalVisible, setBadgeModalVisible] = useState(false);
+  const [modalCategory, setModalCategory] = useState<string>("");
+  const [modalItems, setModalItems] = useState<any[]>([]);
+  const [isModalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
   const hideControlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listRef = useRef<FlatList<ReelItem>>(null);
 
@@ -181,6 +194,88 @@ export default function GiftReels() {
           style={styles.overlay}
         />
         <View style={styles.cardContent}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            style={styles.cartBadge}
+            onPress={async () => {
+              const normalize = (val: string) =>
+                (val || "").toLowerCase().replace(/\s+/g, " ").trim();
+              const categoryLabel = item.title || item.description || "Produk";
+              const categoryKey = normalize(categoryLabel);
+              setBadgeModalVisible(true);
+              setModalLoading(true);
+              setModalError(null);
+              setModalCategory(categoryLabel);
+              try {
+                const tryFetchProducts = async () => {
+                  const res = await fetchProducts(
+                    DEFAULT_STORE_ID,
+                    0,
+                    userToken || "",
+                    new Set<number>()
+                  );
+                  return Array.isArray(res) ? res : [];
+                };
+
+                const fallbackFetch = async () => {
+                  const res = await fetch(
+                    `https://api.laskarbuah.com/api/produk?v_where=''&v_page=0&v_row=0&id_store=${DEFAULT_STORE_ID}`
+                  );
+                  const json = await res.json();
+                  return Array.isArray(json) ? json : [];
+                };
+
+                let list: any[] = [];
+                try {
+                  list = await tryFetchProducts();
+                } catch (e) {
+                  // fallback without token
+                  list = await fallbackFetch();
+                }
+
+                if (!list.length) {
+                  list = await fallbackFetch();
+                }
+
+                if (!list.length) {
+                  setModalError("Produk tidak ditemukan");
+                }
+
+                const scoreProduct = (p: any) => {
+                  const cat = normalize(p.cate || p.kategory || p.description);
+                  const name = normalize(p.name_produk || p.title);
+                  let score = 0;
+                  if (categoryKey && name.includes(categoryKey)) score += 3;
+                  if (categoryKey && categoryKey.includes(name) && name) score += 2;
+                  if (categoryKey && cat.includes(categoryKey)) score += 2;
+                  if (categoryKey && categoryKey.includes(cat) && cat) score += 1;
+                  return score;
+                };
+
+                const scored = list
+                  .map((p) => ({ ...p, _score: scoreProduct(p) }))
+                  .filter((p) => p._score > 0)
+                  .sort((a, b) => b._score - a._score);
+
+                const finalList =
+                  scored.length > 0 ? scored.slice(0, 12) : list.slice(0, 12);
+
+                setModalItems(finalList);
+              } catch (err) {
+                setModalError("Gagal memuat produk");
+                setModalItems([item]);
+              } finally {
+                setModalLoading(false);
+              }
+            }}
+          >
+            <View style={styles.cartIconWrap}>
+              <Ionicons name="bag-handle" size={14} color="#fff" />
+            </View>
+            <Text style={styles.cartBadgeText} numberOfLines={1}>
+              {item.title}
+            </Text>
+          </TouchableOpacity>
           <Text style={styles.title} numberOfLines={2}>
             {item.title}
           </Text>
@@ -294,6 +389,69 @@ export default function GiftReels() {
         windowSize={2}
         removeClippedSubviews
         />
+        <Modal
+          transparent
+          visible={isBadgeModalVisible}
+          animationType="fade"
+          onRequestClose={() => setBadgeModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <View style={styles.modalHandle} />
+              <View style={styles.modalHeader}>
+                <View style={styles.modalHeaderIcon}>
+                  <Ionicons name="bag-handle" size={18} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalTitle}>Produk kategori</Text>
+                  <Text style={styles.modalSubtitle} numberOfLines={1}>
+                    {modalCategory || "Tidak ada kategori"}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setBadgeModalVisible(false)}
+                  style={styles.modalClose}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="close" size={18} color="#0b1427" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView
+                style={{ maxHeight: 320, width: "100%" }}
+                contentContainerStyle={styles.modalList}
+                showsVerticalScrollIndicator={false}
+              >
+                {isModalLoading ? (
+                  <View style={styles.modalLoading}>
+                    <ActivityIndicator size="small" color="#115f9f" />
+                    <Text style={styles.modalLoadingText}>Memuat produk...</Text>
+                  </View>
+                ) : modalItems.length > 0 ? (
+                  modalItems.map((prod) => (
+                    <View key={prod.id || prod.title} style={styles.modalItem}>
+                      <View style={styles.modalItemIcon}>
+                        <Ionicons name="pricetag" size={16} color="#0b1427" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.modalItemTitle} numberOfLines={1}>
+                          {prod.title || prod.name_produk || "Produk"}
+                        </Text>
+                        <Text style={styles.modalItemSubtitle} numberOfLines={1}>
+                          {prod.description || prod.cate || prod.name_store || modalCategory}
+                        </Text>
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.modalLoadingText}>Produk tidak ditemukan</Text>
+                )}
+              </ScrollView>
+              {modalError ? (
+                <Text style={styles.modalErrorText}>{modalError}</Text>
+              ) : null}
+            </View>
+          </View>
+        </Modal>
         <LinearGradient
           pointerEvents="none"
           colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.75)"]}
@@ -372,26 +530,54 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     position: "absolute",
-    bottom: 50,
-    left: 5,
+    bottom: 100,
+    left: 10,
     right: 0,
-    padding: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    zIndex: 3,
   },
   title: {
     color: "#fff",
     fontSize: 20,
     fontWeight: "800",
-    marginBottom: 6,
+    marginBottom: 4,
   },
   desc: {
     color: "#e8f5ff",
     fontSize: 14,
-    marginBottom: 14,
+    marginBottom: 10,
+  },
+  cartBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(0, 174, 255, 1)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginBottom: 8,
+    gap: 6,
+  },
+  cartIconWrap: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(0,0,0,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cartBadgeText: {
+    color: "#ffffffff",
+    fontSize: 13,
+    fontWeight: "700",
+    maxWidth: "82%",
   },
   pauseOverlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
     alignItems: "center",
+    zIndex: 1,
   },
   actionColumn: {
     position: "absolute",
@@ -399,6 +585,116 @@ const styles = StyleSheet.create({
     bottom: 120,
     alignItems: "center",
     gap: 20,
+    zIndex: 2,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "flex-end",
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  modalCard: {
+    backgroundColor: "#f8fbff",
+    borderRadius: 18,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 12,
+  },
+  modalHandle: {
+    alignSelf: "center",
+    width: 46,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "#d5deeb",
+    marginBottom: 12,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 10,
+  },
+  modalHeaderIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "#115f9f",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#0b1427",
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    color: "#4a6078",
+  },
+  modalClose: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(11,20,39,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalList: {
+    paddingTop: 6,
+    paddingBottom: 6,
+    gap: 10,
+  },
+  modalLoading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+  },
+  modalLoadingText: {
+    fontSize: 13,
+    color: "#4a6078",
+  },
+  modalErrorText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#d7263d",
+    textAlign: "left",
+  },
+  modalItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    shadowColor: "#0b2850",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  modalItemIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "rgba(17,95,159,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  modalItemTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#0b1427",
+  },
+  modalItemSubtitle: {
+    fontSize: 12,
+    color: "#4a6078",
+    marginTop: 2,
   },
   avatarWrap: {
     marginBottom: 4,

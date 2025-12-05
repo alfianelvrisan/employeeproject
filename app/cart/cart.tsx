@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "../../context/AuthContext";
 import {
   ListTrxMember,
@@ -50,6 +51,7 @@ const TAB_DISABLED_GRADIENT = ["#ffffffff", "#f8f9ffff"];
 
 const Cart = () => {
   const { userToken } = useAuth();
+  const insets = useSafeAreaInsets();
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null); // Track Midtrans Snap URL
   const [cartItems, setCartItems] = useState<
     {
@@ -168,32 +170,16 @@ const Cart = () => {
     });
   };
 
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
+  const [isDeletePaymentModalVisible, setDeletePaymentModalVisible] =
+    useState(false);
+  const [pendingDeleteTrx, setPendingDeleteTrx] = useState<number | null>(null);
+
   const handleRemoveItem = (id: number) => {
-    Alert.alert(
-      "Hapus Item",
-      "Apakah Anda yakin ingin menghapus item ini dari keranjang?",
-      [
-        { text: "Batal", style: "cancel" },
-        {
-          text: "Hapus",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteTrxMember(id, userToken || "");
-              const updatedCartItems = await ListTrxMember(
-                Number(idUser),
-                userToken || ""
-              );
-              setCartItems(updatedCartItems || []);
-            } catch (error) {
-              console.error("Error deleting transaction:", error);
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
+    setPendingDeleteId(id);
+    setDeleteModalVisible(true);
   };
 
   const handleIncreaseQuantity = async (id: number, idh: number) => {
@@ -315,8 +301,6 @@ const Cart = () => {
   //     ]
   //   );
   // };
-  const [isModalVisible, setModalVisible] = useState(false);
-
   const handleCheckout = async () => {
     setModalVisible(true); // Tampilkan modal konfirmasi
   };
@@ -349,6 +333,32 @@ const Cart = () => {
     } catch (error) {
       console.error("Error during checkout:", error);
       Alert.alert("Error", "Gagal memproses pembayaran. Silakan coba lagi.");
+    }
+  };
+
+  const cancelRemoveItem = () => {
+    setDeleteModalVisible(false);
+    setPendingDeleteId(null);
+  };
+
+  const confirmRemoveItem = async () => {
+    if (!pendingDeleteId) {
+      return;
+    }
+    setLoading(true);
+    try {
+      await deleteTrxMember(pendingDeleteId, userToken || "");
+      const updatedCartItems = await ListTrxMember(
+        Number(idUser),
+        userToken || ""
+      );
+      setCartItems(updatedCartItems || []);
+    } catch (error) {
+      console.error("Error deleting transaction:", error);
+    } finally {
+      setLoading(false);
+      setDeleteModalVisible(false);
+      setPendingDeleteId(null);
     }
   };
 
@@ -411,12 +421,28 @@ const Cart = () => {
     fetchAndJoinResponses();
   }, [orderIds, idUser, userToken]);
 
-  const handleDelete = async (trx_num: number) => {
+  const handleDelete = (trx_num: number) => {
+    setPendingDeleteTrx(trx_num);
+    setDeletePaymentModalVisible(true);
+  };
+
+  const cancelDeletePayment = () => {
+    setDeletePaymentModalVisible(false);
+    setPendingDeleteTrx(null);
+  };
+
+  const confirmDeletePayment = async () => {
+    if (!pendingDeleteTrx) {
+      return;
+    }
     try {
-      await deleteTrxexp(trx_num, userToken || "");
+      await deleteTrxexp(pendingDeleteTrx, userToken || "");
       await fetchAndJoinResponses();
     } catch (error) {
       console.error("Error deleting transaction:", error);
+    } finally {
+      setDeletePaymentModalVisible(false);
+      setPendingDeleteTrx(null);
     }
   };
 
@@ -683,9 +709,7 @@ const Cart = () => {
                       <TouchableOpacity>
                         <Text
                           style={[styles.deleteButton, { opacity: 1 }]}
-                          onPress={() =>
-                            handleDelete(payment.strukDetailsList[0].id)
-                          }
+                          onPress={() => handleDelete(payment.strukDetailsList[0].id)}
                         >
                           <Ionicons name="trash" size={15} />
                           Delete
@@ -917,7 +941,10 @@ const Cart = () => {
           style={styles.scrollArea}
           contentContainerStyle={[
             styles.scrollContent,
-            selectedTab === "List Belanja" && styles.listScrollPadding,
+            {
+              paddingBottom:
+                (selectedTab === "List Belanja" ? 140 : 100) + insets.bottom,
+            },
           ]}
           scrollEventThrottle={16}
           onScroll={handleScroll}
@@ -1036,6 +1063,96 @@ const Cart = () => {
             </View>
           </View>
         </Modal>
+        <Modal
+          transparent={true}
+          visible={isDeletePaymentModalVisible}
+          animationType="fade"
+          onRequestClose={cancelDeletePayment}
+        >
+          <View style={styles.overlay}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Hapus Transaksi</Text>
+              <Text style={styles.modalMessage}>
+                Apakah Anda yakin ingin menghapus transaksi ini?
+              </Text>
+              <View style={styles.modalButtonRow}>
+                <TouchableOpacity
+                  onPress={cancelDeletePayment}
+                  activeOpacity={0.8}
+                  style={styles.modalButtonWrapper}
+                >
+                  <LinearGradient
+                    colors={["#f1f2f4", "#d8dce1"]}
+                    style={styles.modalButtonGradient}
+                  >
+                    <Text style={styles.modalButtonText}>Batal</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={confirmDeletePayment}
+                  activeOpacity={0.8}
+                  style={styles.modalButtonWrapper}
+                >
+                  <LinearGradient
+                    colors={["#ff9a9e", "#f54e4e", "#d7263d"]}
+                    style={styles.modalButtonGradient}
+                  >
+                    <Text
+                      style={[styles.modalButtonText, styles.modalButtonTextPrimary]}
+                    >
+                      Hapus
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+        <Modal
+          transparent={true}
+          visible={isDeleteModalVisible}
+          animationType="fade"
+          onRequestClose={cancelRemoveItem}
+        >
+          <View style={styles.overlay}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Hapus Item</Text>
+              <Text style={styles.modalMessage}>
+                Apakah Anda yakin ingin menghapus item ini dari keranjang?
+              </Text>
+              <View style={styles.modalButtonRow}>
+                <TouchableOpacity
+                  onPress={cancelRemoveItem}
+                  activeOpacity={0.8}
+                  style={styles.modalButtonWrapper}
+                >
+                  <LinearGradient
+                    colors={["#f1f2f4", "#d8dce1"]}
+                    style={styles.modalButtonGradient}
+                  >
+                    <Text style={styles.modalButtonText}>Batal</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={confirmRemoveItem}
+                  activeOpacity={0.8}
+                  style={styles.modalButtonWrapper}
+                >
+                  <LinearGradient
+                    colors={["#ff9a9e", "#f54e4e", "#d7263d"]}
+                    style={styles.modalButtonGradient}
+                  >
+                    <Text
+                      style={[styles.modalButtonText, styles.modalButtonTextPrimary]}
+                    >
+                      Hapus
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
       </LinearGradient>
     </AuthProvider>
@@ -1045,12 +1162,8 @@ const Cart = () => {
 const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 40,
     paddingTop: 10,
     backgroundColor: "transparent",
-  },
-  listScrollPadding: {
-    paddingBottom: 80,
   },
   cardList: {
     width: "100%",
