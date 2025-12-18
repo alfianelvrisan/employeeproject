@@ -55,18 +55,18 @@ export default function LoginScreen() {
     >
       <Stack.Screen options={{ headerShown: false }} />
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.logoBadge}>
-            <Image
-              style={styles.logo}
-              source={require("../../assets/images/update_logolbi.png")}
-            />
-          </View>
-        </View>
-
         <View style={styles.adSlot} />
 
         <View style={styles.bottomPanel}>
+          <View style={styles.header}>
+            <View style={styles.logoBadge}>
+              <Image
+                style={styles.logo}
+                source={require("../../assets/images/update_logolbi.png")}
+              />
+            </View>
+          </View>
+
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               activeOpacity={0.9}
@@ -97,15 +97,15 @@ export default function LoginScreen() {
                 <Text style={styles.secondaryText}>Buat Akun</Text>
               </LinearGradient>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.helpButton}
-              onPress={() => router.push("/profile/subProfil/PusatBantuan")}
-            >
-              <Ionicons name="lock-open-outline" size={20} color="#d5e9ff" />
-              <Text style={styles.helpText}>Butuh bantuan? Help Desk</Text>
-            </TouchableOpacity>
           </View>
+
+          <TouchableOpacity
+            style={styles.helpButton}
+            onPress={() => router.push("/profile/subProfil/PusatBantuan")}
+          >
+            <Ionicons name="lock-open-outline" size={20} color="#d5e9ff" />
+            <Text style={styles.helpText}>Butuh bantuan? Help Desk</Text>
+          </TouchableOpacity>
         </View>
 
         <AuthModal
@@ -138,8 +138,9 @@ const styles = StyleSheet.create({
   },
   header: {
     marginTop: SIZES.extraLarge,
-    alignItems: "center",
+    alignItems: "flex-end",
     marginBottom: SIZES.extraLarge,
+    marginRight: SIZES.large,
   },
   logoBadge: {
     height: 96,
@@ -188,13 +189,14 @@ const styles = StyleSheet.create({
   },
   bottomPanel: {
     width: "100%",
-    alignItems: "center",
+    alignItems: "flex-end",
     marginBottom: SIZES.large,
   },
   buttonContainer: {
-    width: "80%",
-    maxWidth: 360,
-    alignSelf: "center",
+    width: "70%",
+    maxWidth: 320,
+    alignSelf: "flex-end",
+    marginRight: SIZES.large,
     gap: SIZES.small,
   },
   adSlot: {
@@ -235,6 +237,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "center",
     marginTop: SIZES.small,
     paddingVertical: SIZES.small,
   },
