@@ -29,8 +29,8 @@ const CountryCodes = [
 
 const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
   const { login, cekode, cekwhastapp } = useAuth();
-  const brandGradient = ["#52c7ff", "#2f89ff", "#1f5fd6"];
-  const softGradient = ["#ffffff", "#e6f2ff", "#cee3ff"];
+  const brandGradient = ["#ffea00", "#ffc400", "#ff9100"];
+  const softGradient = ["#fff7c2", "#ffd85f", "#ff9f1c"];
 
   // State Internal Modal
   const [isLoading, setIsLoading] = useState(false);

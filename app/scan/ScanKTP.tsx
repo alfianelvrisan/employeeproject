@@ -301,7 +301,6 @@ const DisplayCapturedImage = () => {
         }}
       />
       <CustomHeader title="Profile" />
-      <Image source={require("../../assets/images/ktp.png")} style={styles.image} />
       <Text style={styles.instructions}>
         Ambil gambar KTP untuk menampilkan data terstruktur.
       </Text>
@@ -563,13 +562,6 @@ const styles = StyleSheet.create({
     flex: 2,
     textAlign: "right",
   },
-  image:{
-    width: 1000,
-    height: 300,
-    alignSelf: "center",
-    marginBottom: 20,
-    resizeMode: "contain",
-  }
 });
 
 export default DisplayCapturedImage;

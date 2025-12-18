@@ -1,6 +1,6 @@
 import { AuthProvider } from '../../context/AuthContext';
 import React, { useState } from 'react';
-import { Text, StyleSheet, View, Image, FlatList, Dimensions } from 'react-native';
+import { Text, StyleSheet, View, FlatList, Dimensions } from 'react-native';
 
 const bannerData = [
   {
@@ -8,21 +8,18 @@ const bannerData = [
     title: 'Promo Diskon',
     description: 'Dapatkan diskon hingga 50% untuk semua produk!',
     createdAt: '2023-10-01',
-    image: require('../../assets/buah/baner.png'),
   },
   {
     id: 2,
     title: 'Gratis Ongkir',
     description: 'Nikmati gratis ongkir untuk pembelian di atas Rp 100.000.',
     createdAt: '2023-10-02',
-    image: require('../../assets/buah/baner.png'),
   },
   {
     id: 3,
     title: 'Produk Baru',
     description: 'Cek koleksi produk terbaru kami sekarang juga!',
     createdAt: '2023-10-03',
-    image: require('../../assets/buah/baner.png'),
   },
 ];
 
@@ -48,7 +45,7 @@ const BannerNotification = () => {
         keyExtractor={item => item.id.toString()}
         renderItem={({ item }) => (
           <View style={styles.card}>
-            <Image source={item.image} style={styles.image} />
+            <View style={styles.imagePlaceholder} />
             <View style={styles.textContainer}>
               <Text style={styles.title}>{item.title}</Text>
               <Text style={styles.description}>{item.description}</Text>
@@ -89,11 +86,14 @@ const styles = StyleSheet.create({
     elevation: 2,
     marginHorizontal: Dimensions.get('window').width * 0.007, // Center the card
   },
-  image: {
+  imagePlaceholder: {
     width: '100%',
     height: 150,
     borderTopLeftRadius: 10,
     borderTopRightRadius: 10,
+    backgroundColor: '#fff7c2',
+    borderBottomWidth: 1,
+    borderColor: '#ffd85f',
   },
   textContainer: {
     padding: 15, // Add spacing around text

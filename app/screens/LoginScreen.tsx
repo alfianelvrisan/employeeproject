@@ -74,7 +74,7 @@ export default function LoginScreen() {
               style={styles.buttonShadow}
             >
               <LinearGradient
-                colors={["#52c7ff", "#2f89ff", "#1f5fd6"]}
+                colors={["#ffea00", "#ffc400", "#ff9100"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.primaryButton}
@@ -89,7 +89,7 @@ export default function LoginScreen() {
               style={styles.buttonShadow}
             >
               <LinearGradient
-                colors={["#ffffff", "#e6f2ff", "#cee3ff"]}
+                colors={["#fff7c2", "#ffd85f", "#ff9f1c"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.secondaryButton}
