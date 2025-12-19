@@ -131,15 +131,15 @@ export default function Index() {
   return (
     <SafeAreaProvider>
       <LinearGradient
-        colors={["#cde7ff", "#e6f3ff", "#ffffff"]}
+        colors={["#ffffff", "#ffffff", "#ffffff"]} // latar putih solid
         start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 0.4 }}
+        end={{ x: 0, y: 1 }}
         style={styles.gradientBg}
       >
         <SafeAreaView style={styles.container}>
           <Animated.View style={[styles.floatingHeader, headerStyle]}>
             <LinearGradient
-              colors={["#115f9f", "#0b2850"]}
+              colors={["#ffe133", "#ffe133"]} // solid kuning tanpa gradasi
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.headerGradientOverlay}
@@ -190,55 +190,57 @@ export default function Index() {
                       Semoga harimu menyenangkan dan penuh energi.
                     </Text>
                   </View>
-                </View>
+              </View>
 
-                <Cardhome />
-                <Location onSelectStore={setSelectedLocation} />
-                <View style={styles.searchWrapper}>
-                  <LinearGradient
-                    colors={[
-                      "rgba(74,210,255,0.45)",
-                      "rgba(74,210,255,0.08)",
-                    ]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.neonShell}
-                  >
-                    <View style={styles.neonSearch}>
-                      <Ionicons
-                        name="search-outline"
-                        size={18}
-                        color="#b7e9ff"
-                        style={styles.neonIcon}
-                      />
-                      <TextInput
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        placeholder="cari produk favoritmu"
-                        placeholderTextColor="#cde9ff"
-                        style={styles.neonInput}
-                        selectionColor="#4ad2ff"
-                      />
-                      <TouchableOpacity
-                        onPress={() => setSearchQuery("")}
-                        style={styles.neonAction}
-                        accessibilityLabel="Hapus pencarian"
-                      >
+                <View style={styles.utilityCard}>
+                  <Cardhome />
+                  <Location onSelectStore={setSelectedLocation} />
+                  <View style={styles.searchWrapper}>
+                    <LinearGradient
+                      colors={[
+                        "rgba(74,210,255,0.45)",
+                        "rgba(74,210,255,0.08)",
+                      ]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.neonShell}
+                    >
+                      <View style={styles.neonSearch}>
                         <Ionicons
-                          name="close-circle-outline"
-                          size={16}
-                          color="#d9f6ff"
+                          name="search-outline"
+                          size={18}
+                          color="#b7e9ff"
+                          style={styles.neonIcon}
                         />
-                      </TouchableOpacity>
-                    </View>
-                  </LinearGradient>
+                        <TextInput
+                          value={searchQuery}
+                          onChangeText={setSearchQuery}
+                          placeholder="cari produk favoritmu"
+                          placeholderTextColor="#cde9ff"
+                          style={styles.neonInput}
+                          selectionColor="#4ad2ff"
+                        />
+                        <TouchableOpacity
+                          onPress={() => setSearchQuery("")}
+                          style={styles.neonAction}
+                          accessibilityLabel="Hapus pencarian"
+                        >
+                          <Ionicons
+                            name="close-circle-outline"
+                            size={16}
+                            color="#d9f6ff"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    </LinearGradient>
+                  </View>
+                  <Produk
+                    idStore={selectedLocation}
+                    key={produkKey}
+                    searchQuery={searchQuery}
+                    showSearchBar={false}
+                  />
                 </View>
-                <Produk
-                  idStore={selectedLocation}
-                  key={produkKey}
-                  searchQuery={searchQuery}
-                  showSearchBar={false}
-                />
               </>
             }
             bounces={false}
@@ -278,20 +280,37 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: "transparent",
+    backgroundColor: "#ffe133",
   },
   gradientBg: {
     flex: 1,
   },
   heroBg: {
     width: "100%",
-    paddingTop: 0,
+    paddingTop: 12,
     paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingBottom: 14,
+    backgroundColor: "#ffe133", // kartu ucapan kuning solid
+    borderRadius: 16,
+    marginHorizontal: 12,
+    shadowColor: "rgba(0,0,0,0.12)",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  utilityCard: {
+    width: "100%",
+    marginTop: 10,
+    marginHorizontal: 0, 
+    paddingVertical: 10,
+    paddingHorizontal: 0,
+    borderRadius: 40,
+    backgroundColor: "#ffffffff",
   },
   section: {
     paddingHorizontal: 0,
-    marginBottom: 10,
+    marginBottom: 0,
   },
   floatingHeader: {
     position: "absolute",
@@ -302,16 +321,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     zIndex: 10,
-    elevation: 10,
-    shadowColor: "#0a3e7a",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 18,
+    elevation: 0,
+    shadowColor: "transparent",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
     paddingTop: 26,
     paddingHorizontal: 16,
     flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(17,95,159,0.2)",
+    borderBottomWidth: 0,
+    borderBottomColor: "transparent",
   },
   headerGradientOverlay: {
     ...StyleSheet.absoluteFillObject,

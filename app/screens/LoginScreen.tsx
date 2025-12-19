@@ -134,6 +134,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: SIZES.extraLarge,
     paddingVertical: SIZES.large,
+    paddingBottom: SIZES.extraLarge * 2, // tambah ruang bawah agar tombol tidak menempel
     justifyContent: "space-between",
   },
   header: {
@@ -201,7 +202,7 @@ const styles = StyleSheet.create({
     gap: SIZES.small,
   },
   adSlot: {
-    flex: 1,
+    flex: 0.1, // filler minimal supaya konten lebih naik ke atas
   },
   buttonShadow: {
     borderRadius: 16,

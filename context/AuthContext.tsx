@@ -32,10 +32,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const loadToken = async () => {
-      const token = await SecureStore.getItemAsync("authToken");
-      if (token) {
-        setUserToken(token);
-      } else {
+      try {
+        const token = await SecureStore.getItemAsync("authToken");
+        if (token) {
+          setUserToken(token);
+          router.replace("/"); // langsung arahkan ke home bila token masih ada
+        } else {
+          router.replace("/screens/LoginScreen");
+        }
+      } catch (e) {
         router.replace("/screens/LoginScreen");
       }
     };
