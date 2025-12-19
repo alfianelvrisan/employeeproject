@@ -67,6 +67,14 @@ export default function LoginScreen() {
             </View>
           </View>
 
+          <TouchableOpacity
+            style={styles.helpButton}
+            onPress={() => router.push("/profile/subProfil/PusatBantuan")}
+          >
+            <Ionicons name="lock-open-outline" size={20} color="#d5e9ff" />
+            <Text style={styles.helpText}>Butuh bantuan? Help Desk</Text>
+          </TouchableOpacity>
+
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               activeOpacity={0.9}
@@ -98,14 +106,6 @@ export default function LoginScreen() {
               </LinearGradient>
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            style={styles.helpButton}
-            onPress={() => router.push("/profile/subProfil/PusatBantuan")}
-          >
-            <Ionicons name="lock-open-outline" size={20} color="#d5e9ff" />
-            <Text style={styles.helpText}>Butuh bantuan? Help Desk</Text>
-          </TouchableOpacity>
         </View>
 
         <AuthModal
@@ -139,7 +139,8 @@ const styles = StyleSheet.create({
   header: {
     marginTop: SIZES.extraLarge,
     alignItems: "flex-end",
-    marginBottom: SIZES.extraLarge,
+    marginBottom: SIZES.large,
+    alignSelf: "flex-end",
     marginRight: SIZES.large,
   },
   logoBadge: {
@@ -193,8 +194,8 @@ const styles = StyleSheet.create({
     marginBottom: SIZES.large,
   },
   buttonContainer: {
-    width: "70%",
-    maxWidth: 320,
+    width: "60%",
+    maxWidth: 280,
     alignSelf: "flex-end",
     marginRight: SIZES.large,
     gap: SIZES.small,
@@ -212,7 +213,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   primaryButton: {
-    height: 54,
+    height: 48,
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 16,
@@ -223,7 +224,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
   },
   secondaryButton: {
-    height: 54,
+    height: 48,
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 16,
@@ -237,8 +238,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    alignSelf: "center",
-    marginTop: SIZES.small,
+    alignSelf: "flex-end",
+    marginRight: SIZES.large,
+    marginBottom: SIZES.small,
     paddingVertical: SIZES.small,
   },
   helpText: {
