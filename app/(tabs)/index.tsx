@@ -6,6 +6,7 @@ import {
   Image,
   TouchableOpacity,
   TextInput,
+  Platform,
 } from "react-native";
 import Produk from "../produk/produk";
 import { HelloWave } from "../../components/HelloWave";
@@ -110,6 +111,19 @@ export default function Index() {
     };
 
     registerForPushNotificationsAsync();
+
+    if (Platform.OS === "android") {
+      Notifications.setNotificationChannelAsync("default", {
+        name: "Default",
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: "#FFBB00",
+        sound: "default",
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      }).catch((error) =>
+        console.warn("Gagal membuat channel notifikasi Android:", error)
+      );
+    }
 
     notificationListener.current =
       Notifications.addNotificationReceivedListener(() => {
@@ -428,7 +442,5 @@ const styles = StyleSheet.create({
     bottom: 0,
     height: 50,
     backgroundColor: "#ffffff",
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
   },
 });

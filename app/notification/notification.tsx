@@ -1,4 +1,3 @@
-import { AuthProvider } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
 import React, { useState } from 'react';
@@ -49,16 +48,15 @@ const App = () => {
       : notifikasi.filter((item) => item.category === selectedCategory);
 
   return (
-    <AuthProvider>
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-          <CustomHeader title="Notification" />
-          <Stack.Screen
-            options={{
-              headerShown: false, // Hide header for the main profile screen
-            }}
-          />
-          <ScrollView style={styles.scrollView}>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <CustomHeader title="Notification" />
+        <Stack.Screen
+          options={{
+            headerShown: false, // Hide header for the main profile screen
+          }}
+        />
+        <ScrollView style={styles.scrollView}>
             {/* Horizontal scrollable category section */}
             <ScrollView
               horizontal
@@ -117,10 +115,9 @@ const App = () => {
                 <Text style={styles.emptyText}>Belum ada notifikasi</Text>
               </View>
             )}
-          </ScrollView>
-        </SafeAreaView>
-      </SafeAreaProvider>
-    </AuthProvider>
+        </ScrollView>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 };
 
@@ -137,26 +134,30 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   badge: {
-    backgroundColor: '#fff',
+    backgroundColor: '#fff8d6',
     borderRadius: 20,
     paddingVertical: 8,
-    paddingHorizontal: 15,
+    paddingHorizontal: 16,
     marginRight: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 214, 10, 0.4)',
+    shadowColor: 'rgba(0,0,0,0.08)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 3,
   },
   badgeText: {
-    color: '#000',
+    color: '#5c4300',
     fontSize: 14,
+    fontWeight: '600',
   },
   selectedBadge: {
-    backgroundColor: '#115f9f',
+    backgroundColor: '#ffd60a',
+    borderColor: '#ffca0a',
   },
   selectedBadgeText: {
-    color: '#fff',
+    color: '#1b1200',
   },
   card: {
     backgroundColor: '#fff',
@@ -198,14 +199,14 @@ const styles = StyleSheet.create({
     color: '#999',
   },
   categoryBadge: {
-    backgroundColor: '#115f9f',
-    borderRadius: 5,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
+    backgroundColor: '#ffea71',
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
   },
   categoryBadgeText: {
     fontSize: 12,
-    color: '#fff',
+    color: '#6a4d00',
     fontWeight: 'bold',
   },
   emptyContainer: {

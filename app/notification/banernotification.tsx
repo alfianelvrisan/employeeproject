@@ -33,7 +33,6 @@ const BannerNotification = () => {
   };
 
   return (
-    <AuthProvider>
     <View style={styles.container}>
         <Text style={styles.texttile}>Information</Text>
       <FlatList
@@ -66,7 +65,6 @@ const BannerNotification = () => {
         ))}
       </View>
     </View>
-    </AuthProvider>
   );
 };
 
@@ -75,43 +73,45 @@ const styles = StyleSheet.create({
     marginBottom: 20, // Add spacing below the banner
   },
   card: {
-    width: Dimensions.get('window').width * 0.9, // Reduce card width
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    textShadowRadius: 3,
-    elevation: 2,
-    marginHorizontal: Dimensions.get('window').width * 0.007, // Center the card
+    width: Dimensions.get('window').width * 0.9,
+    backgroundColor: '#fffef5',
+    borderRadius: 18,
+    shadowColor: 'rgba(0,0,0,0.08)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 3,
+    marginHorizontal: Dimensions.get('window').width * 0.007,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,214,10,0.35)',
   },
   imagePlaceholder: {
     width: '100%',
     height: 150,
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
-    backgroundColor: '#fff7c2',
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    backgroundColor: '#ffe766',
     borderBottomWidth: 1,
     borderColor: '#ffd85f',
   },
   textContainer: {
-    padding: 15, // Add spacing around text
+    padding: 16,
   },
   title: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#115f9f',
-    marginBottom: 5,
+    fontWeight: '800',
+    color: '#4b3600',
+    marginBottom: 6,
   },
   description: {
     fontSize: 14,
-    color: '#555',
-    marginBottom: 10,
+    color: '#705800',
+    marginBottom: 12,
   },
   date: {
     fontSize: 12,
-    color: '#888',
+    color: '#b2932c',
   },
   pagination: {
     flexDirection: 'row',
@@ -125,15 +125,15 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   activeDot: {
-    backgroundColor: '#333',
+    backgroundColor: '#ffd60a',
   },
   inactiveDot: {
-    backgroundColor: '#aaa',
+    backgroundColor: '#ffe7a3',
   },
   texttile : {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#115f9f',
+    color: '#4b3600',
     marginBottom: 10,
     marginLeft: 10,
   }

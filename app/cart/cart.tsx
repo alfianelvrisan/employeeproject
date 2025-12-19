@@ -46,8 +46,8 @@ const SEARCH_NEON_MUTED = [
   "rgba(74,210,255,0.02)",
 ];
 
-const NEON_GRADIENT = ["#0b1427", "#0c1b35", "#115f9f"];
-const TAB_DISABLED_GRADIENT = ["#ffffffff", "#f8f9ffff"];
+const NEON_GRADIENT = ["#ffe766", "#ffd347", "#ffb703"];
+const TAB_DISABLED_GRADIENT = ["#fff9ec", "#fffdf6"];
 
 const Cart = () => {
   const { userToken } = useAuth();
@@ -516,7 +516,7 @@ const Cart = () => {
                             : "radio-button-off"
                         }
                         size={22}
-                        color="#115f9f"
+                        color="#6b3a00"
                       />
                     </TouchableOpacity>
                     <Image source={{ uri: item.foto }} style={styles.itemImage} />
@@ -553,7 +553,7 @@ const Cart = () => {
                         onPress={() => handleDecreaseQuantity(item.id)}
                         disabled={isDisabled}
                       >
-                        <Ionicons name="remove" size={20} color="#115f9f" />
+                        <Ionicons name="remove" size={20} color="#6b3a00" />
                       </TouchableOpacity>
                       <View style={styles.qtyValue}>
                         <Text style={styles.qtyValueText}>{item.qty}</Text>
@@ -565,7 +565,7 @@ const Cart = () => {
                         }
                         disabled={isDisabled}
                       >
-                        <Ionicons name="add" size={20} color="#115f9f" />
+                        <Ionicons name="add" size={20} color="#6b3a00" />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -698,7 +698,7 @@ const Cart = () => {
                             payment.permata_va_number ||
                             "-"}
                         </Text>
-                        <Icon name="content-copy" size={18} color="#115f9f" />
+                        <Icon name="content-copy" size={18} color="#6b3a00" />
                       </TouchableOpacity>
                     </View>
                     <Text style={styles.vaHint}>
@@ -883,7 +883,7 @@ const Cart = () => {
   return (
     <AuthProvider>
       <LinearGradient
-        colors={["#cde7ff", "#e6f3ff", "#ffffff"]}
+        colors={["#fff5c3", "#fffbe6", "#ffffff"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={styles.gradientBg}
@@ -903,7 +903,7 @@ const Cart = () => {
             ),
             headerBackground: () => (
               <LinearGradient
-                colors={["#115f9f", "#0b2850"]}
+                colors={["#ffe766", "#ffb703"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.headerBackgroundGradient}
@@ -1239,15 +1239,17 @@ const styles = StyleSheet.create({
     width: "50%",
   },
   cartItem: {
-    backgroundColor: "#fff",
-    padding: 14,
+    backgroundColor: "#fffdf5",
+    padding: 16,
     marginBottom: 12,
-    borderRadius: 20,
-    shadowColor: "#0a3e7a",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    elevation: 4,
+    borderRadius: 22,
+    shadowColor: "rgba(0,0,0,0.08)",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.9,
+    shadowRadius: 16,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "rgba(255,199,0,0.25)",
     width: "92%",
     alignSelf: "center",
   },
@@ -1278,8 +1280,9 @@ const styles = StyleSheet.create({
   },
   storeName: {
     fontSize: 13,
-    color: "#4a6078",
+    color: "#a06d00",
     marginBottom: 6,
+    fontWeight: "600",
   },
   priceRow: {
     flexDirection: "row",
@@ -1289,21 +1292,21 @@ const styles = StyleSheet.create({
   currentPrice: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#115f9f",
+    color: "#6b3a00",
   },
   originalPrice: {
     fontSize: 12,
-    color: "#9aa4bc",
+    color: "#c19c65",
     textDecorationLine: "line-through",
   },
   stockText: {
     fontSize: 12,
-    color: "#606060",
+    color: "#8d6a00",
   },
   deleteIconContainer: {
-    padding: 6,
-    borderRadius: 12,
-    backgroundColor: "#ffecec",
+    padding: 7,
+    borderRadius: 14,
+    backgroundColor: "#fff1d4",
     marginLeft: "auto",
   },
   checkoutWrapper: {
@@ -1317,11 +1320,11 @@ const styles = StyleSheet.create({
   checkoutCardGradient: {
     borderRadius: 30,
     padding: 3,
-    shadowColor: "#0d60d3",
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.35,
-    shadowRadius: 26,
-    elevation: 18,
+    shadowColor: "rgba(255,174,0,0.45)",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    elevation: 12,
   },
   checkoutCard: {
     borderRadius: 28,
@@ -1336,17 +1339,17 @@ const styles = StyleSheet.create({
   },
   totalLabel: {
     fontSize: 14,
-    color: "#7284a3",
+    color: "#9c7b1b",
     fontWeight: "600",
   },
   totalGlass: {
     borderRadius: 18,
     paddingVertical: 12,
     paddingHorizontal: 18,
-    backgroundColor: "rgba(255,255,255,0.95)",
+    backgroundColor: "#fff9e6",
     borderWidth: 1,
-    borderColor: "rgba(17,95,159,0.1)",
-    shadowColor: "#0a3e7a",
+    borderColor: "rgba(255,199,0,0.35)",
+    shadowColor: "rgba(0,0,0,0.08)",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.12,
     shadowRadius: 12,
@@ -1356,7 +1359,7 @@ const styles = StyleSheet.create({
   totalText: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#115f9f",
+    color: "#6b3a00",
     textAlign: "right",
     fontFamily: "bolder",
     marginRight: 8,
@@ -1373,17 +1376,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 30,
     borderWidth: 0,
-    shadowColor: "#0d60d3",
+    shadowColor: "rgba(255,174,0,0.45)",
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.65,
-    shadowRadius: 25,
-    elevation: 12,
+    shadowOpacity: 1,
+    shadowRadius: 22,
+    elevation: 10,
   },
   checkoutButtonGradientDisabled: {
     opacity: 0.9,
   },
   checkoutButtonText: {
-    color: "#fff",
+    color: "#4b2d00",
     fontSize: 16,
     fontWeight: "bold",
   },
@@ -1409,8 +1412,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     height: 50,
     backgroundColor: "#ffffff",
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
   },
   uom: {
     fontSize: 10,
@@ -1421,7 +1422,7 @@ const styles = StyleSheet.create({
   quantitySection: {
     marginTop: 14,
     borderTopWidth: 1,
-    borderTopColor: "#eef5ff",
+    borderTopColor: "#ffe8a9",
     paddingTop: 14,
     flexDirection: "row",
     alignItems: "center",
@@ -1429,7 +1430,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 13,
-    color: "#4a6078",
+    color: "#8a6700",
     fontWeight: "600",
   },
   quantityControls: {
@@ -1442,21 +1443,25 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#eef5ff",
+    backgroundColor: "#fff2c6",
     marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255,176,0,0.5)",
   },
   qtyValue: {
     minWidth: 46,
     borderRadius: 10,
-    backgroundColor: "#f0f5ff",
+    backgroundColor: "#fff6d8",
     paddingHorizontal: 12,
     paddingVertical: 8,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,199,0,0.5)",
   },
   qtyValueText: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#115f9f",
+    color: "#6b3a00",
   },
   tabRow: {
     flexDirection: "row",
@@ -1477,7 +1482,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "transparent",
+    borderColor: "rgba(255,215,0,0.2)",
     shadowColor: "transparent",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0,
@@ -1485,20 +1490,20 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   tabButtonGradientActive: {
-    borderColor: "rgba(255,255,255,0.2)",
-    shadowColor: "#4ad2ff",
+    borderColor: "rgba(255,193,7,0.5)",
+    shadowColor: "rgba(255, 174, 0, 0.65)",
     shadowOpacity: 0.65,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
     elevation: 12,
   },
   tabButtonText: {
-    color: "#111",
+    color: "#7b5a00",
     fontSize: 14,
     fontWeight: "700",
   },
   tabButtonTextActive: {
-    color: "#ffffffff",
+    color: "#3e2900",
   },
   itemStock: {
     fontSize: 12,
@@ -1507,14 +1512,14 @@ const styles = StyleSheet.create({
   },
   descriptionInput: {
     borderWidth: 1,
-    borderColor: "rgba(17,95,159,0.35)",
+    borderColor: "rgba(255, 195, 0, 0.5)",
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginBottom: 10,
     fontSize: 14,
     color: "#1a1a1a",
     borderRadius: 22,
-    backgroundColor: "rgba(244,248,255,0.92)",
+    backgroundColor: "#fff9e7",
   },
   belumBayar: {
     top: 100,
@@ -1531,17 +1536,19 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     padding: 3,
     marginBottom: 18,
-    backgroundColor: "rgba(17,95,159,0.12)",
+    backgroundColor: "rgba(255,195,0,0.18)",
   },
   paymentCard: {
-    backgroundColor: "#fff",
+    backgroundColor: "#fffef7",
     borderRadius: 24,
     padding: 18,
-    shadowColor: "#0a3e7a",
+    shadowColor: "rgba(0,0,0,0.08)",
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 1,
     shadowRadius: 18,
-    elevation: 6,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255,199,0,0.3)",
   },
   paymentOrderId: {
     fontSize: 14,
@@ -1571,18 +1578,18 @@ const styles = StyleSheet.create({
   groupName: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#333",
+    color: "#4b2d00",
     textAlign: "center",
   },
   slogan: {
     fontSize: 14,
-    color: "#555",
+    color: "#7a5c00",
     textAlign: "center",
   },
   address: {
     marginBottom: 5,
     fontSize: 12,
-    color: "#888",
+    color: "#a07c18",
     textAlign: "center",
   },
   transactionDetails: {
@@ -1622,7 +1629,7 @@ const styles = StyleSheet.create({
   },
   productPrice: {
     fontSize: 14,
-    color: "#115f9f",
+    color: "#6b3a00",
     fontWeight: "bold",
   },
   noProducts: {
@@ -1653,7 +1660,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   statusPill: {
-    backgroundColor: "rgba(17,95,159,0.08)",
+    backgroundColor: "rgba(255,195,0,0.12)",
     paddingVertical: 4,
     paddingHorizontal: 12,
     borderRadius: 16,
@@ -1661,7 +1668,7 @@ const styles = StyleSheet.create({
   statusPillText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#115f9f",
+    color: "#a87000",
     textTransform: "capitalize",
   },
   statusPending: {
