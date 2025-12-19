@@ -149,13 +149,13 @@ export default function Index() {
               style={styles.headerLogo}
             />
             <TouchableOpacity
-              style={styles.notifButton}
+              style={[styles.solidButton, styles.notifButton]}
               onPress={() => {
                 setUnreadCount(0);
                 router.push("/notification/notification");
               }}
             >
-              <Ionicons name="notifications-outline" size={22} color="#fff" />
+              <Ionicons name="notifications-outline" size={22} color="#1f1f1f" />
               {unreadCount > 0 && (
                 <View style={styles.notifBadge}>
                   <Text style={styles.notifText}>
@@ -197,10 +197,7 @@ export default function Index() {
                   <Location onSelectStore={setSelectedLocation} />
                   <View style={styles.searchWrapper}>
                     <LinearGradient
-                      colors={[
-                        "rgba(74,210,255,0.45)",
-                        "rgba(74,210,255,0.08)",
-                      ]}
+                      colors={["#ffe766", "#fff7c3"]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.neonShell}
@@ -209,26 +206,26 @@ export default function Index() {
                         <Ionicons
                           name="search-outline"
                           size={18}
-                          color="#b7e9ff"
+                          color="#3a2f00"
                           style={styles.neonIcon}
                         />
                         <TextInput
                           value={searchQuery}
                           onChangeText={setSearchQuery}
                           placeholder="cari produk favoritmu"
-                          placeholderTextColor="#cde9ff"
+                          placeholderTextColor="#857a3a"
                           style={styles.neonInput}
-                          selectionColor="#4ad2ff"
+                          selectionColor="#f6c700"
                         />
                         <TouchableOpacity
                           onPress={() => setSearchQuery("")}
-                          style={styles.neonAction}
+                          style={[styles.solidButton, styles.neonAction]}
                           accessibilityLabel="Hapus pencarian"
                         >
                           <Ionicons
                             name="close-circle-outline"
                             size={16}
-                            color="#d9f6ff"
+                            color="#2c2300"
                           />
                         </TouchableOpacity>
                       </View>
@@ -248,6 +245,7 @@ export default function Index() {
             onRefresh={handleRefresh}
             refreshing={refreshing}
           />
+          <View pointerEvents="none" style={styles.bottomFill} />
         </SafeAreaView>
       </LinearGradient>
     </SafeAreaProvider>
@@ -305,7 +303,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 0, 
     paddingVertical: 10,
     paddingHorizontal: 0,
-    borderRadius: 40,
+    borderRadius: 15,
     backgroundColor: "#ffffffff",
   },
   section: {
@@ -342,9 +340,21 @@ const styles = StyleSheet.create({
     height: 34,
     resizeMode: "contain",
   },
+  solidButton: {
+    backgroundColor: "#ffd60a",
+    borderRadius: 18,
+    shadowColor: "rgba(255,198,0,0.4)",
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
   notifButton: {
     marginLeft: "auto",
-    padding: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
     position: "relative",
   },
   notifBadge: {
@@ -373,49 +383,52 @@ const styles = StyleSheet.create({
     marginHorizontal: "2%",
   },
   neonShell: {
-    borderRadius: 18,
+    borderRadius: 22,
     padding: 2,
+    shadowColor: "rgba(255, 198, 0, 0.35)",
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
   },
   neonSearch: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 16,
-    backgroundColor: "rgba(8,16,26,0.95)",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderWidth: 1,
-    borderColor: "rgba(74,210,255,0.5)",
-    shadowColor: "#4ad2ff",
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 10,
+    borderColor: "#ffe27a",
   },
   neonIcon: {
     marginRight: 10,
   },
   neonInput: {
     flex: 1,
-    color: "#e8f5ff",
+    color: "#1f1f1f",
     fontSize: 15,
+    fontWeight: "500",
   },
   neonAction: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "rgba(74,210,255,0.6)",
+    width: 38,
+    height: 38,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(7, 124, 162, 0.12)",
-    shadowColor: "#4ad2ff",
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 6,
   },
   // Spacer agar konten tidak tertutup header animasi
   headerSpacer: {
     height: 56,
+  },
+  bottomFill: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 50,
+    backgroundColor: "#ffffff",
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
   },
 });

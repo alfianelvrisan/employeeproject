@@ -84,11 +84,13 @@ export default function App() {
         break;
     }
   
+    const isActive = routeName === selectedTab;
+
     return (
       <Ionicons
         name={icon as keyof typeof Ionicons.glyphMap}
-        size={25}
-        color={routeName === selectedTab ? "#115f9f" : "gray"}
+        size={26}
+        color={isActive ? "#3b2b00" : "#b09c4a"}
       />
     );
   };
@@ -100,12 +102,15 @@ export default function App() {
         navigate(routeName);
       }
     };
+    const isActive = selectedTab === routeName;
     return (
       <TouchableOpacity
       onPress={handlePress}
-        style={styles.tabbarItem}
+        style={[styles.tabbarItem, isActive && styles.tabbarItemActive]}
       >
-        {_renderIcon(routeName, selectedTab)}
+        <View style={[styles.iconChip, isActive && styles.iconChipActive]}>
+          {_renderIcon(routeName, selectedTab)}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -121,19 +126,19 @@ const insets = useSafeAreaInsets();
         shadowStyle={styles.shadow}
         height={55}
         circleWidth={50}
-        bgColor="white"
+        bgColor="#ffffffff"
         initialRouteName="Home"
-        id="mainNavigator" // Unique ID for the navigator
-        screenOptions={{ headerShown: false }} // Example screen options
-        borderColor="transparent" // Example border color
-        borderWidth={0} // Example border width
+        id="mainNavigator"
+        screenOptions={{ headerShown: false }}
+        borderColor="transparent"
+        borderWidth={0}
         renderCircle={({  }) => (
           <View style={styles.btnCircleUp}>
             <TouchableOpacity
               style={styles.button}
               onPress={() => router.push("/scan/scanqrcode")}
             >
-              <MaterialIcons name={"qr-code-scanner"} color="#115f9f" size={25} />
+              <MaterialIcons name={"qr-code-scanner"} color="#4a3600" size={25} />
             </TouchableOpacity>
           </View>
         )}
@@ -184,7 +189,7 @@ const insets = useSafeAreaInsets();
           options={{
             headerShown: false,
             headerStyle: {
-              backgroundColor: "#fff", // Latar belakang putih
+              backgroundColor: "#fff",
             },
           }}
           
@@ -226,13 +231,13 @@ export const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#c3eaff",
+    backgroundColor: "#ffe133",
     bottom: 30,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 1,
+    shadowColor: "rgba(0,0,0,0.2)",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   imgCircle: {
     width: 30,
@@ -243,6 +248,25 @@ export const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    paddingVertical: 4,
+  },
+  tabbarItemActive: {
+    transform: [{ translateY: -6 }],
+  },
+  iconChip: {
+    width: 48,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconChipActive: {
+    backgroundColor: "#fff6da",
+    shadowColor: "rgba(0,0,0,0.2)",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 2,
   },
   img: {
     width: 30,
