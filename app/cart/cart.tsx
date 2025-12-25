@@ -46,8 +46,15 @@ const SEARCH_NEON_MUTED = [
   "rgba(74,210,255,0.02)",
 ];
 
-const NEON_GRADIENT = ["#ffe766", "#ffd347", "#ffb703"];
-const TAB_DISABLED_GRADIENT = ["#fff9ec", "#fffdf6"];
+const PRIMARY_YELLOW = "#ffe133";
+const PRIMARY_YELLOW_DARK = "#d19c00";
+const PRIMARY_YELLOW_LIGHT = "#fff7c4";
+const NEON_GRADIENT = ["#fff57c", PRIMARY_YELLOW, "#ffc20e"];
+const TAB_DISABLED_GRADIENT = ["#fffcee", PRIMARY_YELLOW_LIGHT];
+const PRIMARY_BUTTON_GRADIENT = ["#fff48c", PRIMARY_YELLOW, "#ffca1a"];
+const SECONDARY_BUTTON_GRADIENT = ["#fffceb", "#ffe788"];
+const WARNING_BUTTON_GRADIENT = [PRIMARY_YELLOW, "#f5c018", "#d69800"];
+const BUTTON_DISABLED_GRADIENT = ["#fffdf2", "#fff8d4"];
 
 const Cart = () => {
   const { userToken } = useAuth();
@@ -883,7 +890,7 @@ const Cart = () => {
   return (
     <AuthProvider>
       <LinearGradient
-        colors={["#fff5c3", "#fffbe6", "#ffffff"]}
+        colors={[PRIMARY_YELLOW_LIGHT, "#fffbe6", "#ffffff"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={styles.gradientBg}
@@ -903,7 +910,7 @@ const Cart = () => {
             ),
             headerBackground: () => (
               <LinearGradient
-                colors={["#ffe766", "#ffb703"]}
+                colors={[PRIMARY_YELLOW, "#f0c734"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.headerBackgroundGradient}
@@ -984,8 +991,8 @@ const Cart = () => {
                     <LinearGradient
                       colors={
                         selectedItems.length === 0
-                          ? ["#ffffff", "#f5f6ff"]
-                          : NEON_GRADIENT
+                          ? BUTTON_DISABLED_GRADIENT
+                          : PRIMARY_BUTTON_GRADIENT
                       }
                       style={[
                         styles.checkoutButtonGradient,
@@ -1007,7 +1014,7 @@ const Cart = () => {
                           name="cart-outline"
                           size={22}
                           color={
-                            selectedItems.length === 0 ? "#1a1a1a" : "#fff"
+                            selectedItems.length === 0 ? "#8a7a39" : "#4b2d00"
                           }
                           style={styles.checkoutIcon}
                         />
@@ -1039,7 +1046,7 @@ const Cart = () => {
                   style={styles.modalButtonWrapper}
                 >
                   <LinearGradient
-                    colors={["#f1f2f4", "#d8dce1"]}
+                    colors={SECONDARY_BUTTON_GRADIENT}
                     style={styles.modalButtonGradient}
                   >
                     <Text style={styles.modalButtonText}>Batal</Text>
@@ -1051,7 +1058,7 @@ const Cart = () => {
                   style={styles.modalButtonWrapper}
                 >
                   <LinearGradient
-                    colors={["#52c7ff", "#2f89ff", "#1f5fd6"]}
+                    colors={PRIMARY_BUTTON_GRADIENT}
                     style={styles.modalButtonGradient}
                   >
                     <Text style={[styles.modalButtonText, styles.modalButtonTextPrimary]}>
@@ -1082,7 +1089,7 @@ const Cart = () => {
                   style={styles.modalButtonWrapper}
                 >
                   <LinearGradient
-                    colors={["#f1f2f4", "#d8dce1"]}
+                    colors={SECONDARY_BUTTON_GRADIENT}
                     style={styles.modalButtonGradient}
                   >
                     <Text style={styles.modalButtonText}>Batal</Text>
@@ -1094,7 +1101,7 @@ const Cart = () => {
                   style={styles.modalButtonWrapper}
                 >
                   <LinearGradient
-                    colors={["#ff9a9e", "#f54e4e", "#d7263d"]}
+                    colors={WARNING_BUTTON_GRADIENT}
                     style={styles.modalButtonGradient}
                   >
                     <Text
@@ -1127,7 +1134,7 @@ const Cart = () => {
                   style={styles.modalButtonWrapper}
                 >
                   <LinearGradient
-                    colors={["#f1f2f4", "#d8dce1"]}
+                    colors={SECONDARY_BUTTON_GRADIENT}
                     style={styles.modalButtonGradient}
                   >
                     <Text style={styles.modalButtonText}>Batal</Text>
@@ -1139,7 +1146,7 @@ const Cart = () => {
                   style={styles.modalButtonWrapper}
                 >
                   <LinearGradient
-                    colors={["#ff9a9e", "#f54e4e", "#d7263d"]}
+                    colors={WARNING_BUTTON_GRADIENT}
                     style={styles.modalButtonGradient}
                   >
                     <Text
@@ -1306,7 +1313,7 @@ const styles = StyleSheet.create({
   deleteIconContainer: {
     padding: 7,
     borderRadius: 14,
-    backgroundColor: "#fff1d4",
+    backgroundColor: PRIMARY_YELLOW_LIGHT,
     marginLeft: "auto",
   },
   checkoutWrapper: {
@@ -1391,7 +1398,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   checkoutButtonTextDisabled: {
-    color: "#1a1a1a",
+    color: "#8a7a39",
   },
   buyNowContent: {
     flexDirection: "row",
@@ -1411,7 +1418,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     height: 50,
-    backgroundColor: "#ffffff",
+    backgroundColor: PRIMARY_YELLOW,
   },
   uom: {
     fontSize: 10,
@@ -1443,20 +1450,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff2c6",
+    backgroundColor: PRIMARY_YELLOW_LIGHT,
     marginHorizontal: 4,
     borderWidth: 1,
-    borderColor: "rgba(255,176,0,0.5)",
+    borderColor: PRIMARY_YELLOW,
   },
   qtyValue: {
     minWidth: 46,
     borderRadius: 10,
-    backgroundColor: "#fff6d8",
+    backgroundColor: "#fffbe2",
     paddingHorizontal: 12,
     paddingVertical: 8,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,199,0,0.5)",
+    borderColor: PRIMARY_YELLOW,
   },
   qtyValueText: {
     fontSize: 15,
@@ -1736,10 +1743,10 @@ const styles = StyleSheet.create({
   modalButtonText: {
     fontSize: 15,
     fontWeight: "bold",
-    color: "#333",
+    color: "#4b2d00",
   },
   modalButtonTextPrimary: {
-    color: "#fff",
+    color: "#3a2500",
   },
   deleteButton: {
     color: "red",

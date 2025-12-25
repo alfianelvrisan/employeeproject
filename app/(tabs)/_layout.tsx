@@ -77,7 +77,7 @@ export default function App() {
         icon = routeName === selectedTab ? "notifications" : "notifications-outline";
         break;
       case "Barcode":
-        icon = "qr-code"; // Tidak ada "qr-code-outline" di Ionicons
+        icon = "qr-code";
         break;
       case "Cart":
         icon = routeName === selectedTab ? "cart" : "cart-outline";
@@ -90,7 +90,7 @@ export default function App() {
       <Ionicons
         name={icon as keyof typeof Ionicons.glyphMap}
         size={26}
-        color={isActive ? "#3b2b00" : "#b09c4a"}
+        color={isActive ? "#000000ff" : "#000000ff"}
       />
     );
   };
@@ -118,9 +118,9 @@ const insets = useSafeAreaInsets();
 
 
   return (
-    <>
     <AuthProvider>
-      <CurvedBottomBarExpo.Navigator
+      <View style={styles.layoutContainer}>
+        <CurvedBottomBarExpo.Navigator
         type="DOWN"
         style={[styles.bottomBar, { paddingBottom: insets.bottom }]}
         shadowStyle={styles.shadow}
@@ -138,7 +138,7 @@ const insets = useSafeAreaInsets();
               style={styles.button}
               onPress={() => router.push("/scan/scanqrcode")}
             >
-              <MaterialIcons name={"qr-code-scanner"} color="#4a3600" size={25} />
+              <MaterialIcons name={"qr-code-scanner"} color="#000000ff" size={25} />
             </TouchableOpacity>
           </View>
         )}
@@ -196,8 +196,9 @@ const insets = useSafeAreaInsets();
         />
         
       </CurvedBottomBarExpo.Navigator>
-      </AuthProvider>
-    </>
+      <View pointerEvents="none" style={styles.bottomFill} />
+      </View>
+    </AuthProvider>
   );
 }
 
@@ -209,6 +210,10 @@ export const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+  },
+  layoutContainer: {
+    flex: 1,
+    position: "relative",
   },
   shadow: {
     shadowColor: "transparent",
@@ -231,9 +236,9 @@ export const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#ffe133",
+    backgroundColor: "#ffffffff",
     bottom: 30,
-    shadowColor: "rgba(0,0,0,0.2)",
+    shadowColor: "rgba(0, 0, 0, 0.2)",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
@@ -254,14 +259,14 @@ export const styles = StyleSheet.create({
     transform: [{ translateY: -6 }],
   },
   iconChip: {
-    width: 48,
-    height: 36,
-    borderRadius: 18,
+    width: 50,
+    height: 50,
+    borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
   },
   iconChipActive: {
-    backgroundColor: "#fff6da",
+    backgroundColor: "#ffe133",
     shadowColor: "rgba(0,0,0,0.2)",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -302,5 +307,13 @@ export const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "medium",
     marginRight: 20,
-  }
+  },
+  bottomFill: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 40,
+    backgroundColor: "#ffffffff",
+  },
 });
