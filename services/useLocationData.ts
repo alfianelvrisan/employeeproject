@@ -96,6 +96,23 @@ export default function useLocationData(
       setCoords(coordinate);
       const reverseGeocode = await Location.reverseGeocodeAsync(coordinate);
       setLocation(formatReverseAddress(reverseGeocode[0] ?? null));
+
+      const response = await fetch(
+        `https://api.laskarbuah.com/api/location?latitute=${coordinate.latitude}&longitute=${coordinate.longitude}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      const json = await response.json();
+      setApidata(json);
+      if (json.length > 0) {
+        setSelectedStore(String(json[0].id));
+        onSelectStore(String(json[0].id));
+      }
     } catch (error) {
       setLocation("Lokasi manual tidak dikenali");
     }

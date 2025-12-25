@@ -161,7 +161,7 @@ export default function Index() {
             />
             <View style={styles.headerSearchWrapper}>
               <LinearGradient
-                colors={[PRIMARY_YELLOW_LIGHT, PRIMARY_YELLOW_SOFT]}
+                colors={["transparent", "transparent"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.neonShell}
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   greetingTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#d7263d",
+    color: "#ff0000ff",
     marginTop: 0,
   },
   greetingRow: {
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    minHeight: 130,
+    minHeight: 100,
     justifyContent: "flex-end",
     alignItems: "center",
     zIndex: 10,
@@ -335,8 +335,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
     shadowRadius: 0,
     paddingTop: 50,
-    paddingBottom: 5,
-    paddingHorizontal: 10,
+    paddingBottom: 0,
+    paddingHorizontal: 7,
     flexDirection: "row",
     borderBottomWidth: 0,
     borderBottomColor: "transparent",
@@ -363,8 +363,9 @@ const styles = StyleSheet.create({
   neonShell: {
     borderRadius: 30,
     padding: 3,
-    shadowColor: PRIMARY_SHADOW,
-    shadowOpacity: 0.5,
+    backgroundColor: "transparent",
+    shadowColor: "transparent",
+    shadowOpacity: 0,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
@@ -374,11 +375,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 26,
     backgroundColor: "#ffffff",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderWidth: 1,
     borderColor: PRIMARY_YELLOW_LIGHT,
-    minHeight: 54,
+    minHeight: 40,
   },
   neonIcon: {
     marginRight: 10,
@@ -390,8 +391,8 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   neonAction: {
-    width: 42,
-    height: 42,
+    width: 36,
+    height: 36,
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
