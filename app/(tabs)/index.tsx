@@ -7,6 +7,7 @@ import {
   TextInput,
   Platform,
   Image,
+  Dimensions,
 } from "react-native";
 import Produk from "../produk/produk";
 import { HelloWave } from "../../components/HelloWave";
@@ -145,7 +146,7 @@ export default function Index() {
   return (
     <SafeAreaProvider>
       <LinearGradient
-        colors={["#ffffff", "#ffffff", "#ffffff"]} // latar putih solid
+        colors={[PRIMARY_YELLOW_SOFT, "#ffffff"]} // latar putih dengan nuansa kuning
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={styles.gradientBg}
@@ -153,14 +154,14 @@ export default function Index() {
         <SafeAreaView style={styles.container}>
           <Animated.View style={[styles.floatingHeader, headerStyle]}>
             <LinearGradient
-              colors={["#ffe133", "#ffe133"]}
+              colors={[PRIMARY_YELLOW_LIGHT, PRIMARY_YELLOW]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.headerGradientOverlay}
             />
             <View style={styles.headerSearchWrapper}>
               <LinearGradient
-                colors={["#ffe766", "#fff7c3"]}
+                colors={[PRIMARY_YELLOW_LIGHT, PRIMARY_YELLOW_SOFT]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.neonShell}
@@ -169,16 +170,16 @@ export default function Index() {
                   <Ionicons
                     name="search-outline"
                     size={18}
-                    color="#3a2f00"
+                    color={PRIMARY_TEXT_DARK}
                     style={styles.neonIcon}
                   />
                   <TextInput
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     placeholder="cari produk favoritmu"
-                    placeholderTextColor="#857a3a"
+                    placeholderTextColor={PRIMARY_TEXT_MUTED}
                     style={styles.neonInput}
-                    selectionColor="#f6c700"
+                    selectionColor={PRIMARY_YELLOW}
                   />
                   <TouchableOpacity
                     onPress={() => setSearchQuery("")}
@@ -188,7 +189,7 @@ export default function Index() {
                     <Ionicons
                       name="close-circle-outline"
                       size={16}
-                      color="#2c2300"
+                      color={PRIMARY_TEXT_DARK}
                     />
                   </TouchableOpacity>
                 </View>
@@ -253,6 +254,15 @@ export default function Index() {
   );
 }
 
+const SCREEN_WIDTH = Dimensions.get("window").width;
+const DIVIDER_RATIO = 2953 / 314;
+const PRIMARY_YELLOW = "#ffe133";
+const PRIMARY_YELLOW_LIGHT = "#fff27c";
+const PRIMARY_YELLOW_SOFT = "#fff7cf";
+const PRIMARY_TEXT_DARK = "#3a2f00";
+const PRIMARY_TEXT_MUTED = "#857a3a";
+const PRIMARY_SHADOW = "rgba(255, 199, 0, 0.4)";
+
 const styles = StyleSheet.create({
   greetingTitle: {
     fontSize: 18,
@@ -279,7 +289,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: "#ffe133",
+    backgroundColor: PRIMARY_YELLOW,
   },
   gradientBg: {
     flex: 1,
@@ -289,7 +299,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingHorizontal: 16,
     paddingBottom: 10,
-    backgroundColor: "#ffe133", // kartu ucapan kuning solid
+    backgroundColor: PRIMARY_YELLOW, // kartu ucapan kuning solid
     borderRadius: 14,
     marginHorizontal: 8,
     shadowColor: "rgba(0,0,0,0.12)",
@@ -304,7 +314,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 0,
     borderRadius: 15,
-    backgroundColor: "#ffffffff",
+    backgroundColor: "#ffffff",
   },
   section: {
     paddingHorizontal: 0,
@@ -342,10 +352,10 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   solidButton: {
-    backgroundColor: "#ffd60a",
+    backgroundColor: PRIMARY_YELLOW,
     borderRadius: 18,
-    shadowColor: "rgba(255,198,0,0.4)",
-    shadowOpacity: 0.4,
+    shadowColor: PRIMARY_SHADOW,
+    shadowOpacity: 0.45,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
@@ -353,8 +363,8 @@ const styles = StyleSheet.create({
   neonShell: {
     borderRadius: 30,
     padding: 3,
-    shadowColor: "rgba(255, 198, 0, 0.4)",
-    shadowOpacity: 0.45,
+    shadowColor: PRIMARY_SHADOW,
+    shadowOpacity: 0.5,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
@@ -367,7 +377,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderWidth: 1,
-    borderColor: "#ffe27a",
+    borderColor: PRIMARY_YELLOW_LIGHT,
     minHeight: 54,
   },
   neonIcon: {
@@ -396,11 +406,12 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     height: 50,
-    backgroundColor: "#ffffff",
+    backgroundColor: PRIMARY_YELLOW,
   },
   sectionDivider: {
-    width: "100%",
-    aspectRatio: 2953 / 314,
-    alignSelf: "stretch",
+    width: SCREEN_WIDTH - 0,
+    height: (SCREEN_WIDTH - 32) / DIVIDER_RATIO,
+    alignSelf: "center",
+    marginTop: 16,
   },
 });

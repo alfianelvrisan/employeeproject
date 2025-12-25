@@ -1,16 +1,33 @@
 import { useEffect, useState } from "react";
 import * as Location from "expo-location";
 
+type Coordinates = {
+  latitude: number;
+  longitude: number;
+};
+
+const formatReverseAddress = (data: Location.LocationGeocodedAddress | null) => {
+  if (!data) {
+    return "Lokasi dipilih manual";
+  }
+  const { name, street, district, city, region } = data;
+  return (
+    [name || street, district || city || region]
+      .filter(Boolean)
+      .join(", ") || "Lokasi dipilih manual"
+  );
+};
+
 export default function useLocationData(
   onSelectStore: (storeId: string) => void,
   userToken: string
 ) {
   const [location, setLocation] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [latitude, setLatitude] = useState<number | null>(null);
-  const [longitude, setLongitude] = useState<number | null>(null);
   const [apidata, setApidata] = useState<any>([]);
   const [selectedStore, setSelectedStore] = useState<string>("");
+  const [coords, setCoords] = useState<Coordinates | null>(null);
+  const [initialCoords, setInitialCoords] = useState<Coordinates | null>(null);
 
   useEffect(() => {
     const getLocationData = async () => {
@@ -28,9 +45,13 @@ export default function useLocationData(
           accuracy: Location.Accuracy.Lowest,
         });
 
-        const { latitude, longitude } = current.coords;
-        setLatitude(latitude);
-        setLongitude(longitude);
+        const nextCoords = {
+          latitude: current.coords.latitude,
+          longitude: current.coords.longitude,
+        };
+        const { latitude, longitude } = nextCoords;
+        setCoords(nextCoords);
+        setInitialCoords((prev) => prev ?? nextCoords);
 
         const reversePromise = Location.reverseGeocodeAsync({ latitude, longitude });
         const fetchPromise = fetch(
@@ -46,12 +67,7 @@ export default function useLocationData(
 
         const [reverseGeocode, json] = await Promise.all([reversePromise, fetchPromise]);
 
-        if (reverseGeocode.length > 0) {
-          const { district, city } = reverseGeocode[0];
-          setLocation(`${district ?? ""}, ${city ?? ""}`);
-        } else {
-          setLocation("Tidak dapat menemukan lokasi");
-        }
+        setLocation(formatReverseAddress(reverseGeocode[0] ?? null));
 
         setApidata(json);
         if (json.length > 0 && !selectedStore) {
@@ -75,11 +91,31 @@ export default function useLocationData(
     }
   }, [selectedStore]);
 
+  const updateLocationByCoords = async (coordinate: Coordinates) => {
+    try {
+      setCoords(coordinate);
+      const reverseGeocode = await Location.reverseGeocodeAsync(coordinate);
+      setLocation(formatReverseAddress(reverseGeocode[0] ?? null));
+    } catch (error) {
+      setLocation("Lokasi manual tidak dikenali");
+    }
+  };
+
+  const resetToInitialCoords = async () => {
+    if (initialCoords) {
+      await updateLocationByCoords(initialCoords);
+    }
+  };
+
   return {
     location,
     loading,
     apidata,
     selectedStore,
     setSelectedStore,
+    coords,
+    updateLocationByCoords,
+    initialCoords,
+    resetToInitialCoords,
   };
 }

@@ -21,6 +21,13 @@ import {
 import { fetchProfile } from "../../services/profileServices";
 import { fetchDeliveryServices } from "../../services/deliveryServices";
 
+const PRIMARY_YELLOW = "#ffe133";
+const PRIMARY_YELLOW_LIGHT = "#fff3b0";
+const PRIMARY_YELLOW_SOFT = "#fff8d7";
+const PRIMARY_TEXT_DARK = "#3a2f00";
+const PRIMARY_TEXT_MUTED = "#6f5a1a";
+const PRIMARY_SHADOW = "rgba(255, 199, 0, 0.35)";
+
 type ProdukProps = {
   idStore: any;
   searchQuery?: string;
@@ -252,13 +259,13 @@ const Produk = ({
           <Ionicons
             name="search-outline"
             size={20}
-            color="#aaa"
+            color={PRIMARY_TEXT_MUTED}
             style={styles.searchIcon}
           />
           <TextInput
             style={styles.searchBar}
             placeholder="Search something..."
-            placeholderTextColor="#aaa"
+            placeholderTextColor={PRIMARY_TEXT_MUTED}
             value={search}
             onChangeText={(text) => setSearch(text)}
           />
@@ -341,7 +348,7 @@ const Produk = ({
 
               <View style={styles.storeRow}>
                 <View style={styles.storeChip}>
-                  <Ionicons name="storefront-outline" size={12} color="#115f9f" />
+                  <Ionicons name="storefront-outline" size={12} color={PRIMARY_TEXT_DARK} />
                   <Text style={styles.storeText} numberOfLines={1}>
                     {item.name_store}
                   </Text>
@@ -375,7 +382,7 @@ const Produk = ({
                   onPress={() => handleAddToCart(item.id)}
                   style={styles.actionButton}
                 >
-                  <Ionicons name="cart-outline" size={18} color="#115f9f" />
+                  <Ionicons name="cart-outline" size={18} color={PRIMARY_TEXT_DARK} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => handleLikePress(item.id)}
@@ -391,7 +398,7 @@ const Produk = ({
                     color={
                       likedProducts.includes(item.id) || item.liked !== 0
                         ? "red"
-                        : "#115f9f"
+                        : PRIMARY_TEXT_DARK
                     }
                   />
                 </TouchableOpacity>
@@ -421,28 +428,33 @@ const styles = StyleSheet.create({
   categoryBadge: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
+    backgroundColor: PRIMARY_YELLOW_SOFT,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 15,
     marginRight: 10,
     marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: PRIMARY_YELLOW_LIGHT,
+    shadowColor: PRIMARY_SHADOW,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
     elevation: 0.1,
     width: 100,
     height: 50,
   },
   selectedCategoryBadge: {
-    backgroundColor: "#115f9f",
+    backgroundColor: PRIMARY_YELLOW,
+    borderColor: PRIMARY_YELLOW,
+    shadowOpacity: 0.4,
+    elevation: 4,
   },
   iconContainer: {
     width: 30,
     height: 30,
     borderRadius: 25,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -453,23 +465,26 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: 10,
-    opacity: 0.8,
-    color: "#000",
+    opacity: 0.9,
+    color: PRIMARY_TEXT_DARK,
     textAlign: "center",
   },
   selectedCategoryText: {
-    color: "#fff",
+    color: PRIMARY_TEXT_DARK,
+    fontWeight: "700",
   },
   row: {
     justifyContent: "space-between",
     marginBottom: 10,
   },
   productCard: {
-    backgroundColor: "#f4f8ff",
+    backgroundColor: PRIMARY_YELLOW_SOFT,
     borderRadius: 18,
     padding: 12,
     marginBottom: 10,
-    shadowColor: "#0a3e7a",
+    borderWidth: 1,
+    borderColor: "rgba(255,225,51,0.4)",
+    shadowColor: PRIMARY_SHADOW,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.12,
     shadowRadius: 18,
@@ -479,7 +494,7 @@ const styles = StyleSheet.create({
   imageWrapper: {
     borderRadius: 14,
     overflow: "hidden",
-    backgroundColor: "#e9f1ff",
+    backgroundColor: "#fff",
     marginBottom: 10,
   },
   productImage: {
@@ -491,13 +506,13 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 10,
     right: 10,
-    backgroundColor: "#115f9f",
+    backgroundColor: PRIMARY_YELLOW,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
   },
   discountText: {
-    color: "#fff",
+    color: PRIMARY_TEXT_DARK,
     fontSize: 12,
     fontWeight: "700",
   },
@@ -507,7 +522,7 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#1b2b40",
+    color: PRIMARY_TEXT_DARK,
     flexShrink: 1,
   },
   storeRow: {
@@ -519,7 +534,7 @@ const styles = StyleSheet.create({
   storeChip: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#e6f1ff",
+    backgroundColor: PRIMARY_YELLOW_LIGHT,
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 10,
@@ -527,13 +542,13 @@ const styles = StyleSheet.create({
   },
   storeText: {
     fontSize: 12,
-    color: "#115f9f",
+    color: PRIMARY_TEXT_DARK,
     marginLeft: 6,
     flexShrink: 1,
   },
   categoryPill: {
-    backgroundColor: "#f5f7fb",
-    color: "#4a6078",
+    backgroundColor: "#fff4c4",
+    color: PRIMARY_TEXT_MUTED,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
@@ -544,7 +559,7 @@ const styles = StyleSheet.create({
   },
   productUOM: {
     fontSize: 12,
-    color: "#6b7a90",
+    color: PRIMARY_TEXT_MUTED,
   },
   priceRow: {
     flexDirection: "row",
@@ -555,16 +570,16 @@ const styles = StyleSheet.create({
   productPrice: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#115f9f",
+    color: PRIMARY_TEXT_DARK,
   },
   productPriceOriginal: {
     fontSize: 12,
-    color: "#9aa4b4",
+    color: "rgba(58,47,0,0.5)",
     textDecorationLine: "line-through",
   },
   productPriceDiscount: {
     fontSize: 16,
-    color: "#115f9f",
+    color: PRIMARY_TEXT_DARK,
     fontWeight: "700",
   },
   actionContainer: {
@@ -577,13 +592,15 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: "#e8f2ff",
+    backgroundColor: PRIMARY_YELLOW_LIGHT,
+    borderWidth: 1,
+    borderColor: "rgba(255,225,51,0.5)",
     justifyContent: "center",
     alignItems: "center",
   },
   totalLikesText: {
     fontSize: 11,
-    color: "#6b7a90",
+    color: PRIMARY_TEXT_MUTED,
     marginLeft: "auto",
   },
   searchContainer: {
@@ -592,11 +609,11 @@ const styles = StyleSheet.create({
     minHeight: 52,
     borderRadius: 16,
     paddingHorizontal: 16,
-    backgroundColor: "#fff",
+    backgroundColor: "#fffef6",
     borderWidth: 1,
-    borderColor: "rgba(17,95,159,0.16)",
+    borderColor: "rgba(255,225,51,0.45)",
     elevation: 6,
-    shadowColor: "#0a3e7a",
+    shadowColor: PRIMARY_SHADOW,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.12,
     shadowRadius: 18,
@@ -608,15 +625,16 @@ const styles = StyleSheet.create({
     height: 44,
     paddingHorizontal: 12,
     fontSize: 16,
+    color: PRIMARY_TEXT_DARK,
   },
   searchIcon: {
     marginRight: 12,
-    color: "#115f9f",
+    color: PRIMARY_TEXT_DARK,
   },
   searchResult: {
     marginTop: 10,
     fontSize: 14,
-    color: "#333",
+    color: PRIMARY_TEXT_DARK,
   },
   loadingContainer: {
     flexDirection: "row",
