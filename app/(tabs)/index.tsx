@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   TextInput,
   Platform,
+  Image,
 } from "react-native";
 import Produk from "../produk/produk";
 import { HelloWave } from "../../components/HelloWave";
@@ -224,6 +225,13 @@ export default function Index() {
                 <View style={styles.utilityCard}>
                   <Cardhome />
                   <Location onSelectStore={setSelectedLocation} />
+                  <Image
+                    source={require("../../assets/images/barindex.png")}
+                    style={styles.sectionDivider}
+                    resizeMode="cover"
+                    accessible
+                    accessibilityLabel="Pemisah antara lokasi dan daftar toko"
+                  />
                   <Produk
                     idStore={selectedLocation}
                     key={produkKey}
@@ -389,5 +397,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     height: 50,
     backgroundColor: "#ffffff",
+  },
+  sectionDivider: {
+    width: "100%",
+    aspectRatio: 2953 / 314,
+    alignSelf: "stretch",
   },
 });
