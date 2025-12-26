@@ -279,7 +279,7 @@ export default function LocationComponent({
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Pilih Lokasi di Map</Text>
                 <TouchableOpacity onPress={() => setShowMapModal(false)}>
-                  <Ionicons name="close" size={20} color="#7a4b00" />
+                  <Ionicons name="close" size={20} color="#ffffffff" />
                 </TouchableOpacity>
               </View>
               <View style={styles.mapContainer}>
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#fff3c4",
-    marginRight: 16,
+    marginRight: 10,
   },
   locationIconImage: {
     width: 26,

@@ -338,6 +338,7 @@ const styles = StyleSheet.create({
   },
   heroLocation: {
     flex: 1,
+    justifyContent: "flex-end",
   },
   heroLocationCard: {
     marginHorizontal: 0,
@@ -444,13 +445,13 @@ const styles = StyleSheet.create({
   },
   neonAction: {
     width: 36,
-    height: 36,
-    borderRadius: 18,
+    height: 30,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
   },
   headerSpacer: {
-    height: 70,
+    height: 54,
   },
   bottomFill: {
     position: "absolute",
