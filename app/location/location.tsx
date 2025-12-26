@@ -7,6 +7,7 @@ import {
   FlatList,
   StyleProp,
   ViewStyle,
+  Image,
 } from "react-native";
 import React from "react";
 import { Ionicons } from "@expo/vector-icons";
@@ -31,6 +32,10 @@ type LocationComponentProps = {
   onSelectStore: (value: string) => void;
   displayMode?: "all" | "location" | "store";
   style?: StyleProp<ViewStyle>;
+};
+
+const LOCATION_ICON = {
+  uri: "https://laskarbuah-sales.s3.ap-southeast-3.amazonaws.com/foto_produk/4cdf88f8-319b-4e52-a65d-b9e7d96f323a.png",
 };
 
 export default function LocationComponent({
@@ -119,68 +124,98 @@ export default function LocationComponent({
   const cardSizeStyle =
     displayMode !== "all" ? styles.cardFullWidth : undefined;
 
+  const renderLocationContent = (isPlain: boolean) => {
+    return loading ? (
+      <View style={styles.loadingCard}>
+        <View style={styles.loadingIcon} />
+        <View style={styles.loadingText} />
+      </View>
+    ) : (
+      <>
+        <TouchableOpacity
+          style={[
+            styles.locationDisplay,
+            isPlain && styles.locationDisplayPlain,
+          ]}
+          onPress={handleOpenMapModal}
+          activeOpacity={0.85}
+        >
+          <View
+            style={[
+              styles.locationIconWrap,
+              isPlain && styles.locationIconPlain,
+            ]}
+          >
+            <Image
+              source={LOCATION_ICON}
+              style={[
+                styles.locationIconImage,
+                isPlain && styles.locationIconImagePlain,
+              ]}
+              resizeMode="contain"
+            />
+          </View>
+          <Text
+            style={[styles.locations, isPlain && styles.locationsPlain]}
+            numberOfLines={2}
+          >
+            {location || "Lokasi tidak ditemukan"}
+          </Text>
+        </TouchableOpacity>
+        {!isPlain && (
+          <Text style={styles.locationHint}>
+            Ketuk teks lokasi untuk pilih via maps
+          </Text>
+        )}
+      </>
+    );
+  };
+
   return (
-      <View style={containerStyle}>
-        {displayMode !== "store" && (
+    <View style={containerStyle}>
+      {displayMode !== "store" &&
+        (displayMode === "location" ? (
+          <View style={[styles.plainLocationWrap, cardSizeStyle]}>
+            {renderLocationContent(true)}
+          </View>
+        ) : (
           <LinearGradient
             colors={["#fff7d1", "#fffdf5"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={[styles.card2, cardSizeStyle]}
           >
-            {loading ? (
-              <View style={styles.loadingCard}>
-                <View style={styles.loadingIcon} />
-                <View style={styles.loadingText} />
-              </View>
-            ) : (
-              <>
-                <TouchableOpacity
-                  style={styles.locationDisplay}
-                  onPress={handleOpenMapModal}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.locationIconWrap}>
-                    <Ionicons name="location" size={18} color="#7a4b00" />
-                  </View>
-                  <Text style={styles.locations} numberOfLines={2}>
-                    {location || "Lokasi tidak ditemukan"}
-                  </Text>
-                  <Ionicons name="navigate" size={18} color="#7a4b00" />
-                </TouchableOpacity>
-                <Text style={styles.locationHint}>Ketuk teks lokasi untuk pilih via maps</Text>
-              </>
-            )}
+            {renderLocationContent(false)}
           </LinearGradient>
-        )}
+        ))}
 
-        {displayMode !== "location" && (
-          <LinearGradient
-            colors={["#fff7d1", "#fffdf5"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.cardPicker, cardSizeStyle]}
+      {displayMode !== "location" && (
+        <LinearGradient
+          colors={["#fff7d1", "#fffdf5"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.cardPicker, cardSizeStyle]}
+        >
+          <View style={styles.iconLabel}>
+            <Ionicons name="home" size={16} color="#7a4b00" />
+            <Text style={styles.label}>Choose Store</Text>
+          </View>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            style={styles.storeSelector}
+            onPress={() => setShowStoreModal(true)}
           >
-            <View style={styles.iconLabel}>
-              <Ionicons name="home" size={16} color="#7a4b00" />
-              <Text style={styles.label}>Choose Store</Text>
+            <View style={styles.selectorTextWrap}>
+              <Text style={styles.selectorLabel}>Toko terpilih</Text>
+              <Text style={styles.selectorValue} numberOfLines={1}>
+                {apidata.find((s: any) => String(s.id) === selectedStore)?.name_store ||
+                  "Pilih toko"}
+              </Text>
             </View>
-            <TouchableOpacity
-              activeOpacity={0.9}
-              style={styles.storeSelector}
-              onPress={() => setShowStoreModal(true)}
-            >
-              <View style={styles.selectorTextWrap}>
-                <Text style={styles.selectorLabel}>Toko terpilih</Text>
-                <Text style={styles.selectorValue} numberOfLines={1}>
-                  {apidata.find((s: any) => String(s.id) === selectedStore)?.name_store ||
-                    "Pilih toko"}
-                </Text>
-              </View>
-              <Ionicons name="chevron-down" size={18} color="#7a4b00" />
-            </TouchableOpacity>
-          </LinearGradient>
-        )}
+            <Ionicons name="chevron-down" size={18} color="#7a4b00" />
+          </TouchableOpacity>
+        </LinearGradient>
+      )}
 
         {displayMode !== "location" && (
           <Modal
@@ -227,71 +262,80 @@ export default function LocationComponent({
           </Modal>
         )}
 
-        {displayMode !== "store" && (
-          <Modal
-            transparent
-            visible={showMapModal}
-            animationType="slide"
-            onRequestClose={() => setShowMapModal(false)}
-          >
-            <View style={styles.mapBackdrop}>
-              <View style={styles.mapCard}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Pilih Lokasi di Map</Text>
-                  <TouchableOpacity onPress={() => setShowMapModal(false)}>
-                    <Ionicons name="close" size={20} color="#7a4b00" />
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.mapContainer}>
-                  <MapView
-                    style={styles.map}
-                    region={effectiveRegion}
-                    onPress={handleMapPress}
-                  >
-                    {pickerCoords && <Marker coordinate={pickerCoords} />}
-                  </MapView>
-                </View>
-                <View style={styles.mapHint}>
-                  <Ionicons name="information-circle-outline" size={14} color="#7a4b00" />
-                  <Text style={styles.mapHintText}>
-                    Ketuk titik pada peta untuk memilih lokasi pengirimanmu.
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.mapMyLocationButton}
-                  onPress={handleBackToMyLocation}
-                  disabled={!initialCoords || savingManualLocation}
-                >
-                  <Ionicons name="locate" size={16} color="#7a4b00" />
-                  <Text style={styles.mapMyLocationText}>Kembali ke lokasi saya</Text>
+      {displayMode !== "store" && (
+        <Modal
+          transparent
+          visible={showMapModal}
+          animationType="fade"
+          onRequestClose={() => setShowMapModal(false)}
+        >
+          <View style={styles.mapBackdrop}>
+            <TouchableOpacity
+              style={styles.backdropTouchable}
+              activeOpacity={1}
+              onPress={() => setShowMapModal(false)}
+            />
+            <View style={styles.mapCard}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Pilih Lokasi di Map</Text>
+                <TouchableOpacity onPress={() => setShowMapModal(false)}>
+                  <Ionicons name="close" size={20} color="#7a4b00" />
                 </TouchableOpacity>
-                <View style={styles.mapActions}>
-                  <TouchableOpacity
-                    style={[styles.mapButton, styles.mapButtonSecondary]}
-                    onPress={() => setShowMapModal(false)}
-                    disabled={savingManualLocation}
-                  >
-                    <Text style={styles.mapButtonText}>Batal</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.mapButton,
-                      styles.mapButtonPrimary,
-                      !pickerCoords && styles.mapButtonDisabled,
-                    ]}
-                    onPress={handleConfirmMap}
-                    disabled={!pickerCoords || savingManualLocation}
-                  >
-                    <Text style={styles.mapButtonText}>
-                      {savingManualLocation ? "Menyimpan..." : "Gunakan Lokasi"}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+              </View>
+              <View style={styles.mapContainer}>
+                <MapView
+                  style={styles.map}
+                  region={effectiveRegion}
+                  onPress={handleMapPress}
+                >
+                  {pickerCoords && <Marker coordinate={pickerCoords} />}
+                </MapView>
+              </View>
+              <View style={styles.mapHint}>
+                <Ionicons
+                  name="information-circle-outline"
+                  size={14}
+                  color="#7a4b00"
+                />
+                <Text style={styles.mapHintText}>
+                  Ketuk titik pada peta untuk memilih lokasi pengirimanmu.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.mapMyLocationButton}
+                onPress={handleBackToMyLocation}
+                disabled={!initialCoords || savingManualLocation}
+              >
+                <Ionicons name="locate" size={16} color="#7a4b00" />
+                <Text style={styles.mapMyLocationText}>Kembali ke lokasi saya</Text>
+              </TouchableOpacity>
+              <View style={styles.mapActions}>
+                <TouchableOpacity
+                  style={[styles.mapButton, styles.mapButtonSecondary]}
+                  onPress={() => setShowMapModal(false)}
+                  disabled={savingManualLocation}
+                >
+                  <Text style={styles.mapButtonText}>Batal</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.mapButton,
+                    styles.mapButtonPrimary,
+                    !pickerCoords && styles.mapButtonDisabled,
+                  ]}
+                  onPress={handleConfirmMap}
+                  disabled={!pickerCoords || savingManualLocation}
+                >
+                  <Text style={styles.mapButtonText}>
+                    {savingManualLocation ? "Menyimpan..." : "Gunakan Lokasi"}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
-          </Modal>
-        )}
-      </View>
+          </View>
+        </Modal>
+      )}
+    </View>
   );
 }
 
@@ -342,7 +386,7 @@ const styles = StyleSheet.create({
   locationDisplay: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     backgroundColor: "#fffef8",
     borderRadius: 12,
     paddingHorizontal: 12,
@@ -358,13 +402,21 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   locationIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#fff3c4",
-    marginRight: 12,
+    marginRight: 16,
+  },
+  locationIconImage: {
+    width: 26,
+    height: 26,
+  },
+  locationIconImagePlain: {
+    width: 30,
+    height: 30,
   },
   locations: {
     flex: 1,
@@ -377,6 +429,27 @@ const styles = StyleSheet.create({
     color: "#8c6c20",
     marginTop: 6,
     marginLeft: 2,
+  },
+  plainLocationWrap: {
+    width: "100%",
+    marginTop: 8,
+  },
+  locationDisplayPlain: {
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    shadowOpacity: 0,
+    elevation: 0,
+    gap: 12,
+  },
+  locationIconPlain: {
+    backgroundColor: "transparent",
+    marginRight: 12,
+  },
+  locationsPlain: {
+    color: "#6b4b00",
+    fontWeight: "700",
   },
   iconLabel: {
     flexDirection: "row",
@@ -477,15 +550,19 @@ const styles = StyleSheet.create({
   mapBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "flex-end",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
   },
   mapCard: {
     backgroundColor: "#fffdf5",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: 20,
+    width: "95%",
+    maxWidth: 420,
+    maxHeight: "90%",
     padding: 16,
     shadowColor: "rgba(0,0,0,0.2)",
-    shadowOffset: { width: 0, height: -6 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 18,
     elevation: 16,
