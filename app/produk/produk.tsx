@@ -9,6 +9,7 @@ import {
   TextInput,
   Modal,
   RefreshControl,
+  ImageSourcePropType,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
@@ -27,6 +28,28 @@ const PRIMARY_YELLOW_SOFT = "#fff8d7";
 const PRIMARY_TEXT_DARK = "#3a2f00";
 const PRIMARY_TEXT_MUTED = "#6f5a1a";
 const PRIMARY_SHADOW = "rgba(255, 199, 0, 0.35)";
+const CATEGORY_ICON_BASE_URL = "https://api.laskarbuah.com"; // API icon sering berupa path relatif tanpa domain
+
+const CATEGORY_ICON_MAP: Record<string, ImageSourcePropType> = {
+  "buah lokal": require("../../assets/icons/buah_lokal.png"),
+  "buah import": require("../../assets/icons/buah_import.png"),
+  sayuran: require("../../assets/icons/sayuran.png"),
+  vegetables: require("../../assets/icons/vegetables.png"),
+  vegetable: require("../../assets/icons/vegetables.png"),
+  snack: require("../../assets/icons/snack.png"),
+  roti: require("../../assets/icons/roti.png"),
+  minuman: require("../../assets/icons/minuman.png"),
+  frozen: require("../../assets/icons/frozen_food.png"),
+  grosir: require("../../assets/icons/grosir.png"),
+};
+
+const getLocalIconByLabel = (label: string) => {
+  const normalized = label.toLowerCase();
+  const match = Object.keys(CATEGORY_ICON_MAP).find((key) =>
+    normalized.includes(key)
+  );
+  return match ? CATEGORY_ICON_MAP[match] : CATEGORY_ICON_MAP["sayuran"];
+};
 
 type ProdukProps = {
   idStore: any;
@@ -35,14 +58,19 @@ type ProdukProps = {
 };
 
 const getCategoryIcon = (item: any) => {
-  const label = (item?.kategory || "").toLowerCase();
-  if (label.includes("sayuran basah")) {
-    return require("../../assets/icons/sayuran.png");
+  const label = item?.kategory || item?.nama_kategori || "";
+  const rawIcon = (item?.icon || item?.icon_url || "").toString().trim();
+
+  if (rawIcon) {
+    if (/^(https?:)?\/\//i.test(rawIcon) || rawIcon.startsWith("data:")) {
+      return { uri: rawIcon };
+    }
+
+    const sanitized = rawIcon.replace(/\\/g, "/").replace(/^\/+/, "");
+    return { uri: `${CATEGORY_ICON_BASE_URL}/${sanitized}` };
   }
-  if (item?.icon) {
-    return { uri: item.icon };
-  }
-  return require("../../assets/icons/sayuran.png");
+
+  return getLocalIconByLabel(label);
 };
 
 const Produk = ({
