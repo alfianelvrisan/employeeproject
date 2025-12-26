@@ -8,6 +8,7 @@ import {
   StyleProp,
   ViewStyle,
   Image,
+  ImageBackground,
 } from "react-native";
 import React from "react";
 import { Ionicons } from "@expo/vector-icons";
@@ -140,27 +141,31 @@ export default function LocationComponent({
           onPress={handleOpenMapModal}
           activeOpacity={0.85}
         >
-          <View
-            style={[
-              styles.locationIconWrap,
-              isPlain && styles.locationIconPlain,
-            ]}
-          >
-            <Image
-              source={LOCATION_ICON}
-              style={[
-                styles.locationIconImage,
-                isPlain && styles.locationIconImagePlain,
-              ]}
-              resizeMode="contain"
-            />
+          <View style={styles.locationRow}>
+            <View style={styles.locationIconWrapper}>
+              <View
+                style={[
+                  styles.locationIconWrap,
+                  isPlain && styles.locationIconPlain,
+                ]}
+              >
+                <Image
+                  source={LOCATION_ICON}
+                  style={[
+                    styles.locationIconImage,
+                    isPlain && styles.locationIconImagePlain,
+                  ]}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+            <Text
+              style={[styles.locations, isPlain && styles.locationsPlain]}
+              numberOfLines={2}
+            >
+              {location || "Lokasi tidak ditemukan"}
+            </Text>
           </View>
-          <Text
-            style={[styles.locations, isPlain && styles.locationsPlain]}
-            numberOfLines={2}
-          >
-            {location || "Lokasi tidak ditemukan"}
-          </Text>
         </TouchableOpacity>
         {!isPlain && (
           <Text style={styles.locationHint}>
@@ -173,48 +178,46 @@ export default function LocationComponent({
 
   return (
     <View style={containerStyle}>
-      {displayMode !== "store" &&
-        (displayMode === "location" ? (
-          <View style={[styles.plainLocationWrap, cardSizeStyle]}>
-            {renderLocationContent(true)}
-          </View>
-        ) : (
-          <LinearGradient
-            colors={["#fff7d1", "#fffdf5"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.card2, cardSizeStyle]}
-          >
-            {renderLocationContent(false)}
-          </LinearGradient>
-        ))}
+      {displayMode !== "store" && (
+        <View
+          style={[
+            styles.plainLocationWrap,
+            displayMode !== "all" && cardSizeStyle,
+            displayMode === "all" && styles.locationPlainRow,
+          ]}
+        >
+          {renderLocationContent(true)}
+        </View>
+      )}
 
       {displayMode !== "location" && (
-        <LinearGradient
-          colors={["#fff7d1", "#fffdf5"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+        <ImageBackground
+          source={require("../../assets/images/bgpilihtoko.png")}
           style={[styles.cardPicker, cardSizeStyle]}
+          imageStyle={styles.cardPickerImage}
+          resizeMode="cover"
         >
-          <View style={styles.iconLabel}>
-            <Ionicons name="home" size={16} color="#7a4b00" />
-            <Text style={styles.label}>Choose Store</Text>
-          </View>
-          <TouchableOpacity
-            activeOpacity={0.9}
-            style={styles.storeSelector}
-            onPress={() => setShowStoreModal(true)}
-          >
-            <View style={styles.selectorTextWrap}>
-              <Text style={styles.selectorLabel}>Toko terpilih</Text>
-              <Text style={styles.selectorValue} numberOfLines={1}>
-                {apidata.find((s: any) => String(s.id) === selectedStore)?.name_store ||
-                  "Pilih toko"}
-              </Text>
+          <View style={styles.cardPickerOverlay}>
+            <View style={styles.iconLabel}>
+              <Ionicons name="home" size={16} color="#ffffffff" />
+              <Text style={styles.label}>Pilih Toko Terdekat</Text>
             </View>
-            <Ionicons name="chevron-down" size={18} color="#7a4b00" />
-          </TouchableOpacity>
-        </LinearGradient>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={styles.storeSelector}
+              onPress={() => setShowStoreModal(true)}
+            >
+              <View style={styles.selectorTextWrap}>
+                <Text style={styles.selectorLabel}>Toko terpilih</Text>
+                <Text style={styles.selectorValue} numberOfLines={1}>
+                  {apidata.find((s: any) => String(s.id) === selectedStore)?.name_store ||
+                    "Pilih toko"}
+                </Text>
+              </View>
+              <Ionicons name="chevron-down" size={18} color="#de0866" />
+            </TouchableOpacity>
+          </View>
+        </ImageBackground>
       )}
 
         {displayMode !== "location" && (
@@ -345,26 +348,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginHorizontal: "2%",
     marginTop: 8,
+    gap: 10,
   },
   containerSingle: {
     flexDirection: "column",
     width: "100%",
     marginHorizontal: 0,
     gap: 12,
-  },
-  card2: {
-    width: "49%",
-    borderRadius: 14,
-    padding: 14,
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255, 195, 0, 0.35)",
-    backgroundColor: "transparent",
-    shadowColor: "rgba(244, 194, 0, 0.6)",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 4,
   },
   cardFullWidth: {
     width: "100%",
@@ -373,7 +363,6 @@ const styles = StyleSheet.create({
   cardPicker: {
     width: "49%",
     borderRadius: 14,
-    padding: 14,
     borderWidth: 1,
     borderColor: "rgba(255, 195, 0, 0.35)",
     backgroundColor: "transparent",
@@ -382,24 +371,41 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 4,
+    minHeight: 160,
+  },
+  cardPickerOverlay: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 14,
+    justifyContent: "space-between",
+  },
+  cardPickerImage: {
+    borderRadius: 14,
   },
   locationDisplay: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-start",
     backgroundColor: "#fffef8",
     borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
     borderWidth: 1,
     borderColor: "rgba(255, 195, 0, 0.3)",
     marginTop: 12,
-    gap: 10,
     shadowColor: "rgba(244, 194, 0, 0.35)",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 2,
+  },
+  locationRow: {
+    flexDirection: "column",
+    alignItems: "flex-end",
+    justifyContent: "flex-start",
+    gap: 8,
+  },
+  locationIconWrapper: {
+    alignItems: "flex-end",
+    width: "100%",
+    paddingRight: 4,
   },
   locationIconWrap: {
     width: 38,
@@ -415,24 +421,28 @@ const styles = StyleSheet.create({
     height: 26,
   },
   locationIconImagePlain: {
-    width: 30,
-    height: 30,
+    width: 40,
+    height: 40,
   },
   locations: {
-    flex: 1,
     color: "#6b4b00",
     fontSize: 14,
     fontWeight: "700",
+    textAlign: "right",
+    paddingRight: 4,
   },
   locationHint: {
     fontSize: 11,
-    color: "#8c6c20",
+    color: "#ffffffff",
     marginTop: 6,
     marginLeft: 2,
   },
   plainLocationWrap: {
     width: "100%",
     marginTop: 8,
+  },
+  locationPlainRow: {
+    width: "49%",
   },
   locationDisplayPlain: {
     backgroundColor: "transparent",
@@ -447,8 +457,10 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     marginRight: 12,
   },
+
+  // Text Location
   locationsPlain: {
-    color: "#6b4b00",
+    color: "#000000ff",
     fontWeight: "700",
   },
   iconLabel: {
@@ -458,8 +470,8 @@ const styles = StyleSheet.create({
   },
   label: {
     marginLeft: 5,
-    color: "#6b4b00",
-    fontSize: 14,
+    color: "#ffffffff",
+    fontSize: 20,
     fontWeight: "700",
   },
   storeSelector: {
@@ -484,17 +496,17 @@ const styles = StyleSheet.create({
   },
   selectorLabel: {
     fontSize: 11,
-    color: "#8c6c20",
+    color: "#000000ff",
     marginBottom: 2,
   },
   selectorValue: {
     fontSize: 14,
-    color: "#573800",
+    color: "#000000ff",
     fontWeight: "700",
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(5, 12, 31, 0.9)",
+    backgroundColor: "rgba(255, 195, 0, 0.35)",
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 20,
@@ -549,10 +561,10 @@ const styles = StyleSheet.create({
   },
   mapBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    backgroundColor: "rgba(255, 195, 0, 0.35)",
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   mapCard: {
     backgroundColor: "#fffdf5",

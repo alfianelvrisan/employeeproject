@@ -153,11 +153,8 @@ export default function Index() {
       >
         <SafeAreaView style={styles.container}>
           <Animated.View style={[styles.floatingHeader, headerStyle]}>
-            <LinearGradient
-              colors={[PRIMARY_YELLOW_LIGHT, PRIMARY_YELLOW]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.headerGradientOverlay}
+            <View
+              style={[styles.headerGradientOverlay, styles.headerGradientSolid]}
             />
             <View style={styles.headerSearchWrapper}>
               <LinearGradient
@@ -275,7 +272,7 @@ export default function Index() {
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const DIVIDER_RATIO = 2953 / 314;
-const PRIMARY_YELLOW = "#ffe133";
+const PRIMARY_YELLOW = "#FFF247";
 const PRIMARY_YELLOW_LIGHT = "#fff27c";
 const PRIMARY_YELLOW_SOFT = "#fff7cf";
 const PRIMARY_TEXT_DARK = "#3a2f00";
@@ -296,14 +293,14 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   greetingName: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#115f9f",
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#000000ff",
   },
   greetingSubtitle: {
     marginTop: 2,
     fontSize: 13,
-    color: "#4a6078",
+    color: "#de0866",
     marginBottom: 6,
   },
   container: {
@@ -315,13 +312,13 @@ const styles = StyleSheet.create({
   },
   heroBg: {
     width: "100%",
-    paddingTop: 8,
-    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingHorizontal: 13,
     paddingBottom: 10,
     backgroundColor: PRIMARY_YELLOW, // kartu ucapan kuning solid
     borderRadius: 14,
     marginHorizontal: 8,
-    shadowColor: "rgba(0,0,0,0.12)",
+    shadowColor: "rgba(255, 255, 255, 0.12)",
     shadowOpacity: 0.12,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
@@ -344,17 +341,21 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
     marginTop: 0,
   },
+
+  // card home
   utilityCard: {
     width: "100%",
     marginHorizontal: 0, 
-    paddingVertical: 6,
+    paddingVertical: 5,
     paddingHorizontal: 0,
-    borderRadius: 15,
-    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    backgroundColor: "#ffffffff",
   },
-  utilityTopRow: {
+
+  // Card home dan lokasi
+  utilityTopRow: {    
     flexDirection: "row",
-    gap: 12,
+    gap: 5,
     paddingHorizontal: 8,
     alignItems: "stretch",
     flexWrap: "wrap",
@@ -398,6 +399,9 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
+  },
+  headerGradientSolid: {
+    backgroundColor: PRIMARY_YELLOW,
   },
   headerSearchWrapper: {
     flex: 1,
