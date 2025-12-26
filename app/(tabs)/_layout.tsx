@@ -266,6 +266,9 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
   },
   iconChipActive: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: "#ffe133",
     shadowColor: "rgba(0,0,0,0.2)",
     shadowOffset: { width: 0, height: 4 },

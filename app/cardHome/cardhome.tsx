@@ -66,13 +66,13 @@ export default function cardhome() {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#115f9f',
-    width: '96%',
+    width: '100%',
     height: 160,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 6,
-    marginHorizontal: '2%',
+    marginHorizontal: 0,
     marginTop: 8,
     marginBottom: 8,
     overflow: 'hidden',

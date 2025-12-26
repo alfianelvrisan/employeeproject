@@ -5,6 +5,8 @@ import {
   TouchableOpacity,
   Modal,
   FlatList,
+  StyleProp,
+  ViewStyle,
 } from "react-native";
 import React from "react";
 import { Ionicons } from "@expo/vector-icons";
@@ -25,7 +27,17 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 0.08,
 };
 
-export default function LocationComponent({ onSelectStore }: any) {
+type LocationComponentProps = {
+  onSelectStore: (value: string) => void;
+  displayMode?: "all" | "location" | "store";
+  style?: StyleProp<ViewStyle>;
+};
+
+export default function LocationComponent({
+  onSelectStore,
+  displayMode = "all",
+  style,
+}: LocationComponentProps) {
   const { userToken } = useAuth();
   const {
     location,
@@ -96,54 +108,67 @@ export default function LocationComponent({ onSelectStore }: any) {
     }
   };
 
-  return (
-      <View style={styles.container}>
-        <LinearGradient
-          colors={["#fff7d1", "#fffdf5"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.card2}
-        >
-          {loading ? (
-            <View style={styles.loadingCard}>
-              <View style={styles.loadingIcon} />
-              <View style={styles.loadingText} />
-            </View>
-          ) : (
-            <>
-              <View style={styles.iconLabel2}>
-                <Ionicons name="location" size={16} color="#7a4b00" />
-                <Text style={styles.label}>Your Location</Text>
-              </View>
-              <Text style={styles.locations}>
-                {location || "Lokasi tidak ditemukan"}
-              </Text>
-              <TouchableOpacity
-                style={styles.locationSelector}
-                onPress={handleOpenMapModal}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.locationSelectorText}>Pilih di Maps</Text>
-                <Ionicons name="navigate" size={14} color="#7a4b00" />
-              </TouchableOpacity>
-            </>
-          )}
-        </LinearGradient>
+  const containerStyle = React.useMemo(
+    () => [
+      styles.container,
+      displayMode !== "all" && styles.containerSingle,
+      style,
+    ],
+    [displayMode, style]
+  );
+  const cardSizeStyle =
+    displayMode !== "all" ? styles.cardFullWidth : undefined;
 
-        <LinearGradient
-          colors={["#fff7d1", "#fffdf5"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.cardPicker}
-        >
-          <View style={styles.iconLabel}>
-            <Ionicons name="home" size={16} color="#7a4b00" />
-            <Text style={styles.label}>Choose Store</Text>
-          </View>
-          <TouchableOpacity
-            activeOpacity={0.9}
-            style={styles.storeSelector}
-            onPress={() => setShowStoreModal(true)}
+  return (
+      <View style={containerStyle}>
+        {displayMode !== "store" && (
+          <LinearGradient
+            colors={["#fff7d1", "#fffdf5"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.card2, cardSizeStyle]}
+          >
+            {loading ? (
+              <View style={styles.loadingCard}>
+                <View style={styles.loadingIcon} />
+                <View style={styles.loadingText} />
+              </View>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={styles.locationDisplay}
+                  onPress={handleOpenMapModal}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.locationIconWrap}>
+                    <Ionicons name="location" size={18} color="#7a4b00" />
+                  </View>
+                  <Text style={styles.locations} numberOfLines={2}>
+                    {location || "Lokasi tidak ditemukan"}
+                  </Text>
+                  <Ionicons name="navigate" size={18} color="#7a4b00" />
+                </TouchableOpacity>
+                <Text style={styles.locationHint}>Ketuk teks lokasi untuk pilih via maps</Text>
+              </>
+            )}
+          </LinearGradient>
+        )}
+
+        {displayMode !== "location" && (
+          <LinearGradient
+            colors={["#fff7d1", "#fffdf5"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.cardPicker, cardSizeStyle]}
+          >
+            <View style={styles.iconLabel}>
+              <Ionicons name="home" size={16} color="#7a4b00" />
+              <Text style={styles.label}>Choose Store</Text>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={styles.storeSelector}
+              onPress={() => setShowStoreModal(true)}
             >
               <View style={styles.selectorTextWrap}>
                 <Text style={styles.selectorLabel}>Toko terpilih</Text>
@@ -152,9 +177,12 @@ export default function LocationComponent({ onSelectStore }: any) {
                     "Pilih toko"}
                 </Text>
               </View>
-            <Ionicons name="chevron-down" size={18} color="#7a4b00" />
-          </TouchableOpacity>
+              <Ionicons name="chevron-down" size={18} color="#7a4b00" />
+            </TouchableOpacity>
+          </LinearGradient>
+        )}
 
+        {displayMode !== "location" && (
           <Modal
             transparent
             visible={showStoreModal}
@@ -187,7 +215,7 @@ export default function LocationComponent({ onSelectStore }: any) {
                         <Text style={styles.modalItemDistance}>{item.distance} km</Text>
                       </View>
                       {String(item.id) === selectedStore && (
-                       <Ionicons name="checkmark-circle" size={20} color="#f4c200" />
+                        <Ionicons name="checkmark-circle" size={20} color="#f4c200" />
                       )}
                     </TouchableOpacity>
                   )}
@@ -197,6 +225,9 @@ export default function LocationComponent({ onSelectStore }: any) {
               </View>
             </View>
           </Modal>
+        )}
+
+        {displayMode !== "store" && (
           <Modal
             transparent
             visible={showMapModal}
@@ -259,7 +290,7 @@ export default function LocationComponent({ onSelectStore }: any) {
               </View>
             </View>
           </Modal>
-        </LinearGradient>
+        )}
       </View>
   );
 }
@@ -270,6 +301,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginHorizontal: "2%",
     marginTop: 8,
+  },
+  containerSingle: {
+    flexDirection: "column",
+    width: "100%",
+    marginHorizontal: 0,
+    gap: 12,
   },
   card2: {
     width: "49%",
@@ -285,6 +322,10 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 4,
   },
+  cardFullWidth: {
+    width: "100%",
+    marginHorizontal: 0,
+  },
   cardPicker: {
     width: "49%",
     borderRadius: 14,
@@ -298,38 +339,49 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 4,
   },
-  locations: {
-    color: "#6b4b00",
-    fontSize: 14,
-    opacity: 0.9,
-    marginTop: 14,
-    marginLeft: 2,
-  },
-  locationSelector: {
+  locationDisplay: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: "#fffef8",
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 14,
     borderWidth: 1,
     borderColor: "rgba(255, 195, 0, 0.3)",
     marginTop: 12,
+    gap: 10,
+    shadowColor: "rgba(244, 194, 0, 0.35)",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  locationSelectorText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#7a4b00",
+  locationIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff3c4",
+    marginRight: 12,
+  },
+  locations: {
+    flex: 1,
+    color: "#6b4b00",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  locationHint: {
+    fontSize: 11,
+    color: "#8c6c20",
+    marginTop: 6,
+    marginLeft: 2,
   },
   iconLabel: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 8,
-  },
-  iconLabel2: {
-    flexDirection: "row",
-    alignItems: "center",
   },
   label: {
     marginLeft: 5,

@@ -207,25 +207,44 @@ export default function Index() {
               <>
                 <View style={styles.headerSpacer} />
                 <View style={styles.heroBg}>
-                  <View style={styles.section}>
-                    <Text style={styles.greetingTitle}>
-                      {profil?.greeting || "Good morning"},
-                    </Text>
-                    <View style={styles.greetingRow}>
-                      <Text style={styles.greetingName}>
-                        {profil?.nama || "Sobat Laskar Buah"}
+                  <View style={styles.heroRow}>
+                    <View style={styles.heroGreeting}>
+                      <Text style={styles.greetingTitle}>
+                        {profil?.greeting || "Good morning"},
                       </Text>
-                      <HelloWave />
+                      <View style={styles.greetingRow}>
+                        <Text style={styles.greetingName}>
+                          {profil?.nama || "Sobat Laskar Buah"}
+                        </Text>
+                        <HelloWave />
+                      </View>
+                      <Text style={styles.greetingSubtitle}>
+                        Semoga harimu menyenangkan dan penuh energi.
+                      </Text>
                     </View>
-                    <Text style={styles.greetingSubtitle}>
-                      Semoga harimu menyenangkan dan penuh energi.
-                    </Text>
+                    <View style={styles.heroLocation}>
+                      <Location
+                        onSelectStore={setSelectedLocation}
+                        displayMode="location"
+                        style={styles.heroLocationCard}
+                      />
+                    </View>
                   </View>
-              </View>
+                </View>
 
                 <View style={styles.utilityCard}>
-                  <Cardhome />
-                  <Location onSelectStore={setSelectedLocation} />
+                  <View style={styles.utilityTopRow}>
+                    <View style={styles.utilityCardHome}>
+                      <Cardhome />
+                    </View>
+                    <View style={styles.utilityStore}>
+                      <Location
+                        onSelectStore={setSelectedLocation}
+                        displayMode="store"
+                        style={styles.storeCardCompact}
+                      />
+                    </View>
+                  </View>
                   <Image
                     source={require("../../assets/images/barindex.png")}
                     style={styles.sectionDivider}
@@ -308,6 +327,22 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
   },
+  heroRow: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "stretch",
+    flexWrap: "wrap",
+  },
+  heroGreeting: {
+    flex: 1,
+  },
+  heroLocation: {
+    flex: 1,
+  },
+  heroLocationCard: {
+    marginHorizontal: 0,
+    marginTop: 0,
+  },
   utilityCard: {
     width: "100%",
     marginHorizontal: 0, 
@@ -315,6 +350,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     borderRadius: 15,
     backgroundColor: "#ffffff",
+  },
+  utilityTopRow: {
+    flexDirection: "row",
+    gap: 12,
+    paddingHorizontal: 8,
+    alignItems: "stretch",
+    flexWrap: "wrap",
+  },
+  utilityCardHome: {
+    flex: 2,
+  },
+  utilityStore: {
+    flex: 1,
+  },
+  storeCardCompact: {
+    marginHorizontal: 0,
+    marginTop: 8,
   },
   section: {
     paddingHorizontal: 0,
@@ -397,7 +449,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // Spacer agar konten tidak tertutup header animasi
   headerSpacer: {
     height: 70,
   },
@@ -407,7 +458,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     height: 50,
-    backgroundColor: PRIMARY_YELLOW,
+    backgroundColor: "#ffffffff",
   },
   sectionDivider: {
     width: SCREEN_WIDTH - 0,

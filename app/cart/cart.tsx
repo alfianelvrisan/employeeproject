@@ -1418,7 +1418,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     height: 50,
-    backgroundColor: PRIMARY_YELLOW,
+    backgroundColor: "#ffffffff",
   },
   uom: {
     fontSize: 10,
