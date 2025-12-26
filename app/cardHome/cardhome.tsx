@@ -65,7 +65,7 @@ export default function cardhome() {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#115f9f',
+    backgroundColor: '#ffe600ff',
     width: '100%',
     height: 160,
     borderRadius: 16,
@@ -88,7 +88,6 @@ const styles = StyleSheet.create({
     height: '100%',
     paddingHorizontal: 18,
     paddingVertical: 16,
-    backgroundColor: 'rgba(0,0,0,0.25)',
     justifyContent: 'space-between',
   },
   row: {

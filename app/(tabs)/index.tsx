@@ -156,41 +156,48 @@ export default function Index() {
             <View
               style={[styles.headerGradientOverlay, styles.headerGradientSolid]}
             />
-            <View style={styles.headerSearchWrapper}>
-              <LinearGradient
-                colors={["transparent", "transparent"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.neonShell}
-              >
-                <View style={styles.neonSearch}>
-                  <Ionicons
-                    name="search-outline"
-                    size={18}
-                    color={PRIMARY_TEXT_DARK}
-                    style={styles.neonIcon}
-                  />
-                  <TextInput
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder="cari produk favoritmu"
-                    placeholderTextColor={PRIMARY_TEXT_MUTED}
-                    style={styles.neonInput}
-                    selectionColor={PRIMARY_YELLOW}
-                  />
-                  <TouchableOpacity
-                    onPress={() => setSearchQuery("")}
-                    style={[styles.solidButton, styles.neonAction]}
-                    accessibilityLabel="Hapus pencarian"
-                  >
+            <View style={styles.headerSearchRow}>
+              <View style={styles.headerSearchWrapper}>
+                <LinearGradient
+                  colors={["transparent", "transparent"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.neonShell}
+                >
+                  <View style={styles.neonSearch}>
                     <Ionicons
-                      name="close-circle-outline"
+                      name="search-outline"
                       size={16}
                       color={PRIMARY_TEXT_DARK}
+                      style={styles.neonIcon}
                     />
-                  </TouchableOpacity>
-                </View>
-              </LinearGradient>
+                    <TextInput
+                      value={searchQuery}
+                      onChangeText={setSearchQuery}
+                      placeholder="cari produk favoritmu"
+                      placeholderTextColor={PRIMARY_TEXT_MUTED}
+                      style={styles.neonInput}
+                      selectionColor={PRIMARY_YELLOW}
+                    />
+                    <TouchableOpacity
+                      onPress={() => setSearchQuery("")}
+                      style={[styles.solidButton, styles.neonAction]}
+                      accessibilityLabel="Hapus pencarian"
+                    >
+                      <Ionicons
+                        name="close-circle-outline"
+                        size={15}
+                        color={PRIMARY_TEXT_DARK}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </LinearGradient>
+              </View>
+              <Image
+                source={require("../../assets/images/update_logolbi.png")}
+                style={styles.headerLogo}
+                resizeMode="contain"
+              />
             </View>
           </Animated.View>
           <FlatList
@@ -403,10 +410,20 @@ const styles = StyleSheet.create({
   headerGradientSolid: {
     backgroundColor: PRIMARY_YELLOW,
   },
+  headerSearchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    gap: 12,
+    paddingHorizontal: 8,
+  },
   headerSearchWrapper: {
     flex: 1,
-    width: "100%",
     alignSelf: "center",
+  },
+  headerLogo: {
+    width: 44,
+    height: 44,
   },
   solidButton: {
     backgroundColor: PRIMARY_YELLOW,
@@ -419,7 +436,7 @@ const styles = StyleSheet.create({
   },
   neonShell: {
     borderRadius: 30,
-    padding: 3,
+    padding: 2,
     backgroundColor: "transparent",
     shadowColor: "transparent",
     shadowOpacity: 0,
@@ -430,27 +447,27 @@ const styles = StyleSheet.create({
   neonSearch: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 26,
+    borderRadius: 22,
     backgroundColor: "#ffffff",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderWidth: 1,
     borderColor: PRIMARY_YELLOW_LIGHT,
-    minHeight: 40,
+    minHeight: 34,
   },
   neonIcon: {
-    marginRight: 10,
+    marginRight: 8,
   },
   neonInput: {
     flex: 1,
     color: "#1f1f1f",
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "500",
   },
   neonAction: {
-    width: 36,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 26,
+    borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#fffef8",
+    backgroundColor: "#ffffffff",
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 14,
@@ -561,7 +561,7 @@ const styles = StyleSheet.create({
   },
   mapBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(255, 195, 0, 0.35)",
+    backgroundColor: "#000000ee",
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 20,
