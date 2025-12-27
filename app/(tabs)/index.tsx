@@ -31,6 +31,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: false,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -352,7 +354,7 @@ const styles = StyleSheet.create({
   // card home
   utilityCard: {
     width: "100%",
-    marginHorizontal: 0, 
+    marginHorizontal: 0,
     paddingVertical: 5,
     paddingHorizontal: 0,
     borderRadius: 20,
@@ -360,7 +362,7 @@ const styles = StyleSheet.create({
   },
 
   // Card home dan lokasi
-  utilityTopRow: {    
+  utilityTopRow: {
     flexDirection: "row",
     gap: 5,
     paddingHorizontal: 8,

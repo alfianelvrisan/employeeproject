@@ -165,10 +165,10 @@ const Produk = ({
       prevProducts.map((product) =>
         product.id === productId
           ? {
-              ...product,
-              likes: isLiked ? product.likes - 1 : product.likes + 1,
-              liked: isLiked ? 0 : 1,
-            }
+            ...product,
+            likes: isLiked ? product.likes - 1 : product.likes + 1,
+            liked: isLiked ? 0 : 1,
+          }
           : product
       )
     );
@@ -186,10 +186,10 @@ const Produk = ({
         prevProducts.map((product) =>
           product.id === productId
             ? {
-                ...product,
-                likes: isLiked ? product.likes + 1 : product.likes - 1,
-                liked: isLiked ? 1 : 0,
-              }
+              ...product,
+              likes: isLiked ? product.likes + 1 : product.likes - 1,
+              liked: isLiked ? 1 : 0,
+            }
             : product
         )
       );
@@ -261,7 +261,7 @@ const Produk = ({
     }
     return null;
   };
-  
+
 
   return (
     <View style={styles.container}>
@@ -348,8 +348,15 @@ const Produk = ({
                 item.store_id ||
                 item.storeid ||
                 item.idStore;
+
+              console.log("Navigating to produkDetail with:", {
+                detailId: item.id,
+                idStore: storeParam,
+                nameProduk: item.name_produk,
+              });
+
               router.push(
-                `/produk/produkDetail?detailId=${item.id}&idStore=${storeParam}&nameProduk=${item.name_produk}&idProduk=${item.id}`
+                `/produk/produkDetail?detailId=${item.id}&idStore=${storeParam}&nameProduk=${encodeURIComponent(item.name_produk)}&idProduk=${item.id}`
               );
             }}
           >
@@ -364,7 +371,7 @@ const Produk = ({
               ) : null}
             </View>
 
-              <View style={styles.productInfo}>
+            <View style={styles.productInfo}>
               <Text
                 style={styles.productName}
                 numberOfLines={2}

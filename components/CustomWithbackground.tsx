@@ -1,11 +1,12 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 
 export default function CustomHeader({ title }: { title: string }) {
   const router = useRouter();
+  console.log("Rendering CustomHeader with title:", title);
 
   return (
     <>

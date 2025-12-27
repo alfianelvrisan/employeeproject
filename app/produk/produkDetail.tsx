@@ -1,20 +1,20 @@
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
   Image,
   Modal,
 } from "react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { Stack, SearchParams, router } from "expo-router";
-import { AuthProvider, useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 import { fetchProdukDetail } from "../../services/ProdukDetail";
-import { useSearchParams } from "expo-router/build/hooks";
+// import { useSearchParams } from "expo-router/build/hooks";
+import { useLocalSearchParams } from "expo-router";
 import { fetchProducts } from "../../services/productService"; // Import fetchProducts
 import { fetchDeliveryServices } from "../../services/deliveryServices"; // Import fetchDeliveryServices
 import { fetchProfile } from "../../services/profileServices";
@@ -22,10 +22,11 @@ import CustomHeader from "../../components/CustomWithbackground";
 
 
 const ProdukDetail = () => {
-  const searchParams = useSearchParams();
-  const detailId = searchParams.get("detailId");
-  const idStoreParam = searchParams.get("idStore");
-  const idProdukParam = searchParams.get("idProduk");
+  console.log(">>>> RENDER CYCLE START: ProdukDetail (AuthProvider Removed) <<<<");
+  const { detailId, idStore: idStoreParam, idProduk: idProdukParam } = useLocalSearchParams<{ detailId: string, idStore: string, idProduk: string }>();
+
+  console.log("ProdukDetail Params:", { detailId, idStoreParam, idProdukParam });
+
   const productIdNumber = useMemo(
     () => Number(idProdukParam || detailId),
     [idProdukParam, detailId]
@@ -34,6 +35,7 @@ const ProdukDetail = () => {
     () => Number(idStoreParam || 0),
     [idStoreParam]
   );
+
   const { userToken } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showCartAlert, setShowCartAlert] = useState(false);
@@ -49,6 +51,17 @@ const ProdukDetail = () => {
       price: number;
       discount: number;
       description: string;
+      id_produk?: number;
+      product_id?: number;
+      idProduct?: number;
+      id_store?: number;
+      store_id?: number;
+      storeid?: number;
+      idStore?: number;
+      image?: string;
+      foto_produk?: string;
+      img_url?: string;
+      image_url?: string;
     }[]
   >([]);
   const [randomProducts, setRandomProducts] = useState<any[]>([]);
@@ -64,6 +77,30 @@ const ProdukDetail = () => {
       ""
     );
   }, []);
+
+  const selectedProduct = useMemo(() => {
+    const targetId = Number(detailId);
+    console.log(`Calculating selectedProduct for id: ${targetId}, products count: ${products.length}`);
+    return (
+      products.find(
+        (product) =>
+          product.id === targetId ||
+          product.id_produk === targetId ||
+          product.product_id === targetId ||
+          product.idProduct === targetId
+      ) || products[0]
+    );
+  }, [products, detailId]);
+
+  const effectiveStoreId = useMemo(() => {
+    if (storeIdFromParam) return storeIdFromParam;
+    const fallback =
+      selectedProduct?.id_store ||
+      selectedProduct?.store_id ||
+      selectedProduct?.storeid ||
+      selectedProduct?.idStore;
+    return fallback ? Number(fallback) : 0;
+  }, [storeIdFromParam, selectedProduct]);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -95,24 +132,41 @@ const ProdukDetail = () => {
           String(userToken)
         );
         if (response) {
+          console.log("Fetch Data Response:", JSON.stringify(response).slice(0, 200)); // Log part of response
           // Normalisasi agar selalu ada properti id untuk pemetaan produk utama
-          const normalized = response.map((item: any) => ({
-            ...item,
-            id:
-              item.id ??
-              item.id_produk ??
-              item.product_id ??
-              item.detail_id ??
-              item.idProduct,
-          }));
+          const normalized = response.map((item: any) => {
+            const fotoLength = item.foto ? item.foto.length : 0;
+            console.log(`Product ${item.id ?? item.name_produk} foto length: ${fotoLength}`);
+
+            // Safety check for massive base64 strings that might crash the bridge
+            let safeFoto = item.foto;
+            if (fotoLength > 1000000) { // 1MB+ string
+              console.warn("Foto is too large, replacing with placeholder to prevent crash");
+              safeFoto = null;
+            }
+
+            return {
+              ...item,
+              foto: safeFoto,
+              id:
+                item.id ??
+                item.id_produk ??
+                item.product_id ??
+                item.detail_id ??
+                item.idProduct,
+            }
+          });
+          console.log("Setting products state with length:", normalized.length);
           setProducts(normalized);
         } else {
-          console.warn("Data produk tidak ditemukan.");
+          console.warn("Data produk tidak ditemukan: Response is null/undefined");
         }
       } catch (error) {
         console.error("Error fetching product details:", error);
       }
     };
+
+    console.log("Fetch Data Triggered. storeId:", storeIdFromParam, "productId:", productIdNumber);
 
     fetchData();
 
@@ -131,7 +185,7 @@ const ProdukDetail = () => {
 
         setLoading(true); // Start loading
         const allProducts = await fetchProducts(
-          effectiveStoreId,
+          String(effectiveStoreId),
           1,
           userToken || "",
           new Set<number>()
@@ -189,31 +243,10 @@ const ProdukDetail = () => {
         setIsLoading(false); // Reset loading state
       }
     },
-    [effectiveStoreId,idUser, userToken, isLoading]
+    [effectiveStoreId, idUser, userToken, isLoading]
   );
 
-  const selectedProduct = useMemo(() => {
-    const targetId = Number(detailId);
-    return (
-      products.find(
-        (product) =>
-          product.id === targetId ||
-          product.id_produk === targetId ||
-          product.product_id === targetId ||
-          product.idProduct === targetId
-      ) || products[0]
-    );
-  }, [products, detailId]);
 
-  const effectiveStoreId = useMemo(() => {
-    if (storeIdFromParam) return storeIdFromParam;
-    const fallback =
-      selectedProduct?.id_store ||
-      selectedProduct?.store_id ||
-      selectedProduct?.storeid ||
-      selectedProduct?.idStore;
-    return fallback ? Number(fallback) : 0;
-  }, [storeIdFromParam, selectedProduct]);
 
   const handleAddMainProductToCart = useCallback(async () => {
     if (!selectedProduct || isLoading) return;
@@ -267,6 +300,7 @@ const ProdukDetail = () => {
     ) : null;
 
   const renderMainProduct = () => {
+    console.log("Rendering Main Product. Loading:", loading, "SelectedProduct:", selectedProduct ? "Found" : "Missing");
     if (loading || !selectedProduct) {
       return (
         <View style={styles.skeletonMainProduct}>
@@ -278,6 +312,7 @@ const ProdukDetail = () => {
       );
     }
 
+    console.log("Preparing to render Main Product View (Image, Details, etc)");
     return (
       <>
         <ScrollView
@@ -291,8 +326,8 @@ const ProdukDetail = () => {
               resolveImage(selectedProduct)
                 ? { uri: resolveImage(selectedProduct) }
                 : {
-                    uri: "https://via.placeholder.com/400x300?text=No+Image",
-                  }
+                  uri: "https://via.placeholder.com/400x300?text=No+Image",
+                }
             }
             style={styles.fullImage}
             resizeMode="contain"
@@ -301,20 +336,20 @@ const ProdukDetail = () => {
         <View style={styles.productDetails}>
           <Text style={styles.productName}>{selectedProduct.name_produk}</Text>
           <Text style={styles.productPrice}>
-            {selectedProduct.discount !== 0 ? (
+            {Number(selectedProduct.discount) !== 0 ? (
               <>
                 <Text style={styles.productPriceOriginal}>
-                  Rp {selectedProduct.price.toLocaleString()}
+                  Rp {Number(selectedProduct.price).toLocaleString()}
                 </Text>{" "}
                 <Text style={styles.productPriceDiscount}>
                   Rp{" "}
                   {(
-                    selectedProduct.price - selectedProduct.discount
+                    Number(selectedProduct.price) - Number(selectedProduct.discount)
                   ).toLocaleString()}
                 </Text>
               </>
             ) : (
-              `Rp ${selectedProduct.price.toLocaleString()}`
+              `Rp ${Number(selectedProduct.price).toLocaleString()}`
             )}
           </Text>
           <Text style={styles.cate}>
@@ -344,133 +379,133 @@ const ProdukDetail = () => {
   };
 
   return (
-    <AuthProvider>
-      <SafeAreaProvider >
-        <Stack.Screen
-          options={{
-            headerShown: false,
-            headerTransparent: true,
-            headerStyle: { backgroundColor: "transparent" },
-            headerTitle: "",
-            headerTintColor: "#fff",
-            headerLeft: () => (
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => router.back()}
-              >
-                <Ionicons name="arrow-back" size={24} color="#fff" />
-              </TouchableOpacity>
-            ),
-            headerRight: () => (
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() =>router.replace("/cart/cart")}
-              >
-                <Ionicons name="cart" size={20} color="#fff" />
-              </TouchableOpacity>
-            ),
-          }}
-        />
-        <SafeAreaView style={styles.container}>
+
+    <SafeAreaProvider >
+      <Stack.Screen
+        options={{
+          headerShown: false,
+          headerTransparent: true,
+          headerStyle: { backgroundColor: "transparent" },
+          headerTitle: "",
+          headerTintColor: "#fff",
+          headerLeft: () => (
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+          ),
+          headerRight: () => (
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.replace("/cart/cart")}
+            >
+              <Ionicons name="cart" size={20} color="#fff" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <SafeAreaView style={styles.container}>
         {selectedProduct && <CustomHeader title={selectedProduct.name_produk} />}
 
-          {/* Alert Keranjang */}
-          <Modal
-            transparent={true}
-            visible={showCartAlert}
-            animationType="fade"
-            onRequestClose={() => setShowCartAlert(false)}
-          >
-            <View style={styles.alertOverlay}>
-              <View style={styles.alertContainer}>
-                <Ionicons name="checkmark-circle" size={50} color="green" />
-                <Text style={styles.alertText}>
-                  Produk berhasil dimasukkan ke keranjang
-                </Text>
-              </View>
+        {/* Alert Keranjang */}
+        <Modal
+          transparent={true}
+          visible={showCartAlert}
+          animationType="fade"
+          onRequestClose={() => setShowCartAlert(false)}
+        >
+          <View style={styles.alertOverlay}>
+            <View style={styles.alertContainer}>
+              <Ionicons name="checkmark-circle" size={50} color="green" />
+              <Text style={styles.alertText}>
+                Produk berhasil dimasukkan ke keranjang
+              </Text>
             </View>
-          </Modal>
+          </View>
+        </Modal>
 
-          <ScrollView style={styles.scrollView}>
-            {renderMainProduct()}
-            {/* Random Products Section */}
-            <View style={styles.randomProductsContainer}>
-              <Text style={styles.sectionTitle}>Produk Lainnya</Text>
-              <View style={styles.randomProductsGrid}>
-                {loading
-                  ? Array.from({ length: 6 }).map((_, index) => (
-                      <View key={index} style={styles.skeletonProductCard}>
-                        <View style={styles.skeletonProductImage} />
-                        <View style={styles.skeletonProductText} />
-                        <View style={styles.skeletonProductTextSmall} />
-                      </View>
-                    ))
-                  : randomProducts.map((product) => (
-                      <TouchableOpacity
-                        key={product.id}
-                        style={styles.randomProductCard}
-                        onPress={() => {
-                          const storeParam =
-                            effectiveStoreId ||
-                            product.id_store ||
-                            product.store_id ||
-                            product.storeid ||
-                            product.idStore;
-                          router.push(
-                            `/produk/produkDetail?detailId=${product.id}&idStore=${storeParam}&nameProduk=${product.name_produk}&idProduk=${product.id}`
-                          );
-                        }}
-                      >
-                        <Image
-                          source={
-                            resolveImage(product)
-                              ? { uri: resolveImage(product) }
-                              : {
-                                  uri: "https://via.placeholder.com/300x200?text=No+Image",
-                                }
+        <ScrollView style={styles.scrollView}>
+          {renderMainProduct()}
+          {/* Random Products Section */}
+          <View style={styles.randomProductsContainer}>
+            <Text style={styles.sectionTitle}>Produk Lainnya</Text>
+            <View style={styles.randomProductsGrid}>
+              {loading
+                ? Array.from({ length: 6 }).map((_, index) => (
+                  <View key={index} style={styles.skeletonProductCard}>
+                    <View style={styles.skeletonProductImage} />
+                    <View style={styles.skeletonProductText} />
+                    <View style={styles.skeletonProductTextSmall} />
+                  </View>
+                ))
+                : randomProducts.map((product) => (
+                  <TouchableOpacity
+                    key={product.id}
+                    style={styles.randomProductCard}
+                    onPress={() => {
+                      const storeParam =
+                        effectiveStoreId ||
+                        product.id_store ||
+                        product.store_id ||
+                        product.storeid ||
+                        product.idStore;
+                      router.push(
+                        `/produk/produkDetail?detailId=${product.id}&idStore=${storeParam}&nameProduk=${product.name_produk}&idProduk=${product.id}`
+                      );
+                    }}
+                  >
+                    <Image
+                      source={
+                        resolveImage(product)
+                          ? { uri: resolveImage(product) }
+                          : {
+                            uri: "https://via.placeholder.com/300x200?text=No+Image",
                           }
-                          style={styles.randomProductImage}
-                          resizeMode="contain"
-                        />
-                        <Text style={styles.randomProductName}>
-                          {product.name_produk}
+                      }
+                      style={styles.randomProductImage}
+                      resizeMode="contain"
+                    />
+                    <Text style={styles.randomProductName}>
+                      {product.name_produk}
+                    </Text>
+                    {product.discount !== 0 ? (
+                      <>
+                        <Text style={styles.productPriceOriginal}>
+                          Rp {product.price.toLocaleString()}
                         </Text>
-                        {product.discount !== 0 ? (
-                                        <>
-                                          <Text style={styles.productPriceOriginal}>
-                                            Rp {product.price.toLocaleString()}
-                                          </Text>
-                                          <Text style={styles.productPriceDiscount}>
-                                            Rp {(product.price - product.discount).toLocaleString()}
-                                          </Text>
-                                        </>
-                                      ) : (
-                                        <Text style={styles.productPrice}>
-                                          Rp {product.price.toLocaleString()}
-                                        </Text>
-                                      )}
-                        <TouchableOpacity
-                          style={styles.addToCartButton}
-                          onPress={() => handleAddToCart(product.id)}
-                          disabled={isLoading || !idUser}
-                        >
-                          
-                          <Ionicons
-                            name="cart-outline"
-                            size={20}
-                            color="#115f9f"
-                          />
-                          <Text style={styles.addToCartText}>Add to Cart</Text>
-                        </TouchableOpacity>
-                      </TouchableOpacity>
-                    ))}
-              </View>
+                        <Text style={styles.productPriceDiscount}>
+                          Rp {(product.price - product.discount).toLocaleString()}
+                        </Text>
+                      </>
+                    ) : (
+                      <Text style={styles.productPrice}>
+                        Rp {product.price.toLocaleString()}
+                      </Text>
+                    )}
+                    <TouchableOpacity
+                      style={styles.addToCartButton}
+                      onPress={() => handleAddToCart(product.id)}
+                      disabled={isLoading || !idUser}
+                    >
+
+                      <Ionicons
+                        name="cart-outline"
+                        size={20}
+                        color="#115f9f"
+                      />
+                      <Text style={styles.addToCartText}>Add to Cart</Text>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))}
             </View>
-            {renderFooter()}
-          </ScrollView>
-        </SafeAreaView>
-      </SafeAreaProvider>
-    </AuthProvider>
+          </View>
+          {renderFooter()}
+        </ScrollView>
+      </SafeAreaView>
+    </SafeAreaProvider>
+
   );
 };
 
