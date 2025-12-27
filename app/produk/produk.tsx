@@ -48,7 +48,7 @@ const getLocalIconByLabel = (label: string) => {
   const match = Object.keys(CATEGORY_ICON_MAP).find((key) =>
     normalized.includes(key)
   );
-  return match ? CATEGORY_ICON_MAP[match] : CATEGORY_ICON_MAP["sayuran"];
+  return match ? CATEGORY_ICON_MAP[match] : null;
 };
 
 type ProdukProps = {
@@ -59,8 +59,15 @@ type ProdukProps = {
 
 const getCategoryIcon = (item: any) => {
   const label = item?.kategory || item?.nama_kategori || "";
-  const rawIcon = (item?.icon || item?.icon_url || "").toString().trim();
 
+  // 1. Try Local First
+  const localIcon = getLocalIconByLabel(label);
+  if (localIcon) {
+    return localIcon;
+  }
+
+  // 2. Try API Second
+  const rawIcon = (item?.icon || item?.icon_url || "").toString().trim();
   if (rawIcon) {
     if (/^(https?:)?\/\//i.test(rawIcon) || rawIcon.startsWith("data:")) {
       return { uri: rawIcon };
@@ -70,7 +77,8 @@ const getCategoryIcon = (item: any) => {
     return { uri: `${CATEGORY_ICON_BASE_URL}/${sanitized}` };
   }
 
-  return getLocalIconByLabel(label);
+  // 3. Fallback
+  return CATEGORY_ICON_MAP["sayuran"];
 };
 
 const Produk = ({
