@@ -78,20 +78,18 @@ export default function App() {
         icon = routeName === selectedTab ? "notifications" : "notifications-outline";
         break;
       case "Barcode":
-        icon = "qr-code";
+        icon = "qr-code"; // Tidak ada "qr-code-outline" di Ionicons
         break;
       case "Cart":
         icon = routeName === selectedTab ? "cart" : "cart-outline";
         break;
     }
 
-    const isActive = routeName === selectedTab;
-
     return (
       <Ionicons
         name={icon as keyof typeof Ionicons.glyphMap}
-        size={26}
-        color={isActive ? "#000000ff" : "#000000ff"}
+        size={25}
+        color={routeName === selectedTab ? "#de0866" : "gray"}
       />
     );
   };
@@ -103,15 +101,12 @@ export default function App() {
         navigate(routeName);
       }
     };
-    const isActive = selectedTab === routeName;
     return (
       <TouchableOpacity
         onPress={handlePress}
-        style={[styles.tabbarItem, isActive && styles.tabbarItemActive]}
+        style={styles.tabbarItem}
       >
-        <View style={[styles.iconChip, isActive && styles.iconChipActive]}>
-          {_renderIcon(routeName, selectedTab)}
-        </View>
+        {_renderIcon(routeName, selectedTab)}
       </TouchableOpacity>
     );
   };
@@ -119,26 +114,26 @@ export default function App() {
 
 
   return (
-    <AuthProvider>
-      <View style={styles.layoutContainer}>
+    <>
+      <AuthProvider>
         <CurvedBottomBarExpo.Navigator
           type="DOWN"
           style={[styles.bottomBar, { paddingBottom: insets.bottom }]}
           shadowStyle={styles.shadow}
           height={55}
           circleWidth={50}
-          bgColor="#ffffffff"
+          bgColor="white"
           initialRouteName="Home"
-          id="mainNavigator"
-          screenOptions={{ headerShown: false }}
-          borderColor="transparent"
-          borderWidth={0}
-          width={Dimensions.get('window').width}
-          borderTopLeftRight={true}
+          id="mainNavigator" // Unique ID for the navigator
+          screenOptions={{ headerShown: false }} // Example screen options
+          borderColor="transparent" // Example border color
+          borderWidth={0} // Example border width
+          width={Dimensions.get("window").width}
           circlePosition="CENTER"
-          screenListeners={() => ({})}
-          backBehavior="history"
+          borderTopLeftRight={true}
+          screenListeners={{}}
           defaultScreenOptions={{}}
+          backBehavior="history"
           renderCircle={({ }) => (
             <View style={styles.btnCircleUp}>
               <TouchableOpacity
@@ -196,16 +191,15 @@ export default function App() {
             options={{
               headerShown: false,
               headerStyle: {
-                backgroundColor: "#fff",
+                backgroundColor: "#fff", // Latar belakang putih
               },
             }}
 
           />
 
         </CurvedBottomBarExpo.Navigator>
-        <View pointerEvents="none" style={styles.bottomFill} />
-      </View>
-    </AuthProvider>
+      </AuthProvider>
+    </>
   );
 }
 
@@ -217,10 +211,6 @@ export const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-  },
-  layoutContainer: {
-    flex: 1,
-    position: "relative",
   },
   shadow: {
     shadowColor: "transparent",
@@ -243,13 +233,13 @@ export const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#ffffffff",
+    backgroundColor: "#fff247",
     bottom: 30,
-    shadowColor: "rgba(0, 0, 0, 0.2)",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
   },
   imgCircle: {
     width: 30,
@@ -260,28 +250,6 @@ export const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 4,
-  },
-  tabbarItemActive: {
-    transform: [{ translateY: -6 }],
-  },
-  iconChip: {
-    width: 50,
-    height: 50,
-    borderRadius: 30,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  iconChipActive: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#ffe133",
-    shadowColor: "rgba(0,0,0,0.2)",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 2,
   },
   img: {
     width: 30,
@@ -289,7 +257,7 @@ export const styles = StyleSheet.create({
   },
   screen1: {
     flex: 1,
-    backgroundColor: "#4287f5",
+    backgroundColor: "#000000ff",
   },
   screen2: {
     flex: 1,
@@ -317,13 +285,5 @@ export const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "medium",
     marginRight: 20,
-  },
-  bottomFill: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 40,
-    backgroundColor: "#ffffffff",
-  },
+  }
 });

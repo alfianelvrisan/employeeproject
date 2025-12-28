@@ -142,6 +142,11 @@ export default function LocationComponent({
           activeOpacity={0.85}
         >
           <View style={styles.locationRow}>
+            <Image
+              source={require("../../assets/images/locationbar.png")}
+              style={{ width: 160, height: 28, marginBottom: -2 }}
+              resizeMode="contain"
+            />
             <View style={styles.locationIconWrapper}>
               <View
                 style={[
@@ -380,8 +385,8 @@ const styles = StyleSheet.create({
   },
   cardPickerOverlay: {
     flex: 1,
-    padding: 14,
-    borderRadius: 14,
+    padding: 5,
+    borderRadius: 10,
     justifyContent: "space-between",
   },
   cardPickerImage: {
@@ -394,7 +399,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderWidth: 1,
     borderColor: "rgba(255, 195, 0, 0.3)",
-    marginTop: 12,
     shadowColor: "rgba(244, 194, 0, 0.35)",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
@@ -405,7 +409,7 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     alignItems: "flex-end",
     justifyContent: "flex-start",
-    gap: 8,
+    gap: 1,
   },
   locationIconWrapper: {
     alignItems: "flex-end",
@@ -444,7 +448,7 @@ const styles = StyleSheet.create({
   },
   plainLocationWrap: {
     width: "100%",
-    marginTop: 8,
+    marginTop: 0,
   },
   locationPlainRow: {
     width: "49%",
@@ -472,20 +476,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center", // Center both image and text together
-    marginBottom: 8,
-    width: "100%",
+    width: "80%",
+    marginLeft: "20%",
   },
   headerImage: {
     width: 60,
-    height: 24,
-    marginRight: 6,
+    height: 40,
+    marginRight: 0,
   },
   label: {
     marginLeft: 0,
     color: "#ffffffff",
     fontSize: 15,
     fontWeight: "700",
-    textAlign: "center",
+    textAlign: "left",
   },
   storeSelector: {
     flexDirection: "row",
@@ -497,7 +501,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 14,
     borderWidth: 1,
-    borderColor: "rgba(255, 195, 0, 0.45)",
+    borderColor: "rgba(255, 196, 0, 0.45)",
     shadowColor: "rgba(244, 194, 0, 0.35)",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
@@ -520,14 +524,14 @@ const styles = StyleSheet.create({
     display: "none",
   },
   selectorValue: {
-    fontSize: 13,
+    fontSize: 15,
     color: "#000000ff",
     fontWeight: "700",
     textAlign: "left",
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(255, 195, 0, 0.35)",
+    backgroundColor: "#000000ee",
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 20,

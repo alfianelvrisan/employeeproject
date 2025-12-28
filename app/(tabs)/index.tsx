@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
   },
   heroLocation: {
     flex: 1,
-    justifyContent: "flex-end",
+    justifyContent: "flex-start",
   },
   heroLocationCard: {
     marginHorizontal: 0,
