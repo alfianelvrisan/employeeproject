@@ -427,15 +427,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
   },
-  solidButton: {
-    backgroundColor: PRIMARY_YELLOW,
-    borderRadius: 18,
-    shadowColor: PRIMARY_SHADOW,
-    shadowOpacity: 0.45,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
-  },
   neonShell: {
     borderRadius: 30,
     padding: 2,

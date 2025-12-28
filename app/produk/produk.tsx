@@ -478,21 +478,11 @@ const styles = StyleSheet.create({
   categoryBadge: {
     alignItems: "center",
     justifyContent: "center",
-    // backgroundColor: PRIMARY_YELLOW_SOFT, // Removed background
-    // borderRadius: 10, // Removed border radius
     paddingVertical: 5, // Reduced padding
     paddingHorizontal: 0, // Reduced padding
     marginRight: 15, // Adjusted margin
     marginBottom: 10,
-    // borderWidth: 1, // Removed border
-    // borderColor: PRIMARY_YELLOW_LIGHT, // Removed border color
-    // shadowColor: PRIMARY_SHADOW, // Removed shadow
-    // shadowOffset: { width: 0, height: 4 }, // Removed shadow
-    // shadowOpacity: 0.18, // Removed shadow
-    // shadowRadius: 6, // Removed shadow
-    // elevation: 0.1, // Removed elevation
     width: 80, // Slightly reduced width to fit more
-    // height: 50, // Let height be auto
   },
   selectedCategoryBadge: {
     // backgroundColor: PRIMARY_YELLOW, // Removed selection background
@@ -529,16 +519,17 @@ const styles = StyleSheet.create({
   },
   row: {
     justifyContent: "space-between",
-    marginBottom: 10,
+    marginBottom: 0,
   },
   productCard: {
     backgroundColor: "#ffffff",
     borderRadius: 16,
     padding: 10,
-    marginBottom: 12,
+    marginBottom: 2,
     borderWidth: 1,
     borderColor: "#e0e0e0", // Clean border, no shadow
     width: "49%",
+    height: "95%",
   },
   imageWrapper: {
     borderRadius: 14,
