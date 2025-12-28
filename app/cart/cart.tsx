@@ -500,7 +500,7 @@ const Cart = () => {
                 typeof item.disc_member === "number" &&
                 item.disc_member > 0;
               const finalPrice = hasDiscount
-                ? item.price_origin - item.disc_member
+                ? item.price_origin - (item.disc_member as number)
                 : item.price_origin;
               return (
                 <View
