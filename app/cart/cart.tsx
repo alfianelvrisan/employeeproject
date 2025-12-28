@@ -917,12 +917,12 @@ const Cart = () => {
                 />
               ),
               headerStyle: {
-                height: 78,
+                // height: 78, // removed to fix TS error
               },
-              headerTitleContainerStyle: {
-                height: 10,
-                marginBottom: 12,
-              },
+              // headerTitleContainerStyle: { // removed to fix TS error
+              //   height: 10,
+              //   marginBottom: 12,
+              // },
               headerShadowVisible: false,
               headerTintColor: "#fff",
             }}

@@ -199,71 +199,76 @@ export default function LocationComponent({
         >
           <View style={styles.cardPickerOverlay}>
             <View style={styles.iconLabel}>
-              <Ionicons name="home" size={16} color="#ffffffff" />
+              <Image
+                source={require("../../assets/images/storechoose.png")}
+                style={styles.headerImage}
+                resizeMode="contain"
+              />
               <Text style={styles.label}>Pilih Toko Terdekat</Text>
             </View>
-            <TouchableOpacity
-              activeOpacity={0.9}
-              style={styles.storeSelector}
-              onPress={() => setShowStoreModal(true)}
-            >
-              <View style={styles.selectorTextWrap}>
-                <Text style={styles.selectorLabel}>Toko terpilih</Text>
-                <Text style={styles.selectorValue} numberOfLines={1}>
-                  {apidata.find((s: any) => String(s.id) === selectedStore)?.name_store ||
-                    "Pilih toko"}
-                </Text>
-              </View>
-              <Ionicons name="chevron-down" size={18} color="#de0866" />
-            </TouchableOpacity>
+            <View style={styles.selectorContainer}>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                style={styles.storeSelector}
+                onPress={() => setShowStoreModal(true)}
+              >
+                <View style={styles.selectorTextWrap}>
+                  <Text style={styles.selectorValue}>
+                    {apidata.find((s: any) => String(s.id) === selectedStore)?.name_store ||
+                      "Pilih toko"}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-down" size={18} color="#de0866" />
+              </TouchableOpacity>
+            </View>
           </View>
         </ImageBackground>
       )}
 
-        {displayMode !== "location" && (
-          <Modal
-            transparent
-            visible={showStoreModal}
-            animationType="fade"
-            onRequestClose={() => setShowStoreModal(false)}
-          >
-            <View style={styles.modalBackdrop}>
-              <TouchableOpacity
-                style={styles.backdropTouchable}
-                activeOpacity={1}
-                onPress={() => setShowStoreModal(false)}
-              />
-              <View style={styles.modalCard}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Pilih Store</Text>
-                  <TouchableOpacity onPress={() => setShowStoreModal(false)}>
-                    <Ionicons name="close" size={20} color="#7a4b00" />
-                  </TouchableOpacity>
-                </View>
-                <FlatList
-                  data={apidata}
-                  keyExtractor={(item) => String(item.id)}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      style={styles.modalItem}
-                      onPress={() => handleSelectStore(String(item.id))}
-                    >
-                      <View style={styles.modalItemText}>
-                        <Text style={styles.modalItemName}>{item.name_store}</Text>
-                        <Text style={styles.modalItemDistance}>{item.distance} km</Text>
-                      </View>
-                      {String(item.id) === selectedStore && (
-                        <Ionicons name="checkmark-circle" size={20} color="#f4c200" />
-                      )}
-                    </TouchableOpacity>
-                  )}
-                  ItemSeparatorComponent={() => <View style={styles.divider} />}
-                  showsVerticalScrollIndicator={false}
-                />
+      {displayMode !== "location" && (
+        <Modal
+          transparent
+          visible={showStoreModal}
+          animationType="fade"
+          onRequestClose={() => setShowStoreModal(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <TouchableOpacity
+              style={styles.backdropTouchable}
+              activeOpacity={1}
+              onPress={() => setShowStoreModal(false)}
+            />
+            <View style={styles.modalCard}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Pilih Store</Text>
+                <TouchableOpacity onPress={() => setShowStoreModal(false)}>
+                  <Ionicons name="close" size={20} color="#7a4b00" />
+                </TouchableOpacity>
               </View>
+              <FlatList
+                data={apidata}
+                keyExtractor={(item) => String(item.id)}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.modalItem}
+                    onPress={() => handleSelectStore(String(item.id))}
+                  >
+                    <View style={styles.modalItemText}>
+                      <Text style={styles.modalItemName}>{item.name_store}</Text>
+                      <Text style={styles.modalItemDistance}>{item.distance} km</Text>
+                    </View>
+                    {String(item.id) === selectedStore && (
+                      <Ionicons name="checkmark-circle" size={20} color="#f4c200" />
+                    )}
+                  </TouchableOpacity>
+                )}
+                ItemSeparatorComponent={() => <View style={styles.divider} />}
+                showsVerticalScrollIndicator={false}
+              />
             </View>
-          </Modal>
-        )}
+          </View>
+        </Modal>
+      )}
 
       {displayMode !== "store" && (
         <Modal
@@ -466,18 +471,27 @@ const styles = StyleSheet.create({
   iconLabel: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center", // Center both image and text together
     marginBottom: 8,
+    width: "100%",
+  },
+  headerImage: {
+    width: 60,
+    height: 24,
+    marginRight: 6,
   },
   label: {
-    marginLeft: 5,
+    marginLeft: 0,
     color: "#ffffffff",
-    fontSize: 20,
+    fontSize: 15,
     fontWeight: "700",
+    textAlign: "center",
   },
   storeSelector: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    width: "100%",
     backgroundColor: "#ffffffff",
     borderRadius: 12,
     paddingHorizontal: 12,
@@ -497,12 +511,19 @@ const styles = StyleSheet.create({
   selectorLabel: {
     fontSize: 11,
     color: "#000000ff",
-    marginBottom: 2,
+    display: "none", // hidden as it is replaced by image
+  },
+  selectorContainer: {
+    width: "100%",
+  },
+  selectorLabelImage: {
+    display: "none",
   },
   selectorValue: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#000000ff",
     fontWeight: "700",
+    textAlign: "left",
   },
   modalBackdrop: {
     flex: 1,
