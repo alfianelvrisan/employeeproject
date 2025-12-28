@@ -365,9 +365,9 @@ const ProdukDetail = () => {
             disabled={isLoading}
           >
             {isLoading ? (
-              <Ionicons name="hourglass-outline" size={20} color="#115f9f" />
+              <Ionicons name="hourglass-outline" size={20} color="#fff" />
             ) : (
-              <Ionicons name="cart-outline" size={20} color="#115f9f" />
+              <Ionicons name="cart-outline" size={20} color="#fff" />
             )}
             <Text style={styles.addToCartText}>
               {isLoading ? "Loading..." : "Add to Cart"}
@@ -485,7 +485,7 @@ const ProdukDetail = () => {
                       </Text>
                     )}
                     <TouchableOpacity
-                      style={styles.addToCartButton}
+                      style={styles.addToCartButtonSmall}
                       onPress={() => handleAddToCart(product.id)}
                       disabled={isLoading || !idUser}
                     >
@@ -493,9 +493,9 @@ const ProdukDetail = () => {
                       <Ionicons
                         name="cart-outline"
                         size={20}
-                        color="#115f9f"
+                        color="#de0866"
                       />
-                      <Text style={styles.addToCartText}>Add to Cart</Text>
+                      {/* <Text style={styles.addToCartText}>Add to Cart</Text> */}
                     </TouchableOpacity>
                   </TouchableOpacity>
                 ))}
@@ -512,7 +512,7 @@ const ProdukDetail = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#ffffff",
   },
   scrollView: {
     padding: 16,
@@ -529,15 +529,17 @@ const styles = StyleSheet.create({
     resizeMode: "contain",
   },
   productDetails: {
-    backgroundColor: "#f4f8ff",
+    backgroundColor: "#ffffff",
     padding: 16,
     borderRadius: 18,
     marginBottom: 16,
-    shadowColor: "#0a3e7a",
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 10 },
-    shadowRadius: 18,
-    elevation: 6,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 2,
   },
   cate: {
     fontSize: 14,
@@ -546,7 +548,8 @@ const styles = StyleSheet.create({
   },
   name_stores: {
     fontSize: 14,
-    color: "#555",
+    color: "#de0866",
+    fontWeight: "600",
     marginBottom: 8,
   },
   productDescription: {
@@ -642,7 +645,7 @@ const styles = StyleSheet.create({
   productPrice: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#115f9f",
+    color: "#de0866",
   },
 
   productPriceOriginal: {
@@ -653,7 +656,7 @@ const styles = StyleSheet.create({
 
   productPriceDiscount: {
     fontSize: 18,
-    color: "#115f9f",
+    color: "#de0866",
     fontWeight: "bold",
   },
 
@@ -665,16 +668,13 @@ const styles = StyleSheet.create({
   },
 
   randomProductCard: {
-    backgroundColor: "#f4f8ff",
-    borderRadius: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
     width: "48%",
     marginBottom: 16,
-    padding: 12,
-    shadowColor: "#0a3e7a",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    elevation: 6,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
   },
 
   randomProductImage: {
@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     resizeMode: "contain",
     marginBottom: 8,
-    backgroundColor: "#e9f1ff",
+    backgroundColor: "#fff",
   },
 
   randomProductName: {
@@ -695,29 +695,32 @@ const styles = StyleSheet.create({
   randomProductPrice: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#115f9f",
+    color: "#de0866",
     marginBottom: 6,
   },
 
   addToCartButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#e8f2ff",
+    justifyContent: "center",
+    backgroundColor: "#de0866",
     borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 16,
+    alignSelf: "stretch",
+  },
+  addToCartButtonSmall: {
+    width: 38,
+    height: 38,
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 8,
-    alignSelf: "flex-start",
-    shadowColor: "#0a3e7a",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
   },
 
   addToCartText: {
     marginLeft: 6,
-    color: "#115f9f",
+    color: "#fff",
     fontWeight: "600",
   },
   skeletonProductCard: {

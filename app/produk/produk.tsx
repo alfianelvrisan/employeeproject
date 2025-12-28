@@ -398,7 +398,7 @@ const Produk = ({
 
               <View style={styles.storeRow}>
                 <View style={styles.storeChip}>
-                  <Ionicons name="storefront-outline" size={12} color={PRIMARY_TEXT_DARK} />
+                  <Ionicons name="storefront-outline" size={12} color="#fff" />
                   <Text style={styles.storeText} numberOfLines={1}>
                     {item.name_store}
                   </Text>
@@ -532,17 +532,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   productCard: {
-    backgroundColor: PRIMARY_YELLOW_SOFT,
-    borderRadius: 18,
-    padding: 12,
-    marginBottom: 10,
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 10,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,225,51,0.4)",
-    shadowColor: PRIMARY_SHADOW,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    elevation: 6,
+    borderColor: "#e0e0e0", // Clean border, no shadow
     width: "49%",
   },
   imageWrapper: {
@@ -588,25 +583,27 @@ const styles = StyleSheet.create({
   storeChip: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: PRIMARY_YELLOW_LIGHT,
+    backgroundColor: "#de0866",
     paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
     maxWidth: "70%",
   },
   storeText: {
-    fontSize: 12,
-    color: PRIMARY_TEXT_DARK,
+    fontSize: 11,
+    color: "#ffffff",
     marginLeft: 6,
+    fontWeight: "600",
     flexShrink: 1,
   },
   categoryPill: {
-    backgroundColor: "#fff4c4",
-    color: PRIMARY_TEXT_MUTED,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    fontSize: 11,
+    backgroundColor: "#fff247",
+    color: "#3a2f00", // Dark text for contrast on yellow
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    fontSize: 10,
+    fontWeight: "600",
     maxWidth: "42%",
     textAlign: "right",
     flexShrink: 1,
@@ -624,7 +621,7 @@ const styles = StyleSheet.create({
   productPrice: {
     fontSize: 16,
     fontWeight: "700",
-    color: PRIMARY_TEXT_DARK,
+    color: "#de0866",
   },
   productPriceOriginal: {
     fontSize: 12,
@@ -633,7 +630,7 @@ const styles = StyleSheet.create({
   },
   productPriceDiscount: {
     fontSize: 16,
-    color: PRIMARY_TEXT_DARK,
+    color: "#de0866",
     fontWeight: "700",
   },
   actionContainer: {
@@ -645,12 +642,11 @@ const styles = StyleSheet.create({
   actionButton: {
     width: 38,
     height: 38,
-    borderRadius: 12,
-    backgroundColor: PRIMARY_YELLOW_LIGHT,
-    borderWidth: 1,
-    borderColor: "rgba(255,225,51,0.5)",
     justifyContent: "center",
     alignItems: "center",
+    // backgroundColor: PRIMARY_YELLOW_LIGHT, // Removed
+    // borderWidth: 1, // Removed
+    // borderColor: "rgba(255,225,51,0.5)", // Removed
   },
   totalLikesText: {
     fontSize: 11,
