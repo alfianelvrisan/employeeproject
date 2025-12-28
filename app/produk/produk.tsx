@@ -33,6 +33,7 @@ const CATEGORY_ICON_BASE_URL = "https://api.laskarbuah.com"; // API icon sering 
 const CATEGORY_ICON_MAP: Record<string, ImageSourcePropType> = {
   "buah lokal": require("../../assets/icons/Buah Lokal.png"),
   "buah import": require("../../assets/icons/Buah Impor.png"),
+  "buah impor": require("../../assets/icons/Buah Impor.png"),
   sayuran: require("../../assets/icons/Sayuran Basah.png"),
   "sayuran basah": require("../../assets/icons/Sayuran Basah.png"),
   "sayuran kering": require("../../assets/icons/Sayuran Kering.png"),
