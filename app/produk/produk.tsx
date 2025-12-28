@@ -468,12 +468,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 12,
-    paddingTop: 16,
+    paddingTop: 0,
     marginBottom: 140,
   },
   categoryContainer: {
     flexDirection: "row",
-    marginBottom: 10,
+    marginBottom: 0,
   },
   categoryBadge: {
     alignItems: "center",

@@ -488,6 +488,6 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH - 0,
     height: (SCREEN_WIDTH - 32) / DIVIDER_RATIO,
     alignSelf: "center",
-    marginTop: 16,
+    marginTop: 10,
   },
 });
