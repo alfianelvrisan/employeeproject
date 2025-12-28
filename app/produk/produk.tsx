@@ -478,50 +478,54 @@ const styles = StyleSheet.create({
   categoryBadge: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: PRIMARY_YELLOW_SOFT,
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    marginRight: 10,
+    // backgroundColor: PRIMARY_YELLOW_SOFT, // Removed background
+    // borderRadius: 10, // Removed border radius
+    paddingVertical: 5, // Reduced padding
+    paddingHorizontal: 0, // Reduced padding
+    marginRight: 15, // Adjusted margin
     marginBottom: 10,
-    borderWidth: 1,
-    borderColor: PRIMARY_YELLOW_LIGHT,
-    shadowColor: PRIMARY_SHADOW,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    elevation: 0.1,
-    width: 100,
-    height: 50,
+    // borderWidth: 1, // Removed border
+    // borderColor: PRIMARY_YELLOW_LIGHT, // Removed border color
+    // shadowColor: PRIMARY_SHADOW, // Removed shadow
+    // shadowOffset: { width: 0, height: 4 }, // Removed shadow
+    // shadowOpacity: 0.18, // Removed shadow
+    // shadowRadius: 6, // Removed shadow
+    // elevation: 0.1, // Removed elevation
+    width: 80, // Slightly reduced width to fit more
+    // height: 50, // Let height be auto
   },
   selectedCategoryBadge: {
-    backgroundColor: PRIMARY_YELLOW,
-    borderColor: PRIMARY_YELLOW,
-    shadowOpacity: 0.4,
-    elevation: 4,
+    // backgroundColor: PRIMARY_YELLOW, // Removed selection background
+    // borderColor: PRIMARY_YELLOW,
+    // shadowOpacity: 0.4,
+    // elevation: 4,
   },
   iconContainer: {
-    width: 30,
-    height: 30,
-    borderRadius: 25,
-    backgroundColor: "#fff",
+    width: 60,
+    height: 44, // Reduced height to hug icon closer
+    // borderRadius: 30, 
+    // backgroundColor: PRIMARY_YELLOW_SOFT, 
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: 0, // Removed margin to pull text closer
   },
   icons: {
-    width: 20,
-    height: 20,
+    width: 40, // Increased icon size
+    height: 40, // Increased icon size
     alignItems: "center",
+    resizeMode: 'contain',
   },
   categoryText: {
-    fontSize: 10,
-    opacity: 0.9,
+    fontSize: 12, // Increased font size
+    // opacity: 0.9,
     color: PRIMARY_TEXT_DARK,
     textAlign: "center",
+    fontWeight: "700", // Bold text
+    lineHeight: 16,
   },
   selectedCategoryText: {
-    color: PRIMARY_TEXT_DARK,
-    fontWeight: "700",
+    color: "#d4a000", // Slightly different color for active state if needed, or keep same
+    fontWeight: "800",
   },
   row: {
     justifyContent: "space-between",
