@@ -31,16 +31,22 @@ const PRIMARY_SHADOW = "rgba(255, 199, 0, 0.35)";
 const CATEGORY_ICON_BASE_URL = "https://api.laskarbuah.com"; // API icon sering berupa path relatif tanpa domain
 
 const CATEGORY_ICON_MAP: Record<string, ImageSourcePropType> = {
-  "buah lokal": require("../../assets/icons/buah_lokal.png"),
-  "buah import": require("../../assets/icons/buah_import.png"),
-  sayuran: require("../../assets/icons/sayuran.png"),
-  vegetables: require("../../assets/icons/vegetables.png"),
-  vegetable: require("../../assets/icons/vegetables.png"),
-  snack: require("../../assets/icons/snack.png"),
-  roti: require("../../assets/icons/roti.png"),
-  minuman: require("../../assets/icons/minuman.png"),
-  frozen: require("../../assets/icons/frozen_food.png"),
-  grosir: require("../../assets/icons/grosir.png"),
+  "buah lokal": require("../../assets/icons/Buah Lokal.png"),
+  "buah import": require("../../assets/icons/Buah Impor.png"),
+  sayuran: require("../../assets/icons/Sayuran Basah.png"),
+  "sayuran basah": require("../../assets/icons/Sayuran Basah.png"),
+  "sayuran kering": require("../../assets/icons/Sayuran Kering.png"),
+  vegetables: require("../../assets/icons/Sayuran Basah.png"),
+  vegetable: require("../../assets/icons/Sayuran Basah.png"),
+  snack: require("../../assets/icons/Snack.png"),
+  roti: require("../../assets/icons/Roti.png"),
+  minuman: require("../../assets/icons/Minuman.png"),
+  frozen: require("../../assets/icons/Frozen food.png"),
+  grosir: require("../../assets/icons/Grosir.png"),
+  telur: require("../../assets/icons/Telur.png"),
+  konsinyasi: require("../../assets/icons/Konsinyasi.png"),
+  production: require("../../assets/icons/Production.png"),
+  semua: require("../../assets/icons/Semua.png"),
 };
 
 const getLocalIconByLabel = (label: string) => {
