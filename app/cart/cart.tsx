@@ -494,7 +494,7 @@ const Cart = () => {
   const renderTabContent = () => {
     if (selectedTab === "List Belanja") {
       return (
-        <View style={styles.cardList}>
+        <View style={[styles.sectionSpacing, styles.cardList]}>
           {cartItems.length > 0 ? (
             cartItems.map((item) => {
               const isDisabled =
@@ -588,9 +588,7 @@ const Cart = () => {
               );
             })
           ) : (
-            <Text
-              style={{ textAlign: "center", alignItems: "center", top: 100 }}
-            >
+            <Text style={styles.emptyStateText}>
               No items found in List Belanja.
             </Text>
           )}
@@ -598,7 +596,7 @@ const Cart = () => {
       );
     } else if (selectedTab === "Belum Bayar") {
       return (
-        <View style={styles.paymentListWrapper}>
+        <View style={[styles.sectionSpacing, styles.paymentListWrapper]}>
           {responsePayment?.length > 0 &&
             responsePayment.some(
               (payment: any) => payment.status !== "settlement"
@@ -735,7 +733,7 @@ const Cart = () => {
                 </View>
               ))
           ) : (
-            <Text style={{ textAlign: "center", marginTop: 100 }}>
+            <Text style={styles.emptyStateText}>
               Tidak ada pembayaran yang belum selesai.
             </Text>
           )}
@@ -743,7 +741,7 @@ const Cart = () => {
       );
     } else if (selectedTab === "Selesai") {
       return (
-        <View>
+        <View style={[styles.sectionSpacing, styles.historyListWrapper]}>
           {responsePayment?.length > 0 &&
             responsePayment.some(
               (payment: any) => payment.status === "settlement"
@@ -751,142 +749,144 @@ const Cart = () => {
             responsePayment
               .filter((payment: any) => payment.status === "settlement") // Filter untuk mengecualikan status settlement
               .map((payment: any, index: number) => (
-                <View key={index} style={styles.paymentCard}>
-                  {/* Header */}
-                  <Text style={styles.groupName}>
-                    {payment.strukDetailsList?.[0]?.group_name || "Nama Toko"}
-                  </Text>
-                  <Text style={styles.slogan}>
-                    {payment.strukDetailsList?.[0]?.slogan || "Slogan Toko"}
-                  </Text>
-                  <Text style={styles.address}>
-                    {payment.strukDetailsList?.[0]?.alamat_store ||
-                      "Alamat Toko"}
-                  </Text>
-
-                  {/* Informasi Transaksi */}
-                  <View style={styles.transactionDetails}>
-                    <Text style={styles.transactionText}>
-                      No Transaksi:{" "}
-                      {payment.strukDetailsList?.[0]?.trx_num || "N/A"}
+                <View key={index} style={styles.paymentCardShell}>
+                  <View style={styles.paymentCard}>
+                    {/* Header */}
+                    <Text style={styles.groupName}>
+                      {payment.strukDetailsList?.[0]?.group_name || "Nama Toko"}
                     </Text>
-                    <Text style={styles.transactionText}>
-                      Status:{" "}
-                      <Text
-                        style={[
-                          payment.status === "settlement"
-                            ? styles.settlement
-                            : payment.status === "expire"
-                              ? { color: "red" }
-                              : { color: "black" },
-                        ]}
-                      >
-                        {payment.status || "N/A"}
+                    <Text style={styles.slogan}>
+                      {payment.strukDetailsList?.[0]?.slogan || "Slogan Toko"}
+                    </Text>
+                    <Text style={styles.address}>
+                      {payment.strukDetailsList?.[0]?.alamat_store ||
+                        "Alamat Toko"}
+                    </Text>
+
+                    {/* Informasi Transaksi */}
+                    <View style={styles.transactionDetails}>
+                      <Text style={styles.transactionText}>
+                        No Transaksi:{" "}
+                        {payment.strukDetailsList?.[0]?.trx_num || "N/A"}
                       </Text>
-                    </Text>
-                  </View>
-                  <View style={styles.transactionDetails}>
-                    <Text style={styles.transactionText}>
-                      Store:{" "}
-                      {payment.strukDetailsList?.[0]?.name_store || "N/A"}
-                    </Text>
-                    <Text style={styles.transactionText}>
-                      Member:{" "}
-                      {payment.strukDetailsList?.[0]?.user_name || "N/A"}
-                    </Text>
-                  </View>
-
-                  {/* Produk */}
-                  <View style={styles.productList}>
-                    {payment.strukDetailsList?.map((item: any, idx: number) => (
-                      <>
-                        <View key={idx} style={styles.productItem}>
-                          <Text style={styles.productName}>
-                            {idx + 1}. {item.name_produk}
-                          </Text>
-                        </View>
-                        <View style={styles.productDetails}>
-                          <Text style={styles.productQty}>Qty: {item.qty}</Text>
-                          <Text style={styles.productPrice}>
-                            Harga: Rp {item.price.toLocaleString("id-ID")}
-                          </Text>
-                        </View>
-                      </>
-                    ))}
-                  </View>
-
-                  {/* Footer */}
-                  <Text style={styles.detailRow}>
-                    Expired At: {payment.expired_at || "N/A"}
-                  </Text>
-                  <Text style={styles.detailRow}>
-                    Payment Type: {payment.payment_type || "N/A"}
-                  </Text>
-                  <Text style={styles.detailRow}>
-                    Tanggal:{" "}
-                    {payment.strukDetailsList?.[0]?.create_date
-                      ? new Date(
-                        payment.strukDetailsList[0].create_date
-                      ).toLocaleString("id-ID", {
-                        day: "2-digit",
-                        month: "long",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                      : "Tanggal tidak tersedia"}
-                  </Text>
-                  {payment.va && payment.va.length > 0 && (
-                    <View>
-                      {payment.va.map(
-                        (
-                          vaItem: {
-                            bank: string;
-                            va_number: string;
-                          },
-                          index: React.Key | null | undefined
-                        ) => (
-                          <View key={index}>
-                            <Text>Bank: {vaItem.bank}</Text>
-                            <View style={styles.detailRow}>
-                              <Text style={styles.detailRow}>
-                                VA Number: {vaItem.va_number}
-                              </Text>
-                              <TouchableOpacity
-                                onPress={() =>
-                                  typeof vaItem.va_number === "string" &&
-                                  handleCopy(vaItem.va_number)
-                                }
-                              >
-                                <Icon
-                                  name="content-copy"
-                                  size={20}
-                                  color="#007AFF"
-                                />
-                              </TouchableOpacity>
-                            </View>
-                          </View>
-                        )
-                      )}
+                      <Text style={styles.transactionText}>
+                        Status:{" "}
+                        <Text
+                          style={[
+                            payment.status === "settlement"
+                              ? styles.settlement
+                              : payment.status === "expire"
+                                ? { color: "red" }
+                                : { color: "black" },
+                          ]}
+                        >
+                          {payment.status || "N/A"}
+                        </Text>
+                      </Text>
                     </View>
-                  )}
-                  {(payment.status === null || payment.status === "expire") && (
-                    <TouchableOpacity>
-                      <Text
-                        style={styles.deleteButton}
-                        onPress={() =>
-                          handleDelete(payment.strukDetailsList[0].id)
-                        }
-                      >
-                        <Ionicons name="trash" size={15} />
-                        Delete
+                    <View style={styles.transactionDetails}>
+                      <Text style={styles.transactionText}>
+                        Store:{" "}
+                        {payment.strukDetailsList?.[0]?.name_store || "N/A"}
                       </Text>
-                    </TouchableOpacity>
-                  )}
+                      <Text style={styles.transactionText}>
+                        Member:{" "}
+                        {payment.strukDetailsList?.[0]?.user_name || "N/A"}
+                      </Text>
+                    </View>
+
+                    {/* Produk */}
+                    <View style={styles.productList}>
+                      {payment.strukDetailsList?.map((item: any, idx: number) => (
+                        <React.Fragment key={idx}>
+                          <View style={styles.productItem}>
+                            <Text style={styles.productName}>
+                              {idx + 1}. {item.name_produk}
+                            </Text>
+                          </View>
+                          <View style={styles.productDetails}>
+                            <Text style={styles.productQty}>Qty: {item.qty}</Text>
+                            <Text style={styles.productPrice}>
+                              Harga: Rp {item.price.toLocaleString("id-ID")}
+                            </Text>
+                          </View>
+                        </React.Fragment>
+                      ))}
+                    </View>
+
+                    {/* Footer */}
+                    <Text style={styles.detailRow}>
+                      Expired At: {payment.expired_at || "N/A"}
+                    </Text>
+                    <Text style={styles.detailRow}>
+                      Payment Type: {payment.payment_type || "N/A"}
+                    </Text>
+                    <Text style={styles.detailRow}>
+                      Tanggal:{" "}
+                      {payment.strukDetailsList?.[0]?.create_date
+                        ? new Date(
+                          payment.strukDetailsList[0].create_date
+                        ).toLocaleString("id-ID", {
+                          day: "2-digit",
+                          month: "long",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                        : "Tanggal tidak tersedia"}
+                    </Text>
+                    {payment.va && payment.va.length > 0 && (
+                      <View>
+                        {payment.va.map(
+                          (
+                            vaItem: {
+                              bank: string;
+                              va_number: string;
+                            },
+                            index: React.Key | null | undefined
+                          ) => (
+                            <View key={index}>
+                              <Text>Bank: {vaItem.bank}</Text>
+                              <View style={styles.detailRow}>
+                                <Text style={styles.detailRow}>
+                                  VA Number: {vaItem.va_number}
+                                </Text>
+                                <TouchableOpacity
+                                  onPress={() =>
+                                    typeof vaItem.va_number === "string" &&
+                                    handleCopy(vaItem.va_number)
+                                  }
+                                >
+                                  <Icon
+                                    name="content-copy"
+                                    size={20}
+                                    color="#007AFF"
+                                  />
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          )
+                        )}
+                      </View>
+                    )}
+                    {(payment.status === null || payment.status === "expire") && (
+                      <TouchableOpacity>
+                        <Text
+                          style={styles.deleteButton}
+                          onPress={() =>
+                            handleDelete(payment.strukDetailsList[0].id)
+                          }
+                        >
+                          <Ionicons name="trash" size={15} />
+                          Delete
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
               ))
           ) : (
-            <Text style={{ textAlign: "center", marginTop: 100 }}>
+            <Text style={styles.emptyStateText}>
               Tidak ada pembayaran yang selesai.
             </Text>
           )}
@@ -959,7 +959,7 @@ const Cart = () => {
         >
           {renderTabContent()}
           {selectedTab === "List Belanja" && cartItems.length > 0 ? (
-            <View style={styles.checkoutWrapper}>
+            <View style={[styles.sectionSpacing, styles.checkoutWrapper]}>
               <LinearGradient
                 colors={NEON_GRADIENT}
                 start={{ x: 0, y: 0 }}
@@ -1167,12 +1167,17 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingTop: 10,
+    paddingHorizontal: 16,
     backgroundColor: "transparent",
+  },
+  sectionSpacing: {
+    width: "100%",
+    marginBottom: 24,
   },
   cardList: {
     width: "100%",
-    alignItems: "center",
-    paddingTop: 0,
+    alignItems: "stretch",
+    paddingTop: 4,
     paddingBottom: 12,
   },
   gradientBg: {
@@ -1253,8 +1258,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
     borderWidth: 0,
-    width: "92%",
-    alignSelf: "center",
+    width: "100%",
   },
   cartItemContent: {
     flexDirection: "row",
@@ -1324,12 +1328,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   checkoutWrapper: {
-    width: "92%",
-    alignSelf: "center",
-    paddingHorizontal: 0,
+    width: "100%",
     paddingBottom: 12,
     paddingTop: 8,
-    marginTop: 6,
+    marginTop: 12,
   },
   checkoutCardGradient: {
     borderRadius: 24,
@@ -1474,8 +1476,8 @@ const styles = StyleSheet.create({
   tabRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    width: "92%",
-    alignSelf: "center",
+    width: "100%",
+    paddingHorizontal: 16,
     paddingVertical: 12,
     marginTop: 6,
     backgroundColor: "transparent",
@@ -1531,16 +1533,22 @@ const styles = StyleSheet.create({
   },
   paymentListWrapper: {
     width: "100%",
-    alignItems: "center",
+    alignItems: "stretch",
     paddingTop: 6,
     paddingBottom: 30,
   },
   paymentCardShell: {
-    width: "95%",
+    width: "100%",
     borderRadius: 20,
     padding: 2,
     marginBottom: 16,
     backgroundColor: "transparent",
+  },
+  historyListWrapper: {
+    width: "100%",
+    alignItems: "stretch",
+    paddingTop: 6,
+    paddingBottom: 30,
   },
   paymentCard: {
     backgroundColor: "#ffffff",
@@ -1562,6 +1570,11 @@ const styles = StyleSheet.create({
   paymentStatus: {
     fontSize: 14,
     color: "#666",
+  },
+  emptyStateText: {
+    textAlign: "center",
+    marginTop: 60,
+    color: "#8a8a8a",
   },
   receiptCard: {
     backgroundColor: "#fff",
