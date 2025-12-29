@@ -36,11 +36,17 @@ Notifications.setNotificationHandler({
   }),
 });
 
+import useLocationData from "../../services/useLocationData";
+
 export default function Index() {
   const [selectedLocation, setSelectedLocation] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const { userToken } = useAuth();
   const { logout } = useAuth();
+
+  // Initialize location data once here to share between components
+  const locationInstance = useLocationData(setSelectedLocation, userToken || "");
+
   const [profil, setProfile] = React.useState<{
     nama: string;
     saving: number;
@@ -233,6 +239,7 @@ export default function Index() {
                         onSelectStore={setSelectedLocation}
                         displayMode="location"
                         style={styles.heroLocationCard}
+                        locationInstance={locationInstance}
                       />
                     </View>
                   </View>
@@ -248,6 +255,7 @@ export default function Index() {
                         onSelectStore={setSelectedLocation}
                         displayMode="store"
                         style={styles.storeCardCompact}
+                        locationInstance={locationInstance}
                       />
                     </View>
                   </View>

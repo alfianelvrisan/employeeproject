@@ -237,26 +237,16 @@ export default function GiftReels() {
                   setModalError("Produk tidak ditemukan");
                 }
 
-                const scoreProduct = (p: any) => {
+                const filtered = list.filter((p) => {
                   const cat = normalize(p.cate || p.kategory || p.description);
-                  const name = normalize(p.name_produk || p.title);
-                  let score = 0;
-                  if (categoryKey && name.includes(categoryKey)) score += 3;
-                  if (categoryKey && categoryKey.includes(name) && name) score += 2;
-                  if (categoryKey && cat.includes(categoryKey)) score += 2;
-                  if (categoryKey && categoryKey.includes(cat) && cat) score += 1;
-                  return score;
-                };
+                  // Check if product category contains video title (categoryKey)
+                  return cat.includes(categoryKey);
+                });
 
-                const scored = list
-                  .map((p) => ({ ...p, _score: scoreProduct(p) }))
-                  .filter((p) => p._score > 0)
-                  .sort((a, b) => b._score - a._score);
+                // Show filtered list, or filtered by scoring if strict match is empty (optional fallback, but user requested strict)
+                // For now, strict as requested.
+                setModalItems(filtered.length > 0 ? filtered : []);
 
-                const finalList =
-                  scored.length > 0 ? scored.slice(0, 12) : list.slice(0, 12);
-
-                setModalItems(finalList);
               } catch (err) {
                 setModalError("Gagal memuat produk");
                 setModalItems([item]);
@@ -266,7 +256,7 @@ export default function GiftReels() {
             }}
           >
             <View style={styles.cartIconWrap}>
-              <Ionicons name="bag-handle" size={14} color="#fff" />
+              <Ionicons name="bag-handle" size={14} color="#000000" />
             </View>
             <Text style={styles.cartBadgeText} numberOfLines={1}>
               {item.title}
@@ -424,7 +414,26 @@ export default function GiftReels() {
                   </View>
                 ) : modalItems.length > 0 ? (
                   modalItems.map((prod) => (
-                    <View key={prod.id || prod.title} style={styles.modalItem}>
+                    <TouchableOpacity
+                      key={prod.id || prod.title}
+                      style={styles.modalItem}
+                      onPress={() => {
+                        const id = prod.id || prod.id_produk;
+                        const storeParam =
+                          prod.id_store ||
+                          prod.store_id ||
+                          prod.storeid ||
+                          prod.idStore ||
+                          DEFAULT_STORE_ID;
+
+                        setBadgeModalVisible(false);
+                        router.push(
+                          `/produk/produkDetail?detailId=${id}&idStore=${storeParam}&nameProduk=${encodeURIComponent(
+                            prod.name_produk || prod.title
+                          )}&idProduk=${id}`
+                        );
+                      }}
+                    >
                       <View style={styles.modalItemIcon}>
                         <Ionicons name="pricetag" size={16} color="#0b1427" />
                       </View>
@@ -436,7 +445,7 @@ export default function GiftReels() {
                           {prod.description || prod.cate || prod.name_store || modalCategory}
                         </Text>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   ))
                 ) : (
                   <Text style={styles.modalLoadingText}>Produk tidak ditemukan</Text>
@@ -548,7 +557,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: "rgba(0, 174, 255, 1)",
+    backgroundColor: "#fff247",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
@@ -564,7 +573,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   cartBadgeText: {
-    color: "#ffffffff",
+    color: "#000000",
     fontSize: 13,
     fontWeight: "700",
     maxWidth: "82%",

@@ -33,6 +33,7 @@ type LocationComponentProps = {
   onSelectStore: (value: string) => void;
   displayMode?: "all" | "location" | "store";
   style?: StyleProp<ViewStyle>;
+  locationInstance?: ReturnType<typeof useLocationData>;
 };
 
 const LOCATION_ICON = {
@@ -43,8 +44,12 @@ export default function LocationComponent({
   onSelectStore,
   displayMode = "all",
   style,
+  locationInstance,
 }: LocationComponentProps) {
   const { userToken } = useAuth();
+
+  // Use provided instance or create new one
+  const internalInstance = useLocationData(onSelectStore, userToken || "");
   const {
     location,
     loading,
@@ -54,7 +59,8 @@ export default function LocationComponent({
     coords,
     updateLocationByCoords,
     initialCoords,
-  } = useLocationData(onSelectStore, userToken || "");
+  } = locationInstance || internalInstance;
+
   const [showStoreModal, setShowStoreModal] = React.useState(false);
   const [showMapModal, setShowMapModal] = React.useState(false);
   const [pickerCoords, setPickerCoords] = React.useState<Coordinates | null>(null);
@@ -219,8 +225,10 @@ export default function LocationComponent({
               >
                 <View style={styles.selectorTextWrap}>
                   <Text style={styles.selectorValue}>
-                    {apidata.find((s: any) => String(s.id) === selectedStore)?.name_store ||
-                      "Pilih toko"}
+                    {(() => {
+                      const store = apidata.find((s: any) => String(s.id) === selectedStore);
+                      return store?.name_store || store?.nama_store || "Pilih toko";
+                    })()}
                   </Text>
                 </View>
                 <Ionicons name="chevron-down" size={18} color="#de0866" />

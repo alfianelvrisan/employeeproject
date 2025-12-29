@@ -55,7 +55,7 @@ export default function useLocationData(
 
         const reversePromise = Location.reverseGeocodeAsync({ latitude, longitude });
         const fetchPromise = fetch(
-          `https://api.laskarbuah.com/api/location?latitute=${latitude}&longitute=${longitude}`,
+          `https://api.laskarbuah.com/api/location?latitute=${latitude}&longitute=${longitude}&latitude=${latitude}&longitude=${longitude}&v_latitude=${latitude}&v_longitude=${longitude}&lat=${latitude}&lng=${longitude}`,
           {
             method: "GET",
             headers: {
@@ -65,9 +65,18 @@ export default function useLocationData(
           }
         ).then((res) => res.json());
 
-        const [reverseGeocode, json] = await Promise.all([reversePromise, fetchPromise]);
+        const [reverseGeocode, rawJson] = await Promise.all([reversePromise, fetchPromise]);
 
         setLocation(formatReverseAddress(reverseGeocode[0] ?? null));
+
+        let json = rawJson;
+        if (Array.isArray(json)) {
+          json.sort((a: any, b: any) => {
+            const distA = parseFloat((a.distance || "0").toString().replace(",", "."));
+            const distB = parseFloat((b.distance || "0").toString().replace(",", "."));
+            return distA - distB;
+          });
+        }
 
         setApidata(json);
         if (json.length > 0 && !selectedStore) {
@@ -98,7 +107,7 @@ export default function useLocationData(
       setLocation(formatReverseAddress(reverseGeocode[0] ?? null));
 
       const response = await fetch(
-        `https://api.laskarbuah.com/api/location?latitute=${coordinate.latitude}&longitute=${coordinate.longitude}`,
+        `https://api.laskarbuah.com/api/location?latitute=${coordinate.latitude}&longitute=${coordinate.longitude}&latitude=${coordinate.latitude}&longitude=${coordinate.longitude}&v_latitude=${coordinate.latitude}&v_longitude=${coordinate.longitude}&lat=${coordinate.latitude}&lng=${coordinate.longitude}`,
         {
           method: "GET",
           headers: {
@@ -107,14 +116,28 @@ export default function useLocationData(
           },
         }
       );
-      const json = await response.json();
+      let json = await response.json();
+
+      if (Array.isArray(json)) {
+        json.sort((a: any, b: any) => {
+          const distA = parseFloat(a.distance || "0");
+          const distB = parseFloat(b.distance || "0");
+          return distA - distB;
+        });
+      }
+
       setApidata(json);
+
+      // Auto-select nearest store as requested
       if (json.length > 0) {
         setSelectedStore(String(json[0].id));
         onSelectStore(String(json[0].id));
       }
+
+      return json;
     } catch (error) {
       setLocation("Lokasi manual tidak dikenali");
+      return [];
     }
   };
 
