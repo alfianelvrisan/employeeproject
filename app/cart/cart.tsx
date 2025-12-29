@@ -473,7 +473,7 @@ const Cart = () => {
       activeOpacity={0.8}
     >
       <LinearGradient
-        colors={isActive ? NEON_GRADIENT : TAB_DISABLED_GRADIENT}
+        colors={isActive ? ["#fff247", "#fff247"] : TAB_DISABLED_GRADIENT}
         style={[
           styles.tabButtonGradient,
           isActive && styles.tabButtonGradientActive,
@@ -1495,12 +1495,12 @@ const styles = StyleSheet.create({
   },
   tabButtonGradient: {
     borderRadius: 20,
-    paddingVertical: 10,
+    paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 0,
     elevation: 2,
-    marginTop: 4,
+    marginTop: 0,
   },
   tabButtonGradientActive: {
     borderColor: "rgba(255,193,7,0.5)",
@@ -1512,7 +1512,7 @@ const styles = StyleSheet.create({
   },
   tabButtonText: {
     color: "#7b5a00",
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
   },
   tabButtonTextActive: {
