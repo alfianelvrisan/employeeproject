@@ -552,42 +552,39 @@ const Cart = () => {
                           </Text>
                         )}
                       </View>
-                      <Text style={styles.stockText}>
-                        Stock: {item.qty_stock} <Text style={styles.uom}>/{item.uom}</Text>
-                      </Text>
                     </View>
-                    <TouchableOpacity
-                      style={styles.deleteIconContainer}
-                      onPress={() => handleRemoveItem(item.id)}
-                      disabled={isDisabled}
-                    >
-                      <Ionicons name="trash-outline" size={20} color="#d7263d" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.quantitySection}>
-                    <Text style={styles.sectionLabel}>Jumlah</Text>
-                    <View style={styles.quantityControls}>
+                    <View style={styles.actionsColumn}>
                       <TouchableOpacity
-                        style={styles.qtyButton}
-                        onPress={() => handleDecreaseQuantity(item.id)}
+                        style={styles.deleteIconContainer}
+                        onPress={() => handleRemoveItem(item.id)}
                         disabled={isDisabled}
                       >
-                        <Ionicons name="remove" size={20} color="#6b3a00" />
+                        <Ionicons name="trash-outline" size={20} color="#d7263d" />
                       </TouchableOpacity>
-                      <View style={styles.qtyValue}>
-                        <Text style={styles.qtyValueText}>{item.qty}</Text>
+                      <View style={styles.quantityControls}>
+                        <TouchableOpacity
+                          style={styles.qtyButton}
+                          onPress={() => handleDecreaseQuantity(item.id)}
+                          disabled={isDisabled}
+                        >
+                          <Ionicons name="remove" size={20} color="#6b3a00" />
+                        </TouchableOpacity>
+                        <View style={styles.qtyValue}>
+                          <Text style={styles.qtyValueText}>{item.qty}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.qtyButton}
+                          onPress={() =>
+                            handleIncreaseQuantity(item.id, Number(item.idh))
+                          }
+                          disabled={isDisabled}
+                        >
+                          <Ionicons name="add" size={20} color="#6b3a00" />
+                        </TouchableOpacity>
                       </View>
-                      <TouchableOpacity
-                        style={styles.qtyButton}
-                        onPress={() =>
-                          handleIncreaseQuantity(item.id, Number(item.idh))
-                        }
-                        disabled={isDisabled}
-                      >
-                        <Ionicons name="add" size={20} color="#6b3a00" />
-                      </TouchableOpacity>
                     </View>
                   </View>
+                  <View style={styles.itemDivider} />
                 </View>
               );
             })
@@ -982,7 +979,7 @@ const Cart = () => {
                     onChangeText={(text) => setDescription(text)}
                     value={description}
                     placeholder="Tambahkan deskripsi pesanan (opsional)"
-                    placeholderTextColor="#b4b4b4ff"
+                    placeholderTextColor="#000000ff"
                   />
                   <TouchableOpacity
                     onPress={handleCheckout}
@@ -1016,7 +1013,7 @@ const Cart = () => {
                           name="cart-outline"
                           size={22}
                           color={
-                            selectedItems.length === 0 ? "#8a7a39" : "#4b2d00"
+                            selectedItems.length === 0 ? "#000000ff" : "#4b2d00"
                           }
                           style={styles.checkoutIcon}
                         />
@@ -1324,7 +1321,6 @@ const styles = StyleSheet.create({
   deleteIconContainer: {
     padding: 7,
     backgroundColor: "transparent",
-    marginLeft: "auto",
   },
   checkoutWrapper: {
     width: "92%",
@@ -1356,7 +1352,7 @@ const styles = StyleSheet.create({
   },
   totalLabel: {
     fontSize: 14,
-    color: "#9c7b1b",
+    color: "#000000ff",
     fontWeight: "600",
   },
   totalGlass: {
@@ -1376,7 +1372,7 @@ const styles = StyleSheet.create({
   totalText: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#6b3a00",
+    color: "#000000ff",
     textAlign: "right",
     fontFamily: "bolder",
     marginRight: 8,
@@ -1393,10 +1389,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 30,
     borderWidth: 0,
-    shadowColor: "rgba(255,174,0,0.45)",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 1,
-    shadowRadius: 22,
     elevation: 10,
   },
   checkoutButtonGradientDisabled: {
@@ -1408,7 +1400,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   checkoutButtonTextDisabled: {
-    color: "#8a7a39",
+    color: "#000000ff",
   },
   buyNowContent: {
     flexDirection: "row",
@@ -1436,23 +1428,20 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontWeight: "bold",
   },
-  quantitySection: {
-    marginTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: "#ffe8a9",
-    paddingTop: 14,
-    flexDirection: "row",
+  actionsColumn: {
+    marginLeft: "auto",
     alignItems: "center",
-    justifyContent: "space-between",
   },
-  sectionLabel: {
-    fontSize: 13,
-    color: "#8a6700",
-    fontWeight: "600",
+  itemDivider: {
+    height: 1,
+    backgroundColor: "#dadadaff",
+    marginTop: 10,
+    width: "100%",
   },
   quantityControls: {
     flexDirection: "row",
     alignItems: "center",
+    marginTop: 8,
   },
   qtyButton: {
     width: 36,
@@ -1613,7 +1602,7 @@ const styles = StyleSheet.create({
   },
   transactionText: {
     fontSize: 14,
-    color: "#333",
+    color: "#000000ff",
     marginBottom: 5,
   },
   productList: {
