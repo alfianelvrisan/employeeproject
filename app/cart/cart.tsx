@@ -1439,7 +1439,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginTop: 12, // More spacing from delete icon
-    backgroundColor: "#fffbe2", // Light background for the whole control
+    backgroundColor: "#fff247", // Light background for the whole control
     borderRadius: 8,
     padding: 2,
     borderWidth: 1,
