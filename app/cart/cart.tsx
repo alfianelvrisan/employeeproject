@@ -16,7 +16,7 @@ import {
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { AuthProvider, useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 import {
   ListTrxMember,
   deleteTrxMember,
@@ -26,7 +26,7 @@ import { fetchProfile } from "../../services/profileServices";
 import { IncreDecre } from "../../services/DecreIncre";
 import { paymentMidtrans } from "../../services/paymentMidtrans";
 import WebView from "react-native-webview";
-import { router, Stack } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native"; // Import useFocusEffect
 import { cekOrderId } from "../../services/CekOrderId";
 import {
@@ -46,19 +46,20 @@ const SEARCH_NEON_MUTED = [
   "rgba(74,210,255,0.02)",
 ] as const;
 
-const PRIMARY_YELLOW = "#ffe133";
-const PRIMARY_YELLOW_DARK = "#d19c00";
-const PRIMARY_YELLOW_LIGHT = "#fff7c4";
-const NEON_GRADIENT = ["#fff57c", PRIMARY_YELLOW, "#ffc20e"] as const;
-const TAB_DISABLED_GRADIENT = ["#fffcee", PRIMARY_YELLOW_LIGHT] as const;
-const PRIMARY_BUTTON_GRADIENT = ["#fff48c", PRIMARY_YELLOW, "#ffca1a"] as const;
-const SECONDARY_BUTTON_GRADIENT = ["#fffceb", "#ffe788"] as const;
-const WARNING_BUTTON_GRADIENT = [PRIMARY_YELLOW, "#f5c018", "#d69800"] as const;
-const BUTTON_DISABLED_GRADIENT = ["#fffdf2", "#fff8d4"] as const;
+const PRIMARY_YELLOW = "#FFF247";
+const PRIMARY_YELLOW_DARK = "#BFB010";
+const PRIMARY_YELLOW_LIGHT = "#fffacc";
+const NEON_GRADIENT = [PRIMARY_YELLOW, "#ffeb3b", "#fbc02d"] as const;
+const TAB_DISABLED_GRADIENT = ["#f5f5f5", "#eeeeee"] as const;
+const PRIMARY_BUTTON_GRADIENT = [PRIMARY_YELLOW, "#ffeb3b", "#fbc02d"] as const;
+const SECONDARY_BUTTON_GRADIENT = ["#ffffff", "#fafafa"] as const;
+const WARNING_BUTTON_GRADIENT = ["#ffcdd2", "#ef9a9a", "#e57373"] as const;
+const BUTTON_DISABLED_GRADIENT = ["#f0f0f0", "#e0e0e0"] as const;
 
 const Cart = () => {
   const { userToken } = useAuth();
   const insets = useSafeAreaInsets();
+  const { tab } = useLocalSearchParams<{ tab: string }>(); // Get tab param
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null); // Track Midtrans Snap URL
   const [cartItems, setCartItems] = useState<
     {
@@ -90,12 +91,18 @@ const Cart = () => {
   const [selectedId, setSelectedItemss] = useState<number[]>([]);
   const [selectedItemsh, setSelectedItemsh] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState<boolean>(false);
-  const [selectedTab, setSelectedTab] = useState<string>("List Belanja");
+  const [selectedTab, setSelectedTab] = useState<string>(tab || "List Belanja");
   const [description, setDescription] = useState<string>("");
   const [orderIds, setOrderId] = useState<string>("");
   const [responsePayment, setResponsePayment] = useState<any>(null);
   const [responseByorderId, setResponseByorderId] = useState<any>(null);
   const { headerStyle, handleScroll } = useScrollHeader();
+
+  useEffect(() => {
+    if (tab) {
+      setSelectedTab(tab);
+    }
+  }, [tab]);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -399,7 +406,7 @@ const Cart = () => {
 
 
       if (validOrderIds.length === 0) {
-        console.warn("Order ID kosong atau tidak valid.");
+        // console.warn("Order ID kosong atau tidak valid.");
         return;
       }
 
@@ -529,7 +536,12 @@ const Cart = () => {
                     <Image source={{ uri: item.foto }} style={styles.itemImage} />
                     <View style={styles.itemSummary}>
                       <Text style={styles.itemName}>{item.name_produk}</Text>
-                      <Text style={styles.storeName}>{item.name_store}</Text>
+                      <View style={styles.storeChip}>
+                        <Ionicons name="storefront-outline" size={12} color="#fff" />
+                        <Text style={styles.storeText} numberOfLines={1}>
+                          {item.name_store}
+                        </Text>
+                      </View>
                       <View style={styles.priceRow}>
                         <Text style={styles.currentPrice}>
                           Rp {finalPrice.toLocaleString()}
@@ -888,281 +900,270 @@ const Cart = () => {
   };
 
   return (
-    <AuthProvider>
-      <LinearGradient
-        colors={[PRIMARY_YELLOW_LIGHT, "#fffbe6", "#ffffff"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={styles.gradientBg}
-      >
-        <View style={styles.container}>
-          <Stack.Screen
-            options={{
-              headerShown: true,
-              headerTitleAlign: "left",
-              headerTitle: () => (
-                <View style={styles.headerTitleWrapper}>
-                  <Text style={styles.headerTitleText}>Pesanan</Text>
-                  <Text style={styles.headerSubtitleText}>
-                    Kelola keranjang dan pembayaran
-                  </Text>
-                </View>
-              ),
-              headerBackground: () => (
-                <LinearGradient
-                  colors={[PRIMARY_YELLOW, "#f0c734"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.headerBackgroundGradient}
-                />
-              ),
-              headerStyle: {
-                // height: 78, // removed to fix TS error
-              },
-              // headerTitleContainerStyle: { // removed to fix TS error
-              //   height: 10,
-              //   marginBottom: 12,
-              // },
-              headerShadowVisible: false,
-              headerTintColor: "#fff",
-            }}
+    <LinearGradient
+      colors={[PRIMARY_YELLOW_LIGHT, "#ffffff"]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 0.3 }}
+      style={styles.gradientBg}
+    >
+      <View style={styles.container}>
+        <Stack.Screen
+          options={{
+            headerShown: true,
+            headerTitleAlign: "left",
+            headerTitle: () => (
+              <View style={styles.headerTitleWrapper}>
+                <Text style={styles.headerTitleText}>Pesanan</Text>
+                <Text style={styles.headerSubtitleText}>
+                  Kelola keranjang dan pembayaran
+                </Text>
+              </View>
+            ),
+            headerBackground: () => (
+              <View style={{ flex: 1, backgroundColor: PRIMARY_YELLOW }} />
+            ),
+            headerStyle: {
+              backgroundColor: PRIMARY_YELLOW,
+            },
+            headerShadowVisible: false,
+            headerTintColor: "#000",
+          }}
+        />
+        <View style={styles.tabRow}>
+          <TabButton
+            label="List Belanja"
+            isActive={selectedTab === "List Belanja"}
+            onPress={() => setSelectedTab("List Belanja")}
           />
-          <View style={styles.tabRow}>
-            <TabButton
-              label="List Belanja"
-              isActive={selectedTab === "List Belanja"}
-              onPress={() => setSelectedTab("List Belanja")}
-            />
-            <TabButton
-              label="Belum Bayar"
-              isActive={selectedTab === "Belum Bayar"}
-              onPress={() => setSelectedTab("Belum Bayar")}
-            />
-            <TabButton
-              label="Selesai"
-              isActive={selectedTab === "Selesai"}
-              onPress={() => setSelectedTab("Selesai")}
-            />
-          </View>
-          <ScrollView
-            style={styles.scrollArea}
-            contentContainerStyle={[
-              styles.scrollContent,
-              {
-                paddingBottom:
-                  (selectedTab === "List Belanja" ? 140 : 100) + insets.bottom,
-              },
-            ]}
-            scrollEventThrottle={16}
-            onScroll={handleScroll}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-          >
-            {renderTabContent()}
-            {selectedTab === "List Belanja" && cartItems.length > 0 ? (
-              <View style={styles.checkoutWrapper}>
-                <LinearGradient
-                  colors={NEON_GRADIENT}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.checkoutCardGradient}
-                >
-                  <View style={styles.checkoutCard}>
-                    <View style={styles.totalRow}>
-                      <Text style={styles.totalLabel}>Total</Text>
-                      <Text style={styles.totalText}>
-                        Rp{totalPrice.toLocaleString()}
-                      </Text>
-                    </View>
-                    <TextInput
-                      style={styles.descriptionInput}
-                      onChangeText={(text) => setDescription(text)}
-                      value={description}
-                      placeholder="Tambahkan deskripsi pesanan (opsional)"
-                      placeholderTextColor="#6c7b9c"
-                    />
-                    <TouchableOpacity
-                      onPress={handleCheckout}
-                      disabled={selectedItems.length === 0}
-                      activeOpacity={0.8}
-                      style={styles.checkoutButtonWrapper}
-                    >
-                      <LinearGradient
-                        colors={
-                          selectedItems.length === 0
-                            ? BUTTON_DISABLED_GRADIENT
-                            : PRIMARY_BUTTON_GRADIENT
-                        }
-                        style={[
-                          styles.checkoutButtonGradient,
-                          selectedItems.length === 0 &&
-                          styles.checkoutButtonGradientDisabled,
-                        ]}
-                      >
-                        <View style={styles.buyNowContent}>
-                          <Text
-                            style={[
-                              styles.checkoutButtonText,
-                              selectedItems.length === 0 &&
-                              styles.checkoutButtonTextDisabled,
-                            ]}
-                          >
-                            Bayar sekarang
-                          </Text>
-                          <Ionicons
-                            name="cart-outline"
-                            size={22}
-                            color={
-                              selectedItems.length === 0 ? "#8a7a39" : "#4b2d00"
-                            }
-                            style={styles.checkoutIcon}
-                          />
-                        </View>
-                      </LinearGradient>
-                    </TouchableOpacity>
-                  </View>
-                </LinearGradient>
-              </View>
-            ) : null}
-          </ScrollView>
-          <View style={styles.bottomFill} pointerEvents="none" />
-          <Modal
-            transparent={true}
-            visible={isModalVisible}
-            animationType="fade"
-            onRequestClose={() => setModalVisible(false)}
-          >
-            <View style={styles.overlay}>
-              <View style={styles.modalContainer}>
-                <Text style={styles.modalTitle}>Konfirmasi Checkout</Text>
-                <Text style={styles.modalMessage}>
-                  Apakah Anda yakin ingin membuat pesanan?
-                </Text>
-                <View style={styles.modalButtonRow}>
-                  <TouchableOpacity
-                    onPress={() => setModalVisible(false)}
-                    activeOpacity={0.8}
-                    style={styles.modalButtonWrapper}
-                  >
-                    <LinearGradient
-                      colors={SECONDARY_BUTTON_GRADIENT}
-                      style={styles.modalButtonGradient}
-                    >
-                      <Text style={styles.modalButtonText}>Batal</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={confirmCheckout}
-                    activeOpacity={0.8}
-                    style={styles.modalButtonWrapper}
-                  >
-                    <LinearGradient
-                      colors={PRIMARY_BUTTON_GRADIENT}
-                      style={styles.modalButtonGradient}
-                    >
-                      <Text style={[styles.modalButtonText, styles.modalButtonTextPrimary]}>
-                        OK
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </Modal>
-          <Modal
-            transparent={true}
-            visible={isDeletePaymentModalVisible}
-            animationType="fade"
-            onRequestClose={cancelDeletePayment}
-          >
-            <View style={styles.overlay}>
-              <View style={styles.modalContainer}>
-                <Text style={styles.modalTitle}>Hapus Transaksi</Text>
-                <Text style={styles.modalMessage}>
-                  Apakah Anda yakin ingin menghapus transaksi ini?
-                </Text>
-                <View style={styles.modalButtonRow}>
-                  <TouchableOpacity
-                    onPress={cancelDeletePayment}
-                    activeOpacity={0.8}
-                    style={styles.modalButtonWrapper}
-                  >
-                    <LinearGradient
-                      colors={SECONDARY_BUTTON_GRADIENT}
-                      style={styles.modalButtonGradient}
-                    >
-                      <Text style={styles.modalButtonText}>Batal</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={confirmDeletePayment}
-                    activeOpacity={0.8}
-                    style={styles.modalButtonWrapper}
-                  >
-                    <LinearGradient
-                      colors={WARNING_BUTTON_GRADIENT}
-                      style={styles.modalButtonGradient}
-                    >
-                      <Text
-                        style={[styles.modalButtonText, styles.modalButtonTextPrimary]}
-                      >
-                        Hapus
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </Modal>
-          <Modal
-            transparent={true}
-            visible={isDeleteModalVisible}
-            animationType="fade"
-            onRequestClose={cancelRemoveItem}
-          >
-            <View style={styles.overlay}>
-              <View style={styles.modalContainer}>
-                <Text style={styles.modalTitle}>Hapus Item</Text>
-                <Text style={styles.modalMessage}>
-                  Apakah Anda yakin ingin menghapus item ini dari keranjang?
-                </Text>
-                <View style={styles.modalButtonRow}>
-                  <TouchableOpacity
-                    onPress={cancelRemoveItem}
-                    activeOpacity={0.8}
-                    style={styles.modalButtonWrapper}
-                  >
-                    <LinearGradient
-                      colors={SECONDARY_BUTTON_GRADIENT}
-                      style={styles.modalButtonGradient}
-                    >
-                      <Text style={styles.modalButtonText}>Batal</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={confirmRemoveItem}
-                    activeOpacity={0.8}
-                    style={styles.modalButtonWrapper}
-                  >
-                    <LinearGradient
-                      colors={WARNING_BUTTON_GRADIENT}
-                      style={styles.modalButtonGradient}
-                    >
-                      <Text
-                        style={[styles.modalButtonText, styles.modalButtonTextPrimary]}
-                      >
-                        Hapus
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </Modal>
+          <TabButton
+            label="Belum Bayar"
+            isActive={selectedTab === "Belum Bayar"}
+            onPress={() => setSelectedTab("Belum Bayar")}
+          />
+          <TabButton
+            label="Selesai"
+            isActive={selectedTab === "Selesai"}
+            onPress={() => setSelectedTab("Selesai")}
+          />
         </View>
-      </LinearGradient>
-    </AuthProvider>
+        <ScrollView
+          style={styles.scrollArea}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingBottom:
+                (selectedTab === "List Belanja" ? 140 : 100) + insets.bottom,
+            },
+          ]}
+          scrollEventThrottle={16}
+          onScroll={handleScroll}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {renderTabContent()}
+          {selectedTab === "List Belanja" && cartItems.length > 0 ? (
+            <View style={styles.checkoutWrapper}>
+              <LinearGradient
+                colors={NEON_GRADIENT}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.checkoutCardGradient}
+              >
+                <View style={styles.checkoutCard}>
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalLabel}>Total</Text>
+                    <Text style={styles.totalText}>
+                      Rp{totalPrice.toLocaleString()}
+                    </Text>
+                  </View>
+                  <TextInput
+                    style={styles.descriptionInput}
+                    onChangeText={(text) => setDescription(text)}
+                    value={description}
+                    placeholder="Tambahkan deskripsi pesanan (opsional)"
+                    placeholderTextColor="#b4b4b4ff"
+                  />
+                  <TouchableOpacity
+                    onPress={handleCheckout}
+                    disabled={selectedItems.length === 0}
+                    activeOpacity={0.8}
+                    style={styles.checkoutButtonWrapper}
+                  >
+                    <LinearGradient
+                      colors={
+                        selectedItems.length === 0
+                          ? BUTTON_DISABLED_GRADIENT
+                          : PRIMARY_BUTTON_GRADIENT
+                      }
+                      style={[
+                        styles.checkoutButtonGradient,
+                        selectedItems.length === 0 &&
+                        styles.checkoutButtonGradientDisabled,
+                      ]}
+                    >
+                      <View style={styles.buyNowContent}>
+                        <Text
+                          style={[
+                            styles.checkoutButtonText,
+                            selectedItems.length === 0 &&
+                            styles.checkoutButtonTextDisabled,
+                          ]}
+                        >
+                          Bayar sekarang
+                        </Text>
+                        <Ionicons
+                          name="cart-outline"
+                          size={22}
+                          color={
+                            selectedItems.length === 0 ? "#8a7a39" : "#4b2d00"
+                          }
+                          style={styles.checkoutIcon}
+                        />
+                      </View>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              </LinearGradient>
+            </View>
+          ) : null}
+        </ScrollView>
+        <View style={styles.bottomFill} pointerEvents="none" />
+        <Modal
+          transparent={true}
+          visible={isModalVisible}
+          animationType="fade"
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.overlay}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Konfirmasi Checkout</Text>
+              <Text style={styles.modalMessage}>
+                Apakah Anda yakin ingin membuat pesanan?
+              </Text>
+              <View style={styles.modalButtonRow}>
+                <TouchableOpacity
+                  onPress={() => setModalVisible(false)}
+                  activeOpacity={0.8}
+                  style={styles.modalButtonWrapper}
+                >
+                  <LinearGradient
+                    colors={SECONDARY_BUTTON_GRADIENT}
+                    style={styles.modalButtonGradient}
+                  >
+                    <Text style={styles.modalButtonText}>Batal</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={confirmCheckout}
+                  activeOpacity={0.8}
+                  style={styles.modalButtonWrapper}
+                >
+                  <LinearGradient
+                    colors={PRIMARY_BUTTON_GRADIENT}
+                    style={styles.modalButtonGradient}
+                  >
+                    <Text style={[styles.modalButtonText, styles.modalButtonTextPrimary]}>
+                      OK
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+        <Modal
+          transparent={true}
+          visible={isDeletePaymentModalVisible}
+          animationType="fade"
+          onRequestClose={cancelDeletePayment}
+        >
+          <View style={styles.overlay}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Hapus Transaksi</Text>
+              <Text style={styles.modalMessage}>
+                Apakah Anda yakin ingin menghapus transaksi ini?
+              </Text>
+              <View style={styles.modalButtonRow}>
+                <TouchableOpacity
+                  onPress={cancelDeletePayment}
+                  activeOpacity={0.8}
+                  style={styles.modalButtonWrapper}
+                >
+                  <LinearGradient
+                    colors={SECONDARY_BUTTON_GRADIENT}
+                    style={styles.modalButtonGradient}
+                  >
+                    <Text style={styles.modalButtonText}>Batal</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={confirmDeletePayment}
+                  activeOpacity={0.8}
+                  style={styles.modalButtonWrapper}
+                >
+                  <LinearGradient
+                    colors={PRIMARY_BUTTON_GRADIENT}
+                    style={styles.modalButtonGradient}
+                  >
+                    <Text
+                      style={[styles.modalButtonText, styles.modalButtonTextPrimary]}
+                    >
+                      Hapus
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+        <Modal
+          transparent={true}
+          visible={isDeleteModalVisible}
+          animationType="fade"
+          onRequestClose={cancelRemoveItem}
+        >
+          <View style={styles.overlay}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Hapus Item</Text>
+              <Text style={styles.modalMessage}>
+                Apakah Anda yakin ingin menghapus item ini dari keranjang?
+              </Text>
+              <View style={styles.modalButtonRow}>
+                <TouchableOpacity
+                  onPress={cancelRemoveItem}
+                  activeOpacity={0.8}
+                  style={styles.modalButtonWrapper}
+                >
+                  <LinearGradient
+                    colors={SECONDARY_BUTTON_GRADIENT}
+                    style={styles.modalButtonGradient}
+                  >
+                    <Text style={styles.modalButtonText}>Batal</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={confirmRemoveItem}
+                  activeOpacity={0.8}
+                  style={styles.modalButtonWrapper}
+                >
+                  <LinearGradient
+                    colors={PRIMARY_BUTTON_GRADIENT}
+                    style={styles.modalButtonGradient}
+                  >
+                    <Text
+                      style={[styles.modalButtonText, styles.modalButtonTextPrimary]}
+                    >
+                      Hapus
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    </LinearGradient>
   );
 };
 
@@ -1246,17 +1247,16 @@ const styles = StyleSheet.create({
     width: "50%",
   },
   cartItem: {
-    backgroundColor: "#fffdf5",
+    backgroundColor: "#ffffff",
     padding: 16,
     marginBottom: 12,
-    borderRadius: 22,
-    shadowColor: "rgba(0,0,0,0.08)",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.9,
-    shadowRadius: 16,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: "rgba(255,199,0,0.25)",
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 0,
     width: "92%",
     alignSelf: "center",
   },
@@ -1280,15 +1280,26 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#333",
+    color: "#000000ff",
+    marginBottom: 8,
   },
   itemSummary: {
     flex: 1,
   },
-  storeName: {
-    fontSize: 13,
-    color: "#a06d00",
-    marginBottom: 6,
+  storeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#de0866",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+    marginBottom: 4,
+  },
+  storeText: {
+    fontSize: 11,
+    color: "#ffffff",
+    marginLeft: 6,
     fontWeight: "600",
   },
   priceRow: {
@@ -1312,8 +1323,7 @@ const styles = StyleSheet.create({
   },
   deleteIconContainer: {
     padding: 7,
-    borderRadius: 14,
-    backgroundColor: PRIMARY_YELLOW_LIGHT,
+    backgroundColor: "transparent",
     marginLeft: "auto",
   },
   checkoutWrapper: {
@@ -1325,18 +1335,18 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   checkoutCardGradient: {
-    borderRadius: 30,
-    padding: 3,
-    shadowColor: "rgba(255,174,0,0.45)",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 1,
-    shadowRadius: 20,
-    elevation: 12,
+    borderRadius: 24,
+    padding: 2,
+    shadowColor: PRIMARY_YELLOW,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
   },
   checkoutCard: {
-    borderRadius: 28,
-    padding: 18,
-    backgroundColor: "rgba(255,255,255,0.98)",
+    borderRadius: 22,
+    padding: 16,
+    backgroundColor: "#ffffff",
   },
   totalRow: {
     flexDirection: "row",
@@ -1484,17 +1494,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   tabButtonGradient: {
-    borderRadius: 18,
-    paddingVertical: 12,
+    borderRadius: 20,
+    paddingVertical: 10,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,215,0,0.2)",
-    shadowColor: "transparent",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    elevation: 0,
+    borderWidth: 0,
+    elevation: 2,
+    marginTop: 4,
   },
   tabButtonGradientActive: {
     borderColor: "rgba(255,193,7,0.5)",
@@ -1539,23 +1545,23 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   paymentCardShell: {
-    width: "92%",
-    borderRadius: 28,
-    padding: 3,
-    marginBottom: 18,
-    backgroundColor: "rgba(255,195,0,0.18)",
+    width: "95%",
+    borderRadius: 20,
+    padding: 2,
+    marginBottom: 16,
+    backgroundColor: "transparent",
   },
   paymentCard: {
-    backgroundColor: "#fffef7",
-    borderRadius: 24,
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
     padding: 18,
-    shadowColor: "rgba(0,0,0,0.08)",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 1,
-    shadowRadius: 18,
-    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
     borderWidth: 1,
-    borderColor: "rgba(255,199,0,0.3)",
+    borderColor: "#f0f0f0",
   },
   paymentOrderId: {
     fontSize: 14,
@@ -1704,11 +1710,11 @@ const styles = StyleSheet.create({
   headerTitleText: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#fff",
+    color: "#000",
   },
   headerSubtitleText: {
     fontSize: 12,
-    color: "rgba(255,255,255,0.85)",
+    color: "#000",
   },
   headerBackgroundGradient: {
     flex: 1,

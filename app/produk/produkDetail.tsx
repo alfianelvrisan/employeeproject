@@ -9,13 +9,13 @@ import {
   Image,
   Modal,
 } from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Stack, SearchParams, router } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
 import { fetchProdukDetail } from "../../services/ProdukDetail";
 // import { useSearchParams } from "expo-router/build/hooks";
 import { useLocalSearchParams } from "expo-router";
-import { fetchProducts } from "../../services/productService"; // Import fetchProducts
+import { fetchProducts, sendLike } from "../../services/productService"; // Import fetchProducts
 import { fetchDeliveryServices } from "../../services/deliveryServices"; // Import fetchDeliveryServices
 import { fetchProfile } from "../../services/profileServices";
 import CustomHeader from "../../components/CustomWithbackground";
@@ -24,6 +24,7 @@ import CustomHeader from "../../components/CustomWithbackground";
 const ProdukDetail = () => {
   console.log(">>>> RENDER CYCLE START: ProdukDetail (AuthProvider Removed) <<<<");
   const { detailId, idStore: idStoreParam, idProduk: idProdukParam } = useLocalSearchParams<{ detailId: string, idStore: string, idProduk: string }>();
+  const insets = useSafeAreaInsets();
 
   console.log("ProdukDetail Params:", { detailId, idStoreParam, idProdukParam });
 
@@ -201,6 +202,50 @@ const ProdukDetail = () => {
 
     fetchRandomProducts();
   }, [effectiveStoreId, userToken]);
+
+
+  const [likedProducts, setLikedProducts] = useState<number[]>([]);
+
+  const handleLikePress = async (productId: number) => {
+    const isLiked =
+      likedProducts.includes(productId) ||
+      randomProducts.find((p) => p.id === productId)?.liked !== 0;
+
+    setLikedProducts((prev) =>
+      isLiked ? prev.filter((id) => id !== productId) : [...prev, productId]
+    );
+    setRandomProducts((prevProducts) =>
+      prevProducts.map((product) =>
+        product.id === productId
+          ? {
+            ...product,
+            likes: isLiked ? product.likes - 1 : product.likes + 1,
+            liked: isLiked ? 0 : 1,
+          }
+          : product
+      )
+    );
+
+    try {
+      await sendLike(userToken || "", productId, effectiveStoreId);
+    } catch (error) {
+      console.error("Failed to like/unlike product:", error);
+      setLikedProducts((prev) =>
+        isLiked ? [...prev, productId] : prev.filter((id) => id !== productId)
+      );
+      setRandomProducts((prevProducts) =>
+        prevProducts.map((product) =>
+          product.id === productId
+            ? {
+              ...product,
+              likes: isLiked ? product.likes + 1 : product.likes - 1,
+              liked: isLiked ? 1 : 0,
+            }
+            : product
+        )
+      );
+    }
+  };
 
 
   const handleAddToCart = useCallback(
@@ -406,8 +451,22 @@ const ProdukDetail = () => {
           ),
         }}
       />
-      <SafeAreaView style={styles.container}>
-        {selectedProduct && <CustomHeader title={selectedProduct.name_produk} />}
+      <View style={[styles.container, { paddingTop: 0 }]}>
+        <View style={[styles.customHeaderContainer, { paddingTop: insets.top + 10 }]}>
+          <View style={styles.customHeaderShell}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.headerIconButton}>
+              <Ionicons name="arrow-back" size={18} color="#3a2f00" />
+            </TouchableOpacity>
+
+            <Text style={styles.headerTitleText} numberOfLines={1}>
+              {selectedProduct ? selectedProduct.name_produk : "Detail Produk"}
+            </Text>
+
+            <TouchableOpacity onPress={() => router.push({ pathname: "/cart/cart", params: { tab: "List Belanja" } })} style={styles.headerIconButton}>
+              <Ionicons name="cart-outline" size={18} color="#3a2f00" />
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Alert Keranjang */}
         <Modal
@@ -456,54 +515,107 @@ const ProdukDetail = () => {
                       );
                     }}
                   >
-                    <Image
-                      source={
-                        resolveImage(product)
-                          ? { uri: resolveImage(product) }
-                          : {
-                            uri: "https://via.placeholder.com/300x200?text=No+Image",
-                          }
-                      }
-                      style={styles.randomProductImage}
-                      resizeMode="contain"
-                    />
-                    <Text style={styles.randomProductName}>
-                      {product.name_produk}
-                    </Text>
-                    {product.discount !== 0 ? (
-                      <>
-                        <Text style={styles.productPriceOriginal}>
-                          Rp {product.price.toLocaleString()}
-                        </Text>
-                        <Text style={styles.productPriceDiscount}>
-                          Rp {(product.price - product.discount).toLocaleString()}
-                        </Text>
-                      </>
-                    ) : (
-                      <Text style={styles.productPrice}>
-                        Rp {product.price.toLocaleString()}
-                      </Text>
-                    )}
-                    <TouchableOpacity
-                      style={styles.addToCartButtonSmall}
-                      onPress={() => handleAddToCart(product.id)}
-                      disabled={isLoading || !idUser}
-                    >
-
-                      <Ionicons
-                        name="cart-outline"
-                        size={20}
-                        color="#de0866"
+                    <View style={styles.imageWrapper}>
+                      <Image
+                        source={
+                          resolveImage(product)
+                            ? { uri: resolveImage(product) }
+                            : {
+                              uri: "https://via.placeholder.com/300x200?text=No+Image",
+                            }
+                        }
+                        style={styles.randomProductImage}
+                        resizeMode="contain"
                       />
-                      {/* <Text style={styles.addToCartText}>Add to Cart</Text> */}
-                    </TouchableOpacity>
+                      {product.discount !== 0 ? (
+                        <View style={styles.discountBadge}>
+                          <Text style={styles.discountText}>
+                            -{Math.round((product.discount / product.price) * 100)}%
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    <View style={styles.productInfo}>
+                      <Text
+                        style={styles.randomProductName}
+                        numberOfLines={2}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.9}
+                      >
+                        {product.name_produk}
+                      </Text>
+
+                      <View style={styles.storeRow}>
+                        <View style={styles.storeChip}>
+                          <Ionicons name="storefront-outline" size={12} color="#fff" />
+                          <Text style={styles.storeText} numberOfLines={1}>
+                            {product.name_store}
+                          </Text>
+                        </View>
+                        <Text style={styles.categoryPill} numberOfLines={1}>
+                          {product.cate}
+                        </Text>
+                      </View>
+
+                      <Text style={styles.productUOM}>{product.uom}</Text>
+
+                      <View style={styles.priceRow}>
+                        {product.discount !== 0 ? (
+                          <>
+                            <Text style={styles.productPriceDiscount}>
+                              Rp {(product.price - product.discount).toLocaleString()}
+                            </Text>
+                            <Text style={styles.productPriceOriginal}>
+                              Rp {product.price.toLocaleString()}
+                            </Text>
+                          </>
+                        ) : (
+                          <Text style={styles.productPrice}>
+                            Rp {product.price.toLocaleString()}
+                          </Text>
+                        )}
+                      </View>
+
+                      <View style={styles.actionContainer}>
+                        <TouchableOpacity
+                          onPress={() => handleAddToCart(product.id)}
+                          style={styles.actionButton}
+                        >
+                          <Ionicons name="cart-outline" size={18} color="#3a2f00" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleLikePress(product.id)}
+                          style={styles.actionButton}
+                        >
+                          <Ionicons
+                            name={
+                              likedProducts.includes(product.id) || product.liked !== 0
+                                ? "heart"
+                                : "heart-outline"
+                            }
+                            size={18}
+                            color={
+                              likedProducts.includes(product.id) || product.liked !== 0
+                                ? "red"
+                                : "#3a2f00"
+                            }
+                          />
+                        </TouchableOpacity>
+                        <Text style={styles.totalLikesText}>
+                          {product.likes !== 0
+                            ? `${product.likes} Likes`
+                            : "Belum ada Like"}
+                        </Text>
+                      </View>
+                    </View>
                   </TouchableOpacity>
                 ))}
             </View>
           </View>
           {renderFooter()}
         </ScrollView>
-      </SafeAreaView>
+      </View>
     </SafeAreaProvider>
 
   );
@@ -515,7 +627,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
   },
   scrollView: {
-    padding: 16,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 20,
   },
   slideshowContainer: {
     height: 250,
@@ -570,7 +684,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     color: "#1b2b40",
   },
-
   backButton: {
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -585,120 +698,184 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   alertContainer: {
+    width: "80%",
     backgroundColor: "#fff",
     padding: 20,
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: "center",
-    width: "80%",
   },
   alertText: {
     marginTop: 10,
-    fontSize: 16,
+    fontWeight: "bold",
     textAlign: "center",
   },
   loadingContainer: {
-    padding: 16,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginTop: 0,
   },
   loadingCard: {
-    height: 120,
-    backgroundColor: "#eee",
+    backgroundColor: "#f0f0f0",
     borderRadius: 10,
-    marginBottom: 12,
+    padding: 10,
+    marginBottom: 5,
+    width: "49%",
+    height: 300,
   },
   loadingImage: {
-    height: 60,
-    backgroundColor: "#ddd",
+    backgroundColor: "#e0e0e0",
     borderRadius: 10,
-    marginBottom: 8,
+    width: "100%",
+    height: 120,
+    marginBottom: 10,
   },
   loadingText: {
-    height: 14,
-    backgroundColor: "#ccc",
-    borderRadius: 6,
-    marginBottom: 4,
+    backgroundColor: "#e0e0e0",
+    borderRadius: 5,
+    width: "70%",
+    height: 10,
+    marginBottom: 5,
   },
   loadingTextSmall: {
+    backgroundColor: "#e0e0e0",
+    borderRadius: 5,
+    width: "50%",
     height: 10,
-    width: "60%",
-    backgroundColor: "#ccc",
-    borderRadius: 6,
   },
-  cardContainer: {
-    backgroundColor: "#ffffff",
-    margin: 16,
-    padding: 16,
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 0.1,
-  },
-
+  // Replaced Product Card Styles
   productName: {
-    fontSize: 20,
+    fontSize: 20, // Keep this for Main Product
     fontWeight: "700",
     marginBottom: 6,
     color: "#1b2b40",
   },
-
   productPrice: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 16,
+    fontWeight: "700",
     color: "#de0866",
   },
-
   productPriceOriginal: {
-    fontSize: 14,
-    color: "#9aa4b4",
+    fontSize: 12,
+    color: "rgba(58,47,0,0.5)",
     textDecorationLine: "line-through",
   },
-
   productPriceDiscount: {
-    fontSize: 18,
+    fontSize: 16,
     color: "#de0866",
-    fontWeight: "bold",
+    fontWeight: "700",
   },
-
   randomProductsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    paddingHorizontal: 8,
+    paddingHorizontal: 0,
   },
-
   randomProductCard: {
     backgroundColor: "#ffffff",
     borderRadius: 16,
-    width: "48%",
-    marginBottom: 16,
     padding: 10,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: "#e0e0e0",
+    width: "49%",
+    height: 310,
   },
-
+  imageWrapper: {
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: "#fff",
+    marginBottom: 10,
+  },
   randomProductImage: {
     width: "100%",
     height: 140,
-    borderRadius: 14,
     resizeMode: "contain",
-    marginBottom: 8,
-    backgroundColor: "#fff",
   },
-
-  randomProductName: {
-    fontSize: 14,
+  discountBadge: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: "#ffe133",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  discountText: {
+    color: "#3a2f00",
+    fontSize: 12,
     fontWeight: "700",
-    color: "#1b2b40",
   },
-
-  randomProductPrice: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#de0866",
-    marginBottom: 6,
+  productInfo: {
+    marginBottom: 10,
   },
-
+  randomProductName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#3a2f00",
+    flexShrink: 1,
+  },
+  storeRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginVertical: 6,
+  },
+  storeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#de0866",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    maxWidth: "70%",
+  },
+  storeText: {
+    fontSize: 11,
+    color: "#ffffff",
+    marginLeft: 6,
+    fontWeight: "600",
+    flexShrink: 1,
+  },
+  categoryPill: {
+    backgroundColor: "#fff247",
+    color: "#3a2f00",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    fontSize: 10,
+    fontWeight: "600",
+    maxWidth: "42%",
+    textAlign: "right",
+    flexShrink: 1,
+  },
+  productUOM: {
+    fontSize: 12,
+    color: "#6f5a1a",
+  },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 8,
+    marginTop: 6,
+  },
+  actionContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 10,
+  },
+  actionButton: {
+    width: 38,
+    height: 38,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  totalLikesText: {
+    fontSize: 11,
+    color: "#6f1a1aff",
+    marginLeft: "auto",
+  },
   addToCartButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -717,12 +894,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 8,
   },
-
   addToCartText: {
     marginLeft: 6,
     color: "#fff",
     fontWeight: "600",
   },
+  // Skeletons...
   skeletonProductCard: {
     backgroundColor: "#f4f8ff",
     borderRadius: 18,
@@ -784,6 +961,34 @@ const styles = StyleSheet.create({
     backgroundColor: "#e0e0e0",
     borderRadius: 5,
     marginBottom: 8,
+  },
+  customHeaderContainer: {
+    backgroundColor: "#fff247",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+  },
+  customHeaderShell: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerIconButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#ffffff",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTitleText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#3a2f00",
+    flex: 1,
+    textAlign: "center",
+    marginHorizontal: 10,
   },
 });
 
