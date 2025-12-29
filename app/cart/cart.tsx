@@ -584,7 +584,6 @@ const Cart = () => {
                       </View>
                     </View>
                   </View>
-                  <View style={styles.itemDivider} />
                 </View>
               );
             })
@@ -1319,8 +1318,10 @@ const styles = StyleSheet.create({
     color: "#8d6a00",
   },
   deleteIconContainer: {
-    padding: 7,
-    backgroundColor: "transparent",
+    padding: 6,
+    backgroundColor: "#fff0f3", // Subtle red tint backing
+    borderRadius: 8,
+    marginBottom: 4,
   },
   checkoutWrapper: {
     width: "92%",
@@ -1430,42 +1431,43 @@ const styles = StyleSheet.create({
   },
   actionsColumn: {
     marginLeft: "auto",
-    alignItems: "center",
-  },
-  itemDivider: {
-    height: 1,
-    backgroundColor: "#dadadaff",
-    marginTop: 10,
-    width: "100%",
+    alignItems: "flex-end", // Align children (delete & qty) to the right
+    justifyContent: "center",
+    paddingVertical: 0,
   },
   quantityControls: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 12, // More spacing from delete icon
+    backgroundColor: "#fffbe2", // Light background for the whole control
+    borderRadius: 8,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: "#fff247",
   },
   qtyButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 28, // Smaller button
+    height: 28, // Smaller button
+    borderRadius: 6,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: PRIMARY_YELLOW_LIGHT,
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: PRIMARY_YELLOW,
+    backgroundColor: "#ffffff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
   },
   qtyValue: {
-    minWidth: 46,
-    borderRadius: 10,
-    backgroundColor: "#fffbe2",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    minWidth: 30, // Compact width
+    paddingHorizontal: 8,
+    justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: PRIMARY_YELLOW,
+    backgroundColor: "transparent",
+    borderWidth: 0,
   },
   qtyValueText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
     color: "#6b3a00",
   },
