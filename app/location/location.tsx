@@ -255,7 +255,7 @@ export default function LocationComponent({
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Pilih Store</Text>
                 <TouchableOpacity onPress={() => setShowStoreModal(false)}>
-                  <Ionicons name="close" size={20} color="#7a4b00" />
+                  <Ionicons name="close" size={20} color="#de0866" />
                 </TouchableOpacity>
               </View>
               <FlatList
@@ -271,7 +271,7 @@ export default function LocationComponent({
                       <Text style={styles.modalItemDistance}>{item.distance} km</Text>
                     </View>
                     {String(item.id) === selectedStore && (
-                      <Ionicons name="checkmark-circle" size={20} color="#f4c200" />
+                      <Ionicons name="checkmark-circle" size={20} color="#000000ff" />
                     )}
                   </TouchableOpacity>
                 )}
@@ -300,7 +300,7 @@ export default function LocationComponent({
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Pilih Lokasi di Map</Text>
                 <TouchableOpacity onPress={() => setShowMapModal(false)}>
-                  <Ionicons name="close" size={20} color="#ffffffff" />
+                  <Ionicons name="close" size={20} color="#de0866" />
                 </TouchableOpacity>
               </View>
               <View style={styles.mapContainer}>
@@ -327,7 +327,7 @@ export default function LocationComponent({
                 onPress={handleBackToMyLocation}
                 disabled={!initialCoords || savingManualLocation}
               >
-                <Ionicons name="locate" size={16} color="#7a4b00" />
+                <Ionicons name="locate" size={16} color="#ffffffff" />
                 <Text style={styles.mapMyLocationText}>Kembali ke lokasi saya</Text>
               </TouchableOpacity>
               <View style={styles.mapActions}>
@@ -560,16 +560,9 @@ const styles = StyleSheet.create({
   modalCard: {
     width: "100%",
     maxHeight: "70%",
-    backgroundColor: "#fffdf5",
+    backgroundColor: "#ffffffff",
     borderRadius: 16,
     padding: 16,
-    shadowColor: "rgba(0, 0, 0, 0.2)",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: "rgba(255, 195, 0, 0.45)",
   },
   modalHeader: {
     flexDirection: "row",
@@ -578,9 +571,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   modalTitle: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: "700",
-    color: "#6b4b00",
+    color: "#de0866",
   },
   modalItem: {
     flexDirection: "row",
@@ -594,13 +587,13 @@ const styles = StyleSheet.create({
   },
   modalItemName: {
     fontSize: 14,
-    color: "#6b4b00",
+    color: "#000000ff",
     fontWeight: "600",
     marginRight: 8,
   },
   modalItemDistance: {
     fontSize: 12,
-    color: "#a28032",
+    color: "#6e6e6eff",
   },
   mapBackdrop: {
     flex: 1,
@@ -614,21 +607,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     width: "100%",
     maxWidth: "100%",
-    height: 600,
+    height: 700,
     padding: 16,
-    borderWidth: 1,
-    borderColor: "#fff247", // Warna utama
-    shadowColor: "rgba(0,0,0,0.2)",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 18,
-    elevation: 16,
   },
   mapContainer: {
     borderRadius: 16,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#b8b8b8ff",
     flex: 1,
   },
   map: {
@@ -655,12 +639,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#fff247",
-    backgroundColor: "#fffde7",
+    backgroundColor: "#de0866",
   },
   mapMyLocationText: {
-    color: "#6b4b00",
+    color: "#ffffffff",
     fontSize: 13,
     fontWeight: "700",
   },
@@ -688,7 +670,7 @@ const styles = StyleSheet.create({
   },
   mapButtonText: {
     fontWeight: "700",
-    color: "#4b3400",
+    color: "#000000ff",
   },
   divider: {
     height: 1,
