@@ -189,10 +189,6 @@ export default function GiftReels() {
           isMuted={false}
           useNativeControls={false}
         />
-        <LinearGradient
-          colors={["rgba(0,0,0,0.15)", "rgba(0,0,0,0.6)"]}
-          style={styles.overlay}
-        />
         <View style={styles.cardContent}>
           <TouchableOpacity
             activeOpacity={0.9}
@@ -365,29 +361,29 @@ export default function GiftReels() {
           decelerationRate="fast"
           disableIntervalMomentum
           bounces={false}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>
-              {loading ? "Memuat video..." : error ? error : "Tidak ada video tersedia"}
-            </Text>
-          </View>
-        }
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
-        onMomentumScrollEnd={handleMomentumEnd}
-        getItemLayout={(_, index) => ({
-          length: CARD_HEIGHT,
-          offset: CARD_HEIGHT * index,
-          index,
-        })}
-        scrollEventThrottle={16}
-        contentInsetAdjustmentBehavior="never"
-        contentContainerStyle={styles.listContent}
-        initialNumToRender={1}
-        maxToRenderPerBatch={1}
-        windowSize={2}
-        removeClippedSubviews
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>
+                {loading ? "Memuat video..." : error ? error : "Tidak ada video tersedia"}
+              </Text>
+            </View>
+          }
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+          onMomentumScrollEnd={handleMomentumEnd}
+          getItemLayout={(_, index) => ({
+            length: CARD_HEIGHT,
+            offset: CARD_HEIGHT * index,
+            index,
+          })}
+          scrollEventThrottle={16}
+          contentInsetAdjustmentBehavior="never"
+          contentContainerStyle={styles.listContent}
+          initialNumToRender={1}
+          maxToRenderPerBatch={1}
+          windowSize={2}
+          removeClippedSubviews
         />
         <Modal
           transparent
@@ -487,7 +483,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: "#fff",
-    top:-40,
+    top: -40,
     fontSize: 19,
     fontWeight: "800",
     textAlign: "center",
