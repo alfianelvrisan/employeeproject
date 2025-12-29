@@ -628,7 +628,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#000000ff",
+    borderColor: "#b8b8b8ff",
     flex: 1,
   },
   map: {
