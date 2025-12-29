@@ -189,7 +189,7 @@ export default function Index() {
                     />
                     <TouchableOpacity
                       onPress={() => setSearchQuery("")}
-                      style={[styles.solidButton, styles.neonAction]}
+                      style={[styles.neonAction]}
                       accessibilityLabel="Hapus pencarian"
                     >
                       <Ionicons

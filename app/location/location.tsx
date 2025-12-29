@@ -610,12 +610,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   mapCard: {
-    backgroundColor: "#fffdf5",
+    backgroundColor: "#ffffffff", // Turunan sangat muda dari #fff247
     borderRadius: 20,
-    width: "95%",
-    maxWidth: 420,
-    maxHeight: "90%",
+    width: "100%",
+    maxWidth: "100%",
+    height: 600,
     padding: 16,
+    borderWidth: 1,
+    borderColor: "#fff247", // Warna utama
     shadowColor: "rgba(0,0,0,0.2)",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
@@ -626,11 +628,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(255, 195, 0, 0.45)",
+    borderColor: "#000000ff",
+    flex: 1,
   },
   map: {
     width: "100%",
-    height: 260,
+    height: "100%",
   },
   mapHint: {
     flexDirection: "row",
@@ -653,8 +656,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,195,0,0.4)",
-    backgroundColor: "#fff9e0",
+    borderColor: "#fff247",
+    backgroundColor: "#fffde7",
   },
   mapMyLocationText: {
     color: "#6b4b00",
@@ -673,12 +676,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   mapButtonSecondary: {
-    backgroundColor: "#fff2cc",
+    backgroundColor: "#fffde7",
     borderWidth: 1,
-    borderColor: "rgba(255,195,0,0.45)",
+    borderColor: "#fff247",
   },
   mapButtonPrimary: {
-    backgroundColor: "#f4c200",
+    backgroundColor: "#fff247",
   },
   mapButtonDisabled: {
     opacity: 0.6,
