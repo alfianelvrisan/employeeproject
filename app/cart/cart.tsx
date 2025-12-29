@@ -1319,7 +1319,7 @@ const styles = StyleSheet.create({
   },
   deleteIconContainer: {
     padding: 6,
-    backgroundColor: "#fff0f3", // Subtle red tint backing
+    backgroundColor: "transparent",
     borderRadius: 8,
     marginBottom: 4,
   },
