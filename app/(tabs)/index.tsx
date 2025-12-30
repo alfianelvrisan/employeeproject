@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
   },
   storeCardCompact: {
     marginHorizontal: 0,
-    marginTop: 8,
+    marginTop: 0, // Removed top margin to align with Cardhome (internal margin handles it)
   },
   section: {
     paddingHorizontal: 0,
