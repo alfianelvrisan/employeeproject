@@ -345,6 +345,7 @@ const styles = StyleSheet.create({
   utilityCard: {
     width: "100%",
     marginHorizontal: 0,
+    marginTop: 10,
     paddingVertical: 5,
     paddingHorizontal: 0,
     borderRadius: 20,
@@ -455,7 +456,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerSpacer: {
-    height: 54,
+    height: 45,
   },
   bottomFill: {
     position: "absolute",

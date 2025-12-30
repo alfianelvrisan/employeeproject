@@ -35,7 +35,7 @@ export default function SearchPage() {
                     <TextInput
                         style={styles.searchInput}
                         placeholder="Cari produk favoritmu..."
-                        placeholderTextColor="#9ca3af"
+                        placeholderTextColor="#000000ff"
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                         autoFocus
@@ -64,16 +64,21 @@ export default function SearchPage() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#fff247", // Yellow background for safe area
+        backgroundColor: "#ffffffff", // Yellow background for safe area
     },
     header: {
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        backgroundColor: "#fff247", // Primary Yellow
+        paddingHorizontal: 15,
+        paddingVertical: 12,
+        backgroundColor: "#ffffffff", // Primary Yellow
         gap: 12,
         zIndex: 10,
+        borderBottomLeftRadius: 22,
+        borderBottomRightRadius: 22,
+        borderWidth: 1,
+        borderColor: "#ffffffff",
+        marginBottom: 10,
     },
     backButton: {
         padding: 0,
@@ -82,7 +87,7 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "#ffffff", // White input background
+        backgroundColor: "#fff247", // White input background
         borderRadius: 20,
         paddingHorizontal: 16,
         height: 46,
