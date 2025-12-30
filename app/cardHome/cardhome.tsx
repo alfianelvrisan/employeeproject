@@ -1,7 +1,10 @@
-import { View, Text, StyleSheet, ImageBackground } from 'react-native';
+import { View, Text, StyleSheet, ImageBackground, Dimensions } from 'react-native';
 import React, { useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { fetchProfile } from '../../services/profileServices';
+
+const { width } = Dimensions.get('window');
+const CARD_HEIGHT = width * 0.38; // Responsive aspect ratio
 
 export default function cardhome() {
   const { userToken } = useAuth();
@@ -67,7 +70,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#ffe600ff',
     width: '100%',
-    height: 140,
+    height: CARD_HEIGHT,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',

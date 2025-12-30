@@ -9,6 +9,7 @@ import {
   ViewStyle,
   Image,
   ImageBackground,
+  Dimensions,
 } from "react-native";
 import React from "react";
 import { Ionicons } from "@expo/vector-icons";
@@ -28,6 +29,9 @@ const DEFAULT_REGION: Region = {
   latitudeDelta: 0.08,
   longitudeDelta: 0.08,
 };
+
+const { width } = Dimensions.get('window');
+const CARD_HEIGHT = width * 0.38; // Match aspect ratio with CardHome
 
 type LocationComponentProps = {
   onSelectStore: (value: string) => void;
@@ -380,7 +384,7 @@ const styles = StyleSheet.create({
   },
   cardPicker: {
     width: "49%",
-    height: 140, // Fixed height to match Cardhome
+    height: CARD_HEIGHT, // Responsive height aligned with Cardhome
     borderRadius: 16, // Match Cardhome
     borderWidth: 0, // Removed border for cleaner look, similar to Cardhome
     backgroundColor: "#fff", // Fallback
