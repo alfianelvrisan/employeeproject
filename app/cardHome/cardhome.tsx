@@ -5,9 +5,9 @@ import { fetchProfile } from '../../services/profileServices';
 
 export default function cardhome() {
   const { userToken } = useAuth();
-  const {logout}=useAuth();
+  const { logout } = useAuth();
   const [profil, setProfile] = React.useState<{
-    id:number,
+    id: number,
     nama: string;
     saving: number;
     poin: number;
@@ -17,14 +17,14 @@ export default function cardhome() {
 
   const Image = require('../../assets/images/bg_card_home_update2.jpg');
 
- 
+
 
   useEffect(() => {
     if (userToken) {
       fetchProfile(userToken)
         .then((profile) => {
           setProfile(profile);
-          if(profile===undefined){
+          if (profile === undefined) {
             logout()
           }
         })
@@ -32,7 +32,7 @@ export default function cardhome() {
         });
     }
   }, [userToken]);
-  
+
 
   return (
     <View>
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#ffe600ff',
     width: '100%',
-    height: 160,
+    height: 140,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',

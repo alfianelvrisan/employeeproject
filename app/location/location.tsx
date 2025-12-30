@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
   },
   cardPicker: {
     width: "49%",
-    height: 160, // Fixed height to match Cardhome
+    height: 140, // Fixed height to match Cardhome
     borderRadius: 16, // Match Cardhome
     borderWidth: 0, // Removed border for cleaner look, similar to Cardhome
     backgroundColor: "#fff", // Fallback
