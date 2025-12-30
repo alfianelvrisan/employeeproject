@@ -29,68 +29,68 @@ export default function useLocationData(
   const [coords, setCoords] = useState<Coordinates | null>(null);
   const [initialCoords, setInitialCoords] = useState<Coordinates | null>(null);
 
-  useEffect(() => {
-    const getLocationData = async () => {
-      try {
-        setLoading(true);
+  const getLocationData = async () => {
+    try {
+      setLoading(true);
 
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") {
-          setLocation("Izin lokasi ditolak");
-          setLoading(false);
-          return;
-        }
-
-        const current = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Lowest,
-        });
-
-        const nextCoords = {
-          latitude: current.coords.latitude,
-          longitude: current.coords.longitude,
-        };
-        const { latitude, longitude } = nextCoords;
-        setCoords(nextCoords);
-        setInitialCoords((prev) => prev ?? nextCoords);
-
-        const reversePromise = Location.reverseGeocodeAsync({ latitude, longitude });
-        const fetchPromise = fetch(
-          `https://api.laskarbuah.com/api/location?latitute=${latitude}&longitute=${longitude}&latitude=${latitude}&longitude=${longitude}&v_latitude=${latitude}&v_longitude=${longitude}&lat=${latitude}&lng=${longitude}`,
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${userToken}`,
-              "Content-Type": "application/json",
-            },
-          }
-        ).then((res) => res.json());
-
-        const [reverseGeocode, rawJson] = await Promise.all([reversePromise, fetchPromise]);
-
-        setLocation(formatReverseAddress(reverseGeocode[0] ?? null));
-
-        let json = rawJson;
-        if (Array.isArray(json)) {
-          json.sort((a: any, b: any) => {
-            const distA = parseFloat((a.distance || "0").toString().replace(",", "."));
-            const distB = parseFloat((b.distance || "0").toString().replace(",", "."));
-            return distA - distB;
-          });
-        }
-
-        setApidata(json);
-        if (json.length > 0 && !selectedStore) {
-          setSelectedStore(String(json[0].id));
-          onSelectStore(String(json[0].id));
-        }
-
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setLocation("Izin lokasi ditolak");
         setLoading(false);
-      } catch (error) {
-        setLocation("Terjadi kesalahan lokasi");
-        setLoading(false);
+        return;
       }
-    };
 
+      const current = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Lowest,
+      });
+
+      const nextCoords = {
+        latitude: current.coords.latitude,
+        longitude: current.coords.longitude,
+      };
+      const { latitude, longitude } = nextCoords;
+      setCoords(nextCoords);
+      setInitialCoords((prev) => prev ?? nextCoords);
+
+      const reversePromise = Location.reverseGeocodeAsync({ latitude, longitude });
+      const fetchPromise = fetch(
+        `https://api.laskarbuah.com/api/location?latitute=${latitude}&longitute=${longitude}&latitude=${latitude}&longitude=${longitude}&v_latitude=${latitude}&v_longitude=${longitude}&lat=${latitude}&lng=${longitude}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      ).then((res) => res.json());
+
+      const [reverseGeocode, rawJson] = await Promise.all([reversePromise, fetchPromise]);
+
+      setLocation(formatReverseAddress(reverseGeocode[0] ?? null));
+
+      let json = rawJson;
+      if (Array.isArray(json)) {
+        json.sort((a: any, b: any) => {
+          const distA = parseFloat((a.distance || "0").toString().replace(",", "."));
+          const distB = parseFloat((b.distance || "0").toString().replace(",", "."));
+          return distA - distB;
+        });
+      }
+
+      setApidata(json);
+      if (json.length > 0 && !selectedStore) {
+        setSelectedStore(String(json[0].id));
+        onSelectStore(String(json[0].id));
+      }
+
+      setLoading(false);
+    } catch (error) {
+      setLocation("Terjadi kesalahan lokasi");
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     getLocationData();
   }, [userToken]);
 
@@ -157,5 +157,6 @@ export default function useLocationData(
     updateLocationByCoords,
     initialCoords,
     resetToInitialCoords,
+    refresh: getLocationData,
   };
 }

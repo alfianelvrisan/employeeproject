@@ -65,8 +65,11 @@ type ProdukProps = {
   searchQuery?: string;
   showSearchBar?: boolean;
   style?: StyleProp<ViewStyle>;
-  initialLimit?: number; // Checkpoint: Added prop
-  pageSize?: number;     // Checkpoint: Added prop
+  initialLimit?: number;
+  pageSize?: number;
+  ListHeaderComponent?: React.ReactElement | null;
+  onRefreshParent?: () => Promise<void>;
+  onScroll?: (event: import("react-native").NativeSyntheticEvent<import("react-native").NativeScrollEvent>) => void;
 };
 
 const getCategoryIcon = (item: any) => {
@@ -98,8 +101,11 @@ const Produk = ({
   searchQuery = "",
   showSearchBar = true,
   style,
-  initialLimit = 20, // Default to 20 if not specified
-  pageSize = 10,     // Component-level page size
+  initialLimit = 20,
+  pageSize = 10,
+  ListHeaderComponent,
+  onRefreshParent,
+  onScroll,
 }: ProdukProps) => {
   const [selectedCategory, setSelectedCategory] = useState(0);
   const [likedProducts, setLikedProducts] = useState<number[]>([]);
@@ -162,6 +168,9 @@ const Produk = ({
 
   const onRefresh = async () => {
     setRefreshing(true);
+    if (onRefreshParent) {
+      await onRefreshParent();
+    }
     await fetchAndSetProducts();
     setRefreshing(false);
   };
@@ -170,8 +179,6 @@ const Produk = ({
   useEffect(() => {
     setVisibleLimit(initialLimit);
   }, [search, selectedCategory, initialLimit]);
-
-  // ... existing code ...
 
   // Filter Logic
   const filteredProducts = useMemo(() => {
@@ -307,27 +314,8 @@ const Produk = ({
     return null;
   };
 
-  // ... existing code ...
-
-  return (
-    <View style={[styles.container, style]}>
-      {/* Alert Keranjang */}
-      <Modal
-        transparent={true}
-        visible={showCartAlert}
-        animationType="fade"
-        onRequestClose={() => setShowCartAlert(false)}
-      >
-        <View style={styles.alertOverlay}>
-          <View style={styles.alertContainer}>
-            <Ionicons name="checkmark-circle" size={50} color="green" />
-            <Text style={styles.alertText}>
-              Produk berhasil dimasukkan ke keranjang
-            </Text>
-          </View>
-        </View>
-      </Modal>
-
+  const renderInternalHeader = () => (
+    <>
       {showSearchBar && (
         <View style={styles.searchContainer}>
           <Ionicons
@@ -371,20 +359,51 @@ const Produk = ({
           </TouchableOpacity>
         )}
         style={styles.categoryContainer}
+        contentContainerStyle={{ paddingHorizontal: 12 }}
         showsHorizontalScrollIndicator={false}
       />
+    </>
+  );
+
+  return (
+    <>
+      {/* Alert Keranjang */}
+      <Modal
+        transparent={true}
+        visible={showCartAlert}
+        animationType="fade"
+        onRequestClose={() => setShowCartAlert(false)}
+      >
+        <View style={styles.alertOverlay}>
+          <View style={styles.alertContainer}>
+            <Ionicons name="checkmark-circle" size={50} color="green" />
+            <Text style={styles.alertText}>
+              Produk berhasil dimasukkan ke keranjang
+            </Text>
+          </View>
+        </View>
+      </Modal>
 
       <FlatList
+        style={[styles.container, style]}
+        contentContainerStyle={{ paddingBottom: 140 }}
         data={displayedProducts} // Use sliced data
         keyExtractor={(item, index) => `${item.id}-${index}`}
         numColumns={2}
-        columnWrapperStyle={styles.row}
+        columnWrapperStyle={[styles.row, { paddingHorizontal: 12 }]}
         onEndReached={handleLoadMore} // Use local load more
         onEndReachedThreshold={0.5}
         ListFooterComponent={renderFooter}
+        ListHeaderComponent={
+          <>
+            {ListHeaderComponent}
+            {renderInternalHeader()}
+          </>
+        }
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        onScroll={onScroll}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.productCard}
@@ -492,14 +511,14 @@ const Produk = ({
           </TouchableOpacity>
         )}
       />
-    </View>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 12,
+    paddingHorizontal: 0,
     paddingTop: 0,
     marginBottom: 140,
   },
