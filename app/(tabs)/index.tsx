@@ -293,7 +293,7 @@ const PRIMARY_YELLOW = "#FFF247";
 const PRIMARY_YELLOW_LIGHT = "#fff27c";
 const PRIMARY_YELLOW_SOFT = "#fff7cf";
 const PRIMARY_TEXT_DARK = "#3a2f00";
-const PRIMARY_TEXT_MUTED = "#857a3a";
+const PRIMARY_TEXT_MUTED = "#de0866";
 const PRIMARY_SHADOW = "rgba(255, 199, 0, 0.4)";
 
 const styles = StyleSheet.create({

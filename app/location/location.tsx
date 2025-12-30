@@ -215,7 +215,7 @@ export default function LocationComponent({
                 style={styles.headerImage}
                 resizeMode="contain"
               />
-              <Text style={styles.label}>Pilih Toko Terdekat</Text>
+              <Text style={styles.label}>Store</Text>
             </View>
             <View style={styles.selectorContainer}>
               <TouchableOpacity
