@@ -21,7 +21,6 @@ export default function cardhome() {
   const Image = require('../../assets/images/bg_card_home_update2.jpg');
 
 
-
   useEffect(() => {
     if (userToken) {
       fetchProfile(userToken)

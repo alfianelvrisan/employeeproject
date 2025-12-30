@@ -302,6 +302,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: PRIMARY_YELLOW,
+    // paddingBottom: -20,
   },
   gradientBg: {
     flex: 1,
@@ -311,7 +312,7 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingHorizontal: 13,
     paddingBottom: 10,
-    backgroundColor: PRIMARY_YELLOW, // kartu ucapan kuning solid
+    backgroundColor: PRIMARY_YELLOW,
     borderRadius: 14,
     marginHorizontal: 8,
     shadowColor: "rgba(255, 255, 255, 0.12)",
