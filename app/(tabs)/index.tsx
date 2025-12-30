@@ -166,10 +166,9 @@ export default function Index() {
             />
             <View style={styles.headerSearchRow}>
               <View style={styles.headerSearchWrapper}>
-                <LinearGradient
-                  colors={["transparent", "transparent"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onPress={() => router.push(`/search/search?idStore=${selectedLocation}`)}
                   style={styles.neonShell}
                 >
                   <View style={styles.neonSearch}>
@@ -179,27 +178,11 @@ export default function Index() {
                       color={PRIMARY_TEXT_DARK}
                       style={styles.neonIcon}
                     />
-                    <TextInput
-                      value={searchQuery}
-                      onChangeText={setSearchQuery}
-                      placeholder="cari produk favoritmu"
-                      placeholderTextColor={PRIMARY_TEXT_MUTED}
-                      style={styles.neonInput}
-                      selectionColor={PRIMARY_YELLOW}
-                    />
-                    <TouchableOpacity
-                      onPress={() => setSearchQuery("")}
-                      style={[styles.neonAction]}
-                      accessibilityLabel="Hapus pencarian"
-                    >
-                      <Ionicons
-                        name="close-circle-outline"
-                        size={15}
-                        color={PRIMARY_TEXT_DARK}
-                      />
-                    </TouchableOpacity>
+                    <Text style={[styles.neonInput, { color: PRIMARY_TEXT_MUTED }]}>
+                      Cari produk favoritmu
+                    </Text>
                   </View>
-                </LinearGradient>
+                </TouchableOpacity>
               </View>
               <Image
                 source={require("../../assets/images/update_logolbi.png")}
@@ -269,7 +252,6 @@ export default function Index() {
                   <Produk
                     idStore={selectedLocation}
                     key={produkKey}
-                    searchQuery={searchQuery}
                     showSearchBar={false}
                   />
                 </View>
