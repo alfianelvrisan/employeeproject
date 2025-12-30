@@ -203,6 +203,7 @@ export default function Index() {
             showSearchBar={false}
             onScroll={handleScroll}
             onRefreshParent={handleRefresh}
+            refreshEnabled={!locationInstance?.loading}
             ListHeaderComponent={
               <>
                 <View style={styles.headerSpacer} />

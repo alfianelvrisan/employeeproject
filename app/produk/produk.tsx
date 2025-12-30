@@ -70,6 +70,7 @@ type ProdukProps = {
   ListHeaderComponent?: React.ReactElement | null;
   onRefreshParent?: () => Promise<void>;
   onScroll?: (event: import("react-native").NativeSyntheticEvent<import("react-native").NativeScrollEvent>) => void;
+  refreshEnabled?: boolean;
 };
 
 const getCategoryIcon = (item: any) => {
@@ -106,6 +107,7 @@ const Produk = ({
   ListHeaderComponent,
   onRefreshParent,
   onScroll,
+  refreshEnabled = true,
 }: ProdukProps) => {
   const [selectedCategory, setSelectedCategory] = useState(0);
   const [likedProducts, setLikedProducts] = useState<number[]>([]);
@@ -401,7 +403,7 @@ const Produk = ({
           </>
         }
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} enabled={refreshEnabled} />
         }
         onScroll={onScroll}
         renderItem={({ item }) => (
