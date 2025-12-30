@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
+    elevation: 0, // Removed shadow/elevation
   },
   neonSearch: {
     flexDirection: "row",

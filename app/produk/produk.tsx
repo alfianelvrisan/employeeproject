@@ -10,6 +10,8 @@ import {
   Modal,
   RefreshControl,
   ImageSourcePropType,
+  StyleProp,
+  ViewStyle,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
@@ -62,6 +64,7 @@ type ProdukProps = {
   idStore: any;
   searchQuery?: string;
   showSearchBar?: boolean;
+  style?: StyleProp<ViewStyle>;
 };
 
 const getCategoryIcon = (item: any) => {
@@ -92,6 +95,7 @@ const Produk = ({
   idStore,
   searchQuery = "",
   showSearchBar = true,
+  style,
 }: ProdukProps) => {
   const [selectedCategory, setSelectedCategory] = useState(0);
   const [likedProducts, setLikedProducts] = useState<number[]>([]);
@@ -279,7 +283,7 @@ const Produk = ({
 
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       {/* Alert Keranjang */}
       <Modal
         transparent={true}

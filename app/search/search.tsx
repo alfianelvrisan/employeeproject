@@ -4,12 +4,12 @@ import {
     TextInput,
     TouchableOpacity,
     StyleSheet,
-    SafeAreaView,
     Platform,
     StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Produk from "../produk/produk";
 
 const PRIMARY_YELLOW = "#FFF247";
@@ -21,10 +21,11 @@ export default function SearchPage() {
     const params = useLocalSearchParams();
     const idStore = params.idStore || "";
     const [searchQuery, setSearchQuery] = useState("");
+    const insets = useSafeAreaInsets();
 
     return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+            <StatusBar barStyle="dark-content" backgroundColor="#FFF247" />
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <Ionicons name="arrow-back-circle-outline" size={32} color={PRIMARY_TEXT_DARK} />
@@ -53,30 +54,25 @@ export default function SearchPage() {
                     idStore={idStore}
                     searchQuery={searchQuery}
                     showSearchBar={false}
+                    style={{ marginBottom: 0 }}
                 />
             </View>
-        </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#ffffff",
-        paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+        backgroundColor: "#fff247", // Yellow background for safe area
     },
     header: {
         flexDirection: "row",
         alignItems: "center",
         paddingHorizontal: 16,
         paddingVertical: 14,
-        backgroundColor: "#ffffff",
+        backgroundColor: "#fff247", // Primary Yellow
         gap: 12,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 4,
         zIndex: 10,
     },
     backButton: {
@@ -86,12 +82,12 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "#fffdf0", // Very light yellow tint
+        backgroundColor: "#ffffff", // White input background
         borderRadius: 20,
         paddingHorizontal: 16,
         height: 46,
-        borderWidth: 1,
-        borderColor: "#fff247", // Primary Yellow border
+        // Removed border as per common "white on yellow" aesthetic, or keep subtle
+        borderWidth: 0,
     },
     searchIcon: {
         marginRight: 10,
@@ -105,5 +101,6 @@ const styles = StyleSheet.create({
     },
     content: {
         flex: 1,
+        backgroundColor: "#ffffff", // Ensure list background is white
     },
 });
