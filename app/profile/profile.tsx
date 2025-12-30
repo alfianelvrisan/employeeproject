@@ -13,7 +13,7 @@ import {
   StatusBar,
   Platform,
 } from "react-native";
-import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Link, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import QRCode from "react-native-qrcode-svg";
@@ -171,6 +171,8 @@ export default function Profile() {
     ).start();
   }, [scaleAnim]);
 
+  const insets = useSafeAreaInsets();
+
   return (
     <AuthProvider>
       <SafeAreaProvider>
@@ -180,11 +182,14 @@ export default function Profile() {
         />
         <View style={styles.container}>
           {/* Header Background */}
-          <View style={styles.headerBg} />
+          <View style={[styles.headerBg, { height: 120 + insets.top }]} />
 
           <ScrollView
             style={styles.scrollView}
-            contentContainerStyle={styles.contentContainer}
+            contentContainerStyle={[
+              styles.contentContainer,
+              { paddingTop: insets.top + 20 }
+            ]}
             onScroll={handleScroll}
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}
@@ -472,7 +477,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: Platform.OS === 'android' ? 120 + (StatusBar.currentHeight || 20) : 100,
+    // height handled inline
     backgroundColor: PALETTE.primaryYellow,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
@@ -484,7 +489,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingBottom: 100,
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 20) + 10 : 20,
+    // paddingTop handled inline
   },
   profileHeader: {
     flexDirection: "row",
