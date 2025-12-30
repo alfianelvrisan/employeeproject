@@ -27,21 +27,22 @@ export default function SearchPage() {
             <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color={PRIMARY_TEXT_DARK} />
+                    <Ionicons name="arrow-back-circle-outline" size={32} color={PRIMARY_TEXT_DARK} />
                 </TouchableOpacity>
                 <View style={styles.searchBarWrapper}>
-                    <Ionicons name="search-outline" size={20} color={PRIMARY_TEXT_MUTED} style={styles.searchIcon} />
+                    <Ionicons name="search" size={20} color={PRIMARY_TEXT_MUTED} style={styles.searchIcon} />
                     <TextInput
                         style={styles.searchInput}
                         placeholder="Cari produk favoritmu..."
-                        placeholderTextColor="#999"
+                        placeholderTextColor="#9ca3af"
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                         autoFocus
+                        selectionColor={PRIMARY_TEXT_MUTED}
                     />
                     {searchQuery.length > 0 && (
                         <TouchableOpacity onPress={() => setSearchQuery("")}>
-                            <Ionicons name="close-circle" size={20} color="#ccc" />
+                            <Ionicons name="close-circle" size={20} color="#e5e7eb" />
                         </TouchableOpacity>
                     )}
                 </View>
@@ -68,32 +69,39 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: "#f0f0f0",
+        paddingVertical: 14,
         backgroundColor: "#ffffff",
         gap: 12,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 4,
+        zIndex: 10,
     },
     backButton: {
-        padding: 4,
+        padding: 0,
     },
     searchBarWrapper: {
         flex: 1,
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "#f5f5f5",
-        borderRadius: 12,
-        paddingHorizontal: 12,
-        height: 44,
+        backgroundColor: "#fffdf0", // Very light yellow tint
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        height: 46,
+        borderWidth: 1,
+        borderColor: "#fff247", // Primary Yellow border
     },
     searchIcon: {
-        marginRight: 8,
+        marginRight: 10,
     },
     searchInput: {
         flex: 1,
-        fontSize: 16,
-        color: "#333",
+        fontSize: 15,
+        color: PRIMARY_TEXT_DARK,
         height: "100%",
+        fontWeight: "500",
     },
     content: {
         flex: 1,
