@@ -65,6 +65,8 @@ type ProdukProps = {
   searchQuery?: string;
   showSearchBar?: boolean;
   style?: StyleProp<ViewStyle>;
+  initialLimit?: number; // Checkpoint: Added prop
+  pageSize?: number;     // Checkpoint: Added prop
 };
 
 const getCategoryIcon = (item: any) => {
@@ -96,6 +98,8 @@ const Produk = ({
   searchQuery = "",
   showSearchBar = true,
   style,
+  initialLimit = 20, // Default to 20 if not specified
+  pageSize = 10,     // Component-level page size
 }: ProdukProps) => {
   const [selectedCategory, setSelectedCategory] = useState(0);
   const [likedProducts, setLikedProducts] = useState<number[]>([]);
@@ -107,6 +111,9 @@ const Produk = ({
   const [refreshing, setRefreshing] = useState(false);
   const { userToken } = useAuth();
   const [idUser, setIdUser] = useState<number | null>(null);
+
+  // Pagination State
+  const [visibleLimit, setVisibleLimit] = useState(initialLimit);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -159,6 +166,14 @@ const Produk = ({
     setRefreshing(false);
   };
 
+  // Reset limit when search or category changes
+  useEffect(() => {
+    setVisibleLimit(initialLimit);
+  }, [search, selectedCategory, initialLimit]);
+
+  // ... existing code ...
+
+  // Filter Logic
   const filteredProducts = useMemo(() => {
     return produck.filter((p) => {
       const matchCategory =
@@ -171,6 +186,17 @@ const Produk = ({
       return matchCategory && matchSearch;
     });
   }, [produck, search, selectedCategory]);
+
+  // Sliced Data for Display
+  const displayedProducts = useMemo(() => {
+    return filteredProducts.slice(0, visibleLimit);
+  }, [filteredProducts, visibleLimit]);
+
+  const handleLoadMore = () => {
+    if (visibleLimit < filteredProducts.length) {
+      setVisibleLimit((prev) => prev + pageSize);
+    }
+  };
 
   const handleLikePress = async (productId: number) => {
     const isLiked =
@@ -281,6 +307,7 @@ const Produk = ({
     return null;
   };
 
+  // ... existing code ...
 
   return (
     <View style={[styles.container, style]}>
@@ -346,17 +373,18 @@ const Produk = ({
         style={styles.categoryContainer}
         showsHorizontalScrollIndicator={false}
       />
+
       <FlatList
-        data={filteredProducts}
+        data={displayedProducts} // Use sliced data
         keyExtractor={(item, index) => `${item.id}-${index}`}
         numColumns={2}
         columnWrapperStyle={styles.row}
-        onEndReached={fetchAndSetProducts}
-        onEndReachedThreshold={0.8}
+        onEndReached={handleLoadMore} // Use local load more
+        onEndReachedThreshold={0.5}
         ListFooterComponent={renderFooter}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        } // Add RefreshControl
+        }
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.productCard}

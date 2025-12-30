@@ -55,6 +55,8 @@ export default function SearchPage() {
                     searchQuery={searchQuery}
                     showSearchBar={false}
                     style={{ marginBottom: 0 }}
+                    initialLimit={4}
+                    pageSize={4}
                 />
             </View>
         </View>
