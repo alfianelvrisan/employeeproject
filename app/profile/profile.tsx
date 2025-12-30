@@ -400,6 +400,8 @@ export default function Profile() {
             <Text style={styles.versionText}>Aplikasi Versi 1.0.0</Text>
           </ScrollView>
 
+          <View pointerEvents="none" style={styles.bottomFill} />
+
           {/* Barcode Modal */}
           <Modal
             visible={isModalVisible}
@@ -845,6 +847,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "stretch",
     gap: 12,
+  },
+  bottomFill: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 50,
+    zIndex: 10, // Ensure it sits above ScrollView (which has zIndex 1)
+    backgroundColor: "#ffffffff",
   },
 });
 function setOriginalBrightness(currentBrightness: number) {
