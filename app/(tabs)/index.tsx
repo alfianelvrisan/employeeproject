@@ -2,7 +2,7 @@ import {
   StyleSheet,
   Text,
   View,
-  // FlatList, // Removed
+  FlatList,
   TouchableOpacity,
   TextInput,
   Platform,
@@ -55,8 +55,8 @@ export default function Index() {
     total: number;
     greeting: string;
   } | null>(null);
-  // const [refreshing, setRefreshing] = useState(false); // Removed
-  const [produkKey, setProdukKey] = useState(0); // Key to force re-render Produk if needed
+  const [refreshing, setRefreshing] = useState(false);
+  const [produkKey, setProdukKey] = useState(0); // Key to force re-render Produk
   const { headerStyle, handleScroll } = useScrollHeader();
   // Default 1 agar badge merah muncul untuk notifikasi contoh
   const [, setUnreadCount] = useState(1);
@@ -64,7 +64,7 @@ export default function Index() {
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
   const handleRefresh = async () => {
-    // setRefreshing(true);
+    setRefreshing(true);
     try {
       if (userToken) {
         const profile = await fetchProfile(userToken);
@@ -73,16 +73,11 @@ export default function Index() {
           logout();
         }
         setProdukKey((prevKey) => prevKey + 1); // Update Produk key to refresh it
-
-        // Refresh location data
-        if (locationInstance?.refresh) {
-          await locationInstance.refresh();
-        }
       }
     } catch (error) {
       console.warn((error as Error).message);
     } finally {
-      // setRefreshing(false);
+      setRefreshing(false);
     }
   };
 
@@ -197,13 +192,13 @@ export default function Index() {
               />
             </View>
           </Animated.View>
-          <Produk
-            idStore={selectedLocation}
-            // key={produkKey} // Removed key to allow internal refresh control
-            showSearchBar={false}
+          <FlatList
+            data={[]}
+            keyExtractor={() => `${userToken}`}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => null}
+            scrollEventThrottle={16}
             onScroll={handleScroll}
-            onRefreshParent={handleRefresh}
-            refreshEnabled={!locationInstance?.loading}
             ListHeaderComponent={
               <>
                 <View style={styles.headerSpacer} />
@@ -255,9 +250,16 @@ export default function Index() {
                     accessible
                     accessibilityLabel="Pemisah antara lokasi dan daftar toko"
                   />
+                  <Produk
+                    idStore={selectedLocation}
+                    key={produkKey}
+                    showSearchBar={false}
+                  />
                 </View>
               </>
             }
+            onRefresh={handleRefresh}
+            refreshing={refreshing}
           />
           <View pointerEvents="none" style={styles.bottomFill} />
         </SafeAreaView>
@@ -302,7 +304,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: PRIMARY_YELLOW,
-    // paddingBottom: -20,
   },
   gradientBg: {
     flex: 1,
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingHorizontal: 13,
     paddingBottom: 10,
-    backgroundColor: PRIMARY_YELLOW,
+    backgroundColor: PRIMARY_YELLOW, // kartu ucapan kuning solid
     borderRadius: 14,
     marginHorizontal: 8,
     shadowColor: "rgba(255, 255, 255, 0.12)",
