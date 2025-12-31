@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "343404903830",
+    "project_id": "one1-a9881",
+    "storage_bucket": "one1-a9881.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:343404903830:android:6ab9d3bb13a316afb4f1b7",
+        "android_client_info": {
+          "package_name": "com.prastyaneki.lbimobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCSZznGeeJW4aqAow_uvDdYGtc7wX0rbiM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
