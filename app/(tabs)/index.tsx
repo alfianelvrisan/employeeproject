@@ -25,6 +25,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
+import { FONTS } from "../../constants/theme";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -292,8 +293,8 @@ const styles = StyleSheet.create({
   },
   greetingName: {
     fontSize: 20,
-    fontWeight: "800",
     color: "#000000ff",
+    fontFamily: FONTS.bold,
   },
   greetingSubtitle: {
     marginTop: 2,
@@ -455,7 +456,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerSpacer: {
-    height: 45,
+    height: 70,
   },
   bottomFill: {
     position: "absolute",

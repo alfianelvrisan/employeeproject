@@ -228,7 +228,11 @@ export default function LocationComponent({
                 onPress={() => setShowStoreModal(true)}
               >
                 <View style={styles.selectorTextWrap}>
-                  <Text style={styles.selectorValue}>
+                  <Text
+                    style={styles.selectorValue}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
                     {(() => {
                       const store = apidata.find((s: any) => String(s.id) === selectedStore);
                       return store?.name_store || store?.nama_store || "Pilih toko";

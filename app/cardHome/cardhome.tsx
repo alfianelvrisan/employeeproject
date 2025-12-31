@@ -2,9 +2,17 @@ import { View, Text, StyleSheet, ImageBackground, Dimensions } from 'react-nativ
 import React, { useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { fetchProfile } from '../../services/profileServices';
+import { FONTS } from '../../constants/theme';
 
 const { width } = Dimensions.get('window');
 const CARD_HEIGHT = width * 0.38; // Responsive aspect ratio
+const IS_COMPACT = width <= 360;
+const CARD_PADDING_HORIZONTAL = IS_COMPACT ? 14 : 18;
+const CARD_PADDING_VERTICAL = IS_COMPACT ? 12 : 16;
+const LABEL_FONT_SIZE = IS_COMPACT ? 12 : 14;
+const VALUE_FONT_SIZE = IS_COMPACT ? 22 : 26;
+const RANK_FONT_SIZE = IS_COMPACT ? 12 : 13;
+const DIVIDER_MARGIN_VERTICAL = IS_COMPACT ? 8 : 12;
 
 export default function cardhome() {
   const { userToken } = useAuth();
@@ -45,18 +53,26 @@ export default function cardhome() {
         resizeMode="cover"
       >
         <View style={styles.overlay}>
-          <View style={styles.row}>
+            <View style={styles.row}>
             <View style={styles.block}>
-              <Text style={styles.label}>Saving</Text>
-              <Text style={styles.value}>Rp {profil?.saving || '0'}</Text>
+              <Text style={styles.label} numberOfLines={1} ellipsizeMode="tail">
+                Saving
+              </Text>
+              <Text style={styles.value} numberOfLines={1} ellipsizeMode="tail">
+                Rp {profil?.saving || '0'}
+              </Text>
             </View>
             <View style={styles.block}>
-              <Text style={styles.label}>Point</Text>
-              <Text style={styles.value}>{profil?.poin || '0'}</Text>
+              <Text style={styles.label} numberOfLines={1} ellipsizeMode="tail">
+                Point
+              </Text>
+              <Text style={styles.value} numberOfLines={1} ellipsizeMode="tail">
+                {profil?.poin || '0'}
+              </Text>
             </View>
           </View>
           <View style={styles.divider} />
-          <Text style={styles.rankMember}>
+          <Text style={styles.rankMember} numberOfLines={1} ellipsizeMode="tail">
             Rank {profil?.ranking || '0'} dari {profil?.total || '0'} member
           </Text>
         </View>
@@ -88,8 +104,8 @@ const styles = StyleSheet.create({
   overlay: {
     width: '100%',
     height: '100%',
-    paddingHorizontal: 18,
-    paddingVertical: 16,
+    paddingHorizontal: CARD_PADDING_HORIZONTAL,
+    paddingVertical: CARD_PADDING_VERTICAL,
     justifyContent: 'space-between',
   },
   row: {
@@ -101,27 +117,30 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   label: {
-    fontSize: 14,
+    fontSize: LABEL_FONT_SIZE,
     color: '#e7f2ff',
     marginBottom: 4,
     fontWeight: '700',
     letterSpacing: 0.4,
     textTransform: 'uppercase',
+    flexShrink: 1,
   },
   value: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: '#fff',
+    fontSize: 23,
+    fontFamily: FONTS.bold,
+    color: '#ffffffff',
+    flexShrink: 1,
   },
   divider: {
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.35)',
-    marginVertical: 12,
+    marginVertical: DIVIDER_MARGIN_VERTICAL,
   },
   rankMember: {
-    fontSize: 13,
+    fontSize: RANK_FONT_SIZE,
     color: '#e7f2ff',
     fontWeight: '600',
     letterSpacing: 0.2,
+    flexShrink: 1,
   },
 })

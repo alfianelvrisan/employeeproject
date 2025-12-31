@@ -25,7 +25,7 @@ export default function SearchPage() {
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
-            <StatusBar barStyle="dark-content" backgroundColor="#FFF247" />
+            <StatusBar barStyle="dark-content" backgroundColor="#ffffffff" />
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <Ionicons name="arrow-back-circle-outline" size={32} color={PRIMARY_TEXT_DARK} />

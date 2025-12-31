@@ -137,7 +137,7 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
                 <Ionicons
                   name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
                   size={24}
-                  color="#ffffff"
+                  color={COLORS.black}
                 />
               </TouchableOpacity>
             </View>

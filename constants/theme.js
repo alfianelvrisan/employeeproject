@@ -19,9 +19,12 @@ export const COLORS = {
     extraLarge: 24,
   };
   
-  export const FONTS = {
-    bold: "System", // Ganti dengan nama font bold Anda jika ada
-    regular: "System", // Ganti dengan nama font regular Anda
+export const FONTS = {
+    regular: "FontIOSCustom",
+    medium: "FontIOSCustom",
+    semiBold: "FontIOSCustomBold",
+    bold: "FontIOSCustomBold",
+    extraBold: "FontIOSCustomBold",
   };
   
   const appTheme = { COLORS, SIZES, FONTS };
