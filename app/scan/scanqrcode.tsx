@@ -1,9 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { router, Stack } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Alert, Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { AuthProvider } from "../../context/AuthContext";
 import { useAuth } from "../../context/AuthContext";
 import {cekTrxMember} from "../../services/cekTrxMember";
 import React from 'react';
@@ -53,24 +52,30 @@ export default function App() {
   }
 
   const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
-    setScanned(true); 
-  
+    setScanned(true);
+
     try {
-      const id = parseInt(data);
+      const id = Number.parseInt(data, 10);
+      if (!Number.isFinite(id)) {
+        Alert.alert("QR tidak valid");
+        return;
+      }
+
       const response = await cekTrxMember(id, String(userToken));
       if(response === "0") {
         Alert.alert("Transaksi tidak ditemukan");
-        setScanned(false);
         return;
       }else{
         router.push({
           pathname: "/scan/scanDetail/approvetransaksi",
           params: { id }
         })
-        setScanned(false);
       }
     } catch (error) {
       console.error("Error:", error);
+      Alert.alert("Gagal memproses QR", "Coba lagi dalam beberapa saat.");
+    } finally {
+      setScanned(false);
     }
   };
 
@@ -79,7 +84,6 @@ export default function App() {
   };
 
   return (
-    <AuthProvider>
     <View style={styles.container}>
       <Stack.Screen
           options={{
@@ -104,7 +108,9 @@ export default function App() {
         style={styles.camera}
         facing={facing}
         onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-      >
+        barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+      />
+      <View pointerEvents="box-none" style={styles.overlay}>
         <CustomHeader title="Scan Qr Code"/>
         {/* Kotak tengah fokus (scanner box) */}
         <View style={styles.scannerBox} />
@@ -115,9 +121,8 @@ export default function App() {
             <Text style={styles.text}><Ionicons name="camera-reverse" size={35} color="#fff" /></Text>
           </TouchableOpacity>
         </View>
-      </CameraView>
+      </View>
     </View>
-    </AuthProvider>
   );
 }
 
@@ -135,6 +140,9 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
   },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
   scannerBox: {
     position: 'absolute',
     top: '15%',
@@ -147,10 +155,12 @@ const styles = StyleSheet.create({
     // backgroundColor: 'rgba(0, 0, 0, 0.3)', 
   },
   buttonContainer: {
-    flex: 1,
-    flexDirection: 'row',
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
     backgroundColor: 'transparent',
-    margin: 64,
   },
   button: {
     flex: 1,

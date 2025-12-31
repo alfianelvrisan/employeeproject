@@ -280,10 +280,10 @@ const PRIMARY_SHADOW = "rgba(255, 199, 0, 0.4)";
 
 const styles = StyleSheet.create({
   greetingTitle: {
-    fontSize: 18,
-    fontWeight: "800",
+    fontSize: 16,
     color: "#ff0000ff",
     marginTop: 0,
+    fontFamily: FONTS.bold,
   },
   greetingRow: {
     flexDirection: "row",

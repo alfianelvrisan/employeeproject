@@ -12,11 +12,22 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../../context/AuthContext";
-import { AuthProvider } from "../../../context/AuthContext";
 import { listTrxDetail } from "../../../services/listTrxDetail";
 import { fetchProfile } from "../../../services/profileServices";
 import { fetchPotMember } from "../../../services/potMember";
+
+const PALETTE = {
+  pageBg: "#ffffff",
+  accentYellow: "#fff247",
+  accentPink: "#de0866",
+  surface: "#ffffff",
+  textPrimary: "#2b2b2b",
+  textMuted: "#7a7a7a",
+  borderSoft: "rgba(0, 0, 0, 0.06)",
+  accentSoft: "rgba(222, 8, 102, 0.08)",
+};
 
 export default function ApproveTransaksi() {
   const { id } = useLocalSearchParams();
@@ -26,6 +37,7 @@ export default function ApproveTransaksi() {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
   const [isDisabled, setIsDisabled] = useState(false);
+  const insets = useSafeAreaInsets();
   
   interface ReceiptItem {
     create_date: ReactNode;
@@ -115,19 +127,21 @@ export default function ApproveTransaksi() {
       };
 
   return (
-    <AuthProvider>
       <SafeAreaView style={styles.container}>
+        <View style={[styles.headerBg, { height: 110 + insets.top }]} />
+        <View style={[styles.headerBar, { paddingTop: insets.top + 8 }]}>
+          <TouchableOpacity
+            style={styles.headerBack}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="chevron-back" size={22} color={PALETTE.textPrimary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Nota Belanja</Text>
+        </View>
         <ScrollView contentContainerStyle={styles.content}>
           <Stack.Screen
             options={{
-              headerShown: true,
-              headerTransparent: true,
-              headerStyle: {
-                backgroundColor: "transparent",
-              },
-              headerTitle: "Nota Belanja",
-              headerTitleAlign: "center",
-              headerTintColor: "#000",
+              headerShown: false,
             }}
           />
 
@@ -152,22 +166,26 @@ export default function ApproveTransaksi() {
                   {receipt.length > 0 ? receipt[0].alamat_store : "Bojonegoro"}
                 </Text>
               </View>
-              <Text style={styles.trxnum}>
-                {" "}
-                No: {receipt.length > 0 ? receipt[0].trx_num : "0"}
-              </Text>
-              <Text style={styles.trxnum}>
-                {" "}
-                Date : {receipt.length > 0 ? receipt[0].create_date : "0"}
-              </Text>
+              <View style={styles.metaRow}>
+                <View style={styles.metaChip}>
+                  <Text style={styles.metaText}>
+                    No: {receipt.length > 0 ? receipt[0].trx_num : "0"}
+                  </Text>
+                </View>
+                <View style={styles.metaChip}>
+                  <Text style={styles.metaText}>
+                    Date: {receipt.length > 0 ? receipt[0].create_date : "0"}
+                  </Text>
+                </View>
+              </View>
             </>
             {/* Items */}
             <View style={styles.itemsContainer}>
               {receipt.length > 0 ? (
                 receipt.map((item, index) => (
-                  <>
+                  <React.Fragment key={`${item.id}-${index}`}>
                     <Text style={styles.itemName}>{item.name_produk}</Text>
-                    <View key={`${item.id}-${index}`} style={styles.itemRow}>
+                    <View style={styles.itemRow}>
                       <Text style={styles.itemName}>
                         Rp. {item.master_price.toLocaleString()}
                       </Text>
@@ -181,7 +199,7 @@ export default function ApproveTransaksi() {
                         Rp {item.discount.toLocaleString()}
                       </Text>
                     )}
-                  </>
+                  </React.Fragment>
                 ))
               ) : (
                 <Text style={styles.emptyMessage}>
@@ -209,7 +227,7 @@ export default function ApproveTransaksi() {
                 Rp {totaldiscount.toLocaleString()}
               </Text>
             </View>
-            <View style={styles.totalContainer}>
+            <View style={[styles.totalContainer, styles.totalHighlight]}>
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalPrice}>Rp {total.toLocaleString()}</Text>
             </View>
@@ -231,31 +249,54 @@ export default function ApproveTransaksi() {
             </View>
           </View>
           <View style={styles.receiptCard}>
-            {/* Radio Button untuk Poin */}
-            <View style={styles.radioRow}>
-              <TouchableOpacity
-                style={[
-                  styles.radioButton,
-                  selectedOption === "2" && styles.radioButtonSelected,
-                ]}
-                onPress={() => setSelectedOption("2")}
-              />
-              <Text style={styles.totalLabel}>Poin </Text>
-              <Text style={styles.totalPrice2}>{profile?.poin || "0"}</Text>
-            </View>
+            <Text style={styles.paymentTitle}>Pilih metode pembayaran</Text>
+            <TouchableOpacity
+              style={[
+                styles.paymentOption,
+                selectedOption === "2" && styles.paymentOptionActive,
+              ]}
+              onPress={() => setSelectedOption("2")}
+              activeOpacity={0.85}
+            >
+              <View style={styles.paymentOptionLeft}>
+                <View
+                  style={[
+                    styles.radioButton,
+                    selectedOption === "2" && styles.radioButtonSelected,
+                  ]}
+                >
+                  {selectedOption === "2" && (
+                    <Ionicons name="checkmark" size={12} color="#ffffff" />
+                  )}
+                </View>
+                <Text style={styles.paymentLabel}>Poin</Text>
+              </View>
+              <Text style={styles.paymentValue}>{profile?.poin || "0"}</Text>
+            </TouchableOpacity>
 
-            {/* Radio Button untuk Savings */}
-            <View style={styles.radioRow}>
-              <TouchableOpacity
-                style={[
-                  styles.radioButton,
-                  selectedOption === "1" && styles.radioButtonSelected,
-                ]}
-                onPress={() => setSelectedOption("1")}
-              />
-              <Text style={styles.totalLabel}>Savings </Text>
-              <Text style={styles.totalPrice2}>{profile?.saving || "0"}</Text>
-            </View>
+            <TouchableOpacity
+              style={[
+                styles.paymentOption,
+                selectedOption === "1" && styles.paymentOptionActive,
+              ]}
+              onPress={() => setSelectedOption("1")}
+              activeOpacity={0.85}
+            >
+              <View style={styles.paymentOptionLeft}>
+                <View
+                  style={[
+                    styles.radioButton,
+                    selectedOption === "1" && styles.radioButtonSelected,
+                  ]}
+                >
+                  {selectedOption === "1" && (
+                    <Ionicons name="checkmark" size={12} color="#ffffff" />
+                  )}
+                </View>
+                <Text style={styles.paymentLabel}>Savings</Text>
+              </View>
+              <Text style={styles.paymentValue}>{profile?.saving || "0"}</Text>
+            </TouchableOpacity>
           </View>
           <TouchableOpacity
   style={[
@@ -265,20 +306,9 @@ export default function ApproveTransaksi() {
   onPress={() => handleconfirm(Number(id))}
   disabled={receipt[0]?.potongan !== 0} // Nonaktifkan tombol jika potongan tidak sama dengan 0
 >
-  <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
+  <Ionicons name="checkmark-circle-outline" size={20} color="#000000ff" />
   <Text style={styles.confirmButtonText}>Konfirmasi</Text>
 </TouchableOpacity>
- {receipt[0]?.trx_num !== 0 && (
-    <TouchableOpacity
-      style={styles.backButton}
-      onPress={() => {
-       router.replace("/");
-      }} // Ganti "/" dengan nama halaman awal Anda
-    >
-      <Ionicons name="arrow-back-circle-outline" size={20} color="#fff" />
-      <Text style={styles.backButtonText}>Kembali ke Halaman Awal</Text>
-    </TouchableOpacity>
-  )}
           <Modal
             transparent={true}
             visible={modalVisible}
@@ -299,49 +329,102 @@ export default function ApproveTransaksi() {
           </Modal>
         </ScrollView>
       </SafeAreaView>
-    </AuthProvider>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
-    paddingTop: 70,
-    paddingBottom: 20,
+    backgroundColor: PALETTE.pageBg,
+  },
+  headerBg: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: PALETTE.accentYellow,
+    borderBottomLeftRadius: 26,
+    borderBottomRightRadius: 26,
+    zIndex: 0,
+  },
+  headerBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    zIndex: 1,
+  },
+  headerBack: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: PALETTE.borderSoft,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: PALETTE.textPrimary,
+    marginLeft: 12,
   },
   content: {
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 32,
   },
   receiptCard: {
-    backgroundColor: "#fff",
-    borderTopEndRadius: 20,
-    borderBottomStartRadius: 20,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
-    marginBottom: 20,
-    top: 30,
+    backgroundColor: PALETTE.surface,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "transparent",
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: PALETTE.borderSoft,
+    borderTopWidth: 3,
+    borderTopColor: PALETTE.accentSoft,
   },
   header: {
     marginBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
-    paddingBottom: 10,
+    borderBottomColor: PALETTE.borderSoft,
+    paddingBottom: 12,
     alignItems: "center",
   },
   storeName: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
-    color: "#333",
+    color: PALETTE.accentPink,
     marginBottom: 5,
   },
   cashierName: {
     fontSize: 14,
-    color: "#666",
+    color: PALETTE.textMuted,
     textAlign: "center",
+  },
+  metaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 6,
+  },
+  metaChip: {
+    backgroundColor: "#f7f7f7",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: PALETTE.borderSoft,
+  },
+  metaText: {
+    fontSize: 11,
+    color: PALETTE.textMuted,
   },
   itemsContainer: {
     marginBottom: 20,
@@ -354,18 +437,18 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 12,
-    color: "#333",
+    color: PALETTE.textPrimary,
     flex: 1,
   },
   itemQty: {
     fontSize: 12,
-    color: "#666",
+    color: PALETTE.textMuted,
     textAlign: "center",
     width: 40,
   },
   itemPrice: {
     fontSize: 12,
-    color: "#333",
+    color: PALETTE.textPrimary,
     textAlign: "right",
     width: 100,
   },
@@ -375,42 +458,48 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     alignItems: "center",
   },
+  totalHighlight: {
+    backgroundColor: "rgba(255, 242, 71, 0.2)",
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
   totalLabel: {
     fontSize: 13,
     fontWeight: "bold",
-    color: "#333",
+    color: PALETTE.textPrimary,
     // textAlign: "left",
   },
   totalLabel2: {
     fontSize: 13,
     fontWeight: "bold",
-    color: "#333",
+    color: PALETTE.textPrimary,
     // textAlign: "left",
   },
   totalPrice: {
     fontSize: 13,
     fontWeight: "bold",
-    color: "#e60023",
+    color: PALETTE.accentPink,
     textAlign: "right",
   },
   totalPrice2: {
     fontSize: 13,
     fontWeight: "bold",
-    color: "blue",
+    color: PALETTE.accentPink,
     textAlign: "right",
   },
   confirmButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#115f9f",
-    paddingVertical: 15,
-    borderRadius: 10,
-    top: 35,
-    marginBottom: 30,
+    backgroundColor: PALETTE.accentYellow,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 8,
+    marginBottom: 12,
   },
   confirmButtonText: {
-    color: "#fff",
+    color: "#000000",
     fontSize: 18,
     fontWeight: "bold",
     marginLeft: 8,
@@ -427,30 +516,55 @@ const styles = StyleSheet.create({
     textAlign: "right",
     textDecorationLine: "line-through",
   },
-  trxnum: {
-    fontSize: 12,
-    color: "#333",
-    textAlign: "left",
-    marginBottom: 10,
+  paymentTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: PALETTE.textPrimary,
+    marginBottom: 12,
   },
-  radioRow: {
+  paymentOption: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: PALETTE.borderSoft,
+    backgroundColor: PALETTE.surface,
     marginBottom: 10,
   },
+  paymentOptionActive: {
+    borderColor: PALETTE.accentPink,
+    backgroundColor: PALETTE.accentSoft,
+  },
+  paymentOptionLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  paymentLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: PALETTE.textPrimary,
+  },
+  paymentValue: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: PALETTE.accentPink,
+  },
   radioButton: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: "#ccc",
-    marginRight: 10,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: PALETTE.borderSoft,
     alignItems: "center",
     justifyContent: "center",
   },
   radioButtonSelected: {
-    borderColor: "#115f9f",
-    backgroundColor: "#115f9f",
+    borderColor: PALETTE.accentPink,
+    backgroundColor: PALETTE.accentPink,
   },
   overlay: {
     flex: 1,
@@ -460,24 +574,25 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     width: 300,
-    backgroundColor: "white",
-    borderRadius: 10,
+    backgroundColor: PALETTE.surface,
+    borderRadius: 12,
     padding: 20,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowColor: "transparent",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   modalMessage: {
     fontSize: 16,
     fontWeight: "bold",
     textAlign: "center",
     marginBottom: 20,
+    color: PALETTE.textPrimary,
   },
   closeButton: {
-    backgroundColor: "#115f9f",
+    backgroundColor: PALETTE.accentPink,
     padding: 10,
     borderRadius: 5,
     alignItems: "center",
@@ -498,17 +613,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   disabledButton: {
-    backgroundColor: "#ccc", // Warna latar belakang untuk tombol dinonaktifkan
-  },
-  backButton: {
-    backgroundColor: "#115f9f",
-    padding: 10,
-    borderRadius: 5,
-    alignItems: "center",
-    marginTop: 20,
-  },
-  backButtonText: {
-    color: "white",
-    fontWeight: "bold",
+    backgroundColor: "rgba(0,0,0,0.2)", // Warna latar belakang untuk tombol dinonaktifkan
   },
 });
