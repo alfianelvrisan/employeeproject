@@ -17,6 +17,7 @@ type AuthContextType = {
   cekode: (kode: string) => Promise<number>;
   cekwhastapp: (whatsapp:string)=>Promise<number>;
   register: (whatsapp: string, pin: string,kode:string,option:string) => Promise<void>;
+  fetchProfile: () => Promise<any | null>;
 };
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -30,17 +31,90 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userToken, setUserToken] = useState<string | null>(null);
   const [ipt, setIp] = useState("");
 
+  const getStoredAccessToken = async () => {
+    return await SecureStore.getItemAsync("authToken");
+  };
+
+  const getStoredRefreshToken = async () => {
+    return await SecureStore.getItemAsync("refreshToken");
+  };
+
+  const saveTokens = async (accessToken: string, refreshToken?: string) => {
+    console.log("[auth] saveTokens: accessToken?", Boolean(accessToken), "refreshToken?", Boolean(refreshToken));
+    await SecureStore.setItemAsync("authToken", accessToken);
+    if (refreshToken) {
+      await SecureStore.setItemAsync("refreshToken", refreshToken);
+    }
+  };
+
+  const clearTokens = async () => {
+    await SecureStore.deleteItemAsync("authToken");
+    await SecureStore.deleteItemAsync("refreshToken");
+  };
+
+  const refreshAccessToken = async () => {
+    console.log("[auth] refreshAccessToken: start");
+    const refreshToken = await getStoredRefreshToken();
+    if (!refreshToken) {
+      console.log("[auth] refreshAccessToken: missing refresh token");
+      throw new Error("Refresh token tidak ditemukan.");
+    }
+
+    const response = await fetch(
+      "https://api.laskarbuah.com/api/LoginValidations/refresh",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.log("[auth] refreshAccessToken: failed", errorData);
+      throw new Error(errorData.message || "Refresh token gagal.");
+    }
+
+    const result = await response.json();
+    const accessToken = result.access_token || result.token;
+    const newRefreshToken = result.refresh_token || refreshToken;
+    if (!accessToken) {
+      console.log("[auth] refreshAccessToken: no access token in response", result);
+      throw new Error("Access token tidak ditemukan dari refresh.");
+    }
+    console.log("[auth] refreshAccessToken: success");
+    await saveTokens(accessToken, newRefreshToken);
+    setUserToken(accessToken);
+    return accessToken;
+  };
+
   useEffect(() => {
     const loadToken = async () => {
       try {
-        const token = await SecureStore.getItemAsync("authToken");
+        const token = await getStoredAccessToken();
+        console.log("[auth] loadToken: accessToken exists?", Boolean(token));
         if (token) {
           setUserToken(token);
           router.replace("/"); // langsung arahkan ke home bila token masih ada
         } else {
+          const refreshToken = await getStoredRefreshToken();
+          console.log("[auth] loadToken: refreshToken exists?", Boolean(refreshToken));
+          if (refreshToken) {
+            try {
+              await refreshAccessToken();
+              router.replace("/");
+              return;
+            } catch {
+              console.log("[auth] loadToken: refresh failed, clearing tokens");
+              await clearTokens();
+            }
+          }
           router.replace("/screens/LoginScreen");
         }
       } catch (e) {
+        console.log("[auth] loadToken: error", e);
         router.replace("/screens/LoginScreen");
       }
     };
@@ -66,7 +140,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const fetchWithAuth = async (url: string, options: any = {}) => {
-    const token = await SecureStore.getItemAsync("authToken");
+    const token = await getStoredAccessToken();
   
     if (!token) {
       throw new Error("Token tidak ditemukan. Silakan login kembali.");
@@ -80,17 +154,70 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const response = await fetch(url, { ...options, headers });
   
     if (response.status === 401) {
-      await SecureStore.deleteItemAsync("authToken");
-      setUserToken(null);
-      router.replace("/screens/LoginScreen")
-      throw new Error("Sesi telah berakhir. Silakan login kembali.");
+      try {
+        const newToken = await refreshAccessToken();
+        const retryHeaders = {
+          ...options.headers,
+          Authorization: `Bearer ${newToken}`,
+        };
+        return fetch(url, { ...options, headers: retryHeaders });
+      } catch {
+        await clearTokens();
+        setUserToken(null);
+        router.replace("/screens/LoginScreen");
+        throw new Error("Sesi telah berakhir. Silakan login kembali.");
+      }
     }
   
     return response;
   };
 
+  const normalizeProfile = (data: any) => {
+    const row =
+      Array.isArray(data?.Table) && data.Table.length > 0 ? data.Table[0] : data;
+    const totalPoin = Number(
+      String(row?.total_poin ?? row?.poin ?? "0").replace(",", ".")
+    );
+    const totalSavings = Number(
+      String(row?.total_savings ?? row?.saving ?? "0").replace(",", ".")
+    );
+    return {
+      ...row,
+      poin: Number.isFinite(totalPoin) ? totalPoin : 0,
+      saving: Number.isFinite(totalSavings) ? totalSavings : 0,
+      ranking: row?.ranking ?? row?.rankd,
+      target: row?.target,
+      pencapaian: row?.pencapaian,
+      greeting: row?.greeting,
+    };
+  };
+
+  const fetchProfile = async () => {
+    const response = await fetchWithAuth(
+      "https://api.laskarbuah.com/api/Profil",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Profile request failed.");
+    }
+
+    const json = await response.json();
+    if (json?.success && json?.data) {
+      return normalizeProfile(json.data);
+    }
+    return null;
+  };
+
   async function LoginApp(email: string, password: string) {
     try {
+      console.log("[auth] LoginApp: start", { email });
 
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
@@ -116,12 +243,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
       if (!response.ok) {
         const errorData = await response.json();
+        console.log("[auth] LoginApp: response not ok", errorData);
         throw new Error(errorData.message || "Login gagal dari server.");
       }
   
       const result = await response.json();
-      return result.token;
+      console.log("[auth] LoginApp: response ok", { hasAccessToken: Boolean(result.access_token || result.token), hasRefreshToken: Boolean(result.refresh_token) });
+      return {
+        accessToken: result.access_token || result.token,
+        refreshToken: result.refresh_token,
+      };
     } catch (error) {
+      console.log("[auth] LoginApp: error", error);
       throw new Error("Login gagal. " + (error as Error).message);
     }
   }
@@ -129,30 +262,55 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      const token = await LoginApp(email, password);
-      await SecureStore.setItemAsync("authToken", token);
-      setUserToken(token);
+      console.log("[auth] login: start");
+      const { accessToken, refreshToken } = await LoginApp(email, password);
+      if (!accessToken) {
+        console.log("[auth] login: missing access token");
+        throw new Error("Token login tidak ditemukan.");
+      }
+      await saveTokens(accessToken, refreshToken);
+      setUserToken(accessToken);
+      console.log("[auth] login: success, navigating home");
       router.replace("/");
     } catch (error) {
+      console.log("[auth] login: error", error);
       throw error;
     }
   };
 
   const logout = async () => {
-    await SecureStore.deleteItemAsync("authToken");
-    setUserToken(null);
-    router.replace("/screens/LoginScreen");
+    try {
+      const refreshToken = await getStoredRefreshToken();
+      if (refreshToken) {
+        await fetch("https://api.laskarbuah.com/api/LoginValidations/logout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+      }
+    } catch (error) {
+      console.log("[auth] logout: server call failed", error);
+    } finally {
+      await clearTokens();
+      setUserToken(null);
+      router.replace("/screens/LoginScreen");
+    }
   };
 
   const cekode = async (kode: string) => {
     try {
-      const response = await fetch("https://api.laskarbuah.com/api/cekkode", {
-        method: "POST",
-        headers: {
-         "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ v_token:kode }),
-      });
+      const response = await fetch(
+        "https://api.laskarbuah.com/api/RegistrasiMem/cek-kode",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ v_token: kode }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Cekode request failed.");
@@ -186,7 +344,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  async function handleRegister(whatsapp: string, pin: string,kode:string,option:string) {
+  async function handleRegister(
+    whatsapp: string,
+    pin: string,
+    kode: string,
+    option: string
+  ) {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
@@ -203,13 +366,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          v_tlp: "0"+whatsapp,
-          v_pin: pin,
+          v_tlp: "0" + whatsapp,
+          v_pin: Number(pin),
           v_ip : ipt,
-          v_lat:latitude.toString(),
-          v_long:longitude.toString(),
-          v_kode:kode,
-          v_option:option
+          v_lat: latitude.toString(),
+          v_long: longitude.toString(),
+          v_kode: Number(kode),
+          v_option: Number(option),
         })
       });
       if (!response.ok) {
@@ -217,7 +380,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error(errorData.message || "Registrasi gagal dari server.");
       }
       const result = await response.json();
-      return result.token;
+      return result;
     } catch (error) {
       throw new Error("Registrasi gagal. " + (error as Error).message);
     }
@@ -226,10 +389,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = async (whatsapp: string, pin: string,kode:string,option:string) => {
     console.log("Registering with:", { whatsapp, pin, kode,option });
     try {
-      const result = await handleRegister(whatsapp, pin,kode,option);
-      await SecureStore.setItemAsync("authToken", result);
-      setUserToken(result);
-      router.replace("/");
+      const result = await handleRegister(whatsapp, pin, kode, option);
+      if (result?.success) {
+        router.replace("/screens/LoginScreen");
+        return;
+      }
+      throw new Error("Registrasi gagal dari server.");
     } catch (error) {
       console.error("Registrasi gagal:", error);
       throw error;
@@ -237,7 +402,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ userToken, login, logout, cekode,cekwhastapp,register }}>
+    <AuthContext.Provider
+      value={{ userToken, login, logout, cekode, cekwhastapp, register, fetchProfile }}
+    >
       {children}
     </AuthContext.Provider>
   );

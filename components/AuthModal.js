@@ -28,7 +28,7 @@ const CountryCodes = [
 ];
 
 const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
-  const { login, cekode, cekwhastapp } = useAuth();
+  const { login, cekode, cekwhastapp, register } = useAuth();
   const brandGradient = ["#ffea00", "#ffc400", "#ff9100"];
   const softGradient = ["#fff7c2", "#ffd85f", "#ff9f1c"];
 
@@ -41,8 +41,10 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
   const [password, setPassword] = useState("");
   const [kode, setKode] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  const [registerPin, setRegisterPin] = useState("");
   const [selectedCode, setSelectedCode] = useState("+62");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [showKodeHelp, setShowKodeHelp] = useState(false);
 
   // Membersihkan state setiap kali modal ditutup
   useEffect(() => {
@@ -53,6 +55,8 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
       setPassword("");
       setKode("");
       setWhatsapp("");
+      setRegisterPin("");
+      setShowKodeHelp(false);
     }
   }, [visible]);
 
@@ -64,17 +68,29 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
     try {
       if (type === "login") {
         await login(nik, password);
-        router.push("/"); // Arahkan ke home jika berhasil
         onClose(); // Tutup modal
       } 
       else if (type === "register") {
         const result = await cekode(kode);
         if (result === 1) {
-          onSwitchType("whatsappRegister"); // Ganti tipe modal ke cek WA untuk register
+          onSwitchType("directRegister");
         } else {
           setError("Kode Perusahaan tidak valid atau terjadi kesalahan.");
         }
       } 
+      else if (type === "directRegister") {
+        const normalizedPhone = whatsapp.replace(/\D/g, "").replace(/^0/, "");
+        if (!normalizedPhone) {
+          setError("Nomor telepon wajib diisi.");
+          return;
+        }
+        if (registerPin.length !== 6) {
+          setError("PIN harus 6 digit.");
+          return;
+        }
+        await register(normalizedPhone, registerPin, kode, "1");
+        onClose();
+      }
       else if (type === "whatsappRegister") {
         const result = await cekwhastapp(whatsapp);
         if (result === 0) { // Nomor belum terdaftar, bisa lanjut
@@ -164,13 +180,33 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
       case "register":
         return (
           <>
-            <IconTextInput
-              iconName="grid-outline"
-              placeholder="Kode Perusahaan"
-              value={kode}
-              onChangeText={setKode}
-              keyboardType="default"
-            />
+            <View style={styles.kodeRow}>
+              <View style={styles.kodeInput}>
+                <IconTextInput
+                  iconName="grid-outline"
+                  placeholder="Kode Perusahaan"
+                  value={kode}
+                  onChangeText={setKode}
+                  keyboardType="default"
+                />
+              </View>
+              <View style={styles.helpAnchor}>
+                <TouchableOpacity
+                  style={styles.helpButton}
+                  onPress={() => setShowKodeHelp((prev) => !prev)}
+                >
+                  <Ionicons name="help-circle-outline" size={22} color={COLORS.primary} />
+                </TouchableOpacity>
+                {showKodeHelp ? (
+                  <View style={styles.helpBubbleFloating}>
+                    <View style={styles.helpBubbleArrow} />
+                    <Text style={styles.helpText}>
+                      Kode didapat dari struk belanja jika total belanja lebih dari Rp 50.000.
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
             <TouchableOpacity
               activeOpacity={0.9}
               onPress={handleSubmit}
@@ -231,6 +267,41 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
             </TouchableOpacity>
           </>
         );
+      case "directRegister":
+        return (
+          <>
+            <IconTextInput
+              iconName="call-outline"
+              placeholder="No. Telepon (contoh: 812...)"
+              value={whatsapp}
+              onChangeText={setWhatsapp}
+              keyboardType="numeric"
+            />
+            <IconTextInput
+              iconName="lock-closed-outline"
+              placeholder="PIN (6 digit)"
+              value={registerPin}
+              onChangeText={setRegisterPin}
+              secureTextEntry
+              keyboardType="numeric"
+              maxLength={6}
+            />
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={handleSubmit}
+              disabled={isLoading}
+              style={styles.ctaShadow}
+            >
+              <LinearGradient colors={brandGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ctaButton}>
+                {isLoading ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <Text style={styles.ctaText}>Daftar</Text>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </>
+        );
 
       default:
         return null;
@@ -241,6 +312,7 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
   const getTitle = () => {
     if (type === "login") return "Login";
     if (type === "register") return "Registrasi";
+    if (type === "directRegister") return "Registrasi";
     if (type === "forgotPin") return "Lupa PIN";
     if (type === "whatsappRegister") return "Verifikasi Nomor";
     return "";
@@ -358,6 +430,65 @@ const styles = StyleSheet.create({
   },
   picker: {
     width: 130, // Sesuaikan lebar picker
+  },
+  kodeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  kodeInput: {
+    flex: 1,
+  },
+  helpButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 201, 0, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  helpAnchor: {
+    position: "relative",
+    height: 50,
+    marginBottom: SIZES.medium,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  helpBubbleFloating: {
+    position: "absolute",
+    right: 0,
+    bottom: 52,
+    minWidth: 210,
+    maxWidth: 250,
+    backgroundColor: "rgba(255,255,255,0.98)",
+    borderRadius: 12,
+    paddingVertical: SIZES.base,
+    paddingHorizontal: SIZES.medium,
+    borderWidth: 1,
+    borderColor: "rgba(255, 201, 0, 0.45)",
+    shadowColor: "#000000",
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 6,
+    zIndex: 10,
+  },
+  helpBubbleArrow: {
+    position: "absolute",
+    right: 16,
+    bottom: -6,
+    width: 12,
+    height: 12,
+    backgroundColor: "rgba(255,255,255,0.98)",
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: "rgba(255, 201, 0, 0.45)",
+    transform: [{ rotate: "45deg" }],
+  },
+  helpText: {
+    color: COLORS.black,
+    fontSize: SIZES.small,
+    fontFamily: FONTS.regular,
   },
   ctaShadow: {
     marginTop: SIZES.medium,

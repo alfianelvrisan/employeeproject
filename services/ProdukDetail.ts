@@ -4,7 +4,7 @@ export const fetchProdukDetail = async (idStore: number, idProduk: number,userTo
 
   try {
     const response = await fetch(
-      `https://api.laskarbuah.com/api/produkdetail?id_store=${idStore}&id_produk=${idProduk}`,
+      `https://api.laskarbuah.com/api/Produk/detail?id_store=${idStore}&id_produk=${idProduk}`,
       {
         method: "GET",
         headers: {
@@ -20,8 +20,9 @@ export const fetchProdukDetail = async (idStore: number, idProduk: number,userTo
     }
 
     const json = await response.json();
-    if (Array.isArray(json) && json.length > 0) {
-      return json;
+    const data = Array.isArray(json) ? json : json?.data || [];
+    if (Array.isArray(data) && data.length > 0) {
+      return data;
     } else {
       throw new Error("Produk detail data is empty or not found.");
     }

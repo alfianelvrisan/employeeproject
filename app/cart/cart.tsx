@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useState } from "react";
+import React, { ReactNode, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   RefreshControl,
   Button,
   Modal,
+  Share,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -22,18 +23,17 @@ import {
   deleteTrxMember,
   deleteTrxexp,
 } from "../../services/CartServices";
-import { fetchProfile } from "../../services/profileServices";
 import { IncreDecre } from "../../services/DecreIncre";
 import { paymentMidtrans } from "../../services/paymentMidtrans";
+import { createQris, getQrisStatusByOrderId } from "../../services/qris";
+import { getPendingQris } from "../../services/pendingQris";
+import { _cekStrukByproduk } from "../../services/_cekStatusPayment";
 import WebView from "react-native-webview";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native"; // Import useFocusEffect
-import { cekOrderId } from "../../services/CekOrderId";
-import {
-  _cekStatusPayment,
-  _cekStrukByproduk,
-} from "../../services/_cekStatusPayment";
 import * as Clipboard from "expo-clipboard";
+import * as Sharing from "expo-sharing";
+import ViewShot, { captureRef } from "react-native-view-shot";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import useScrollHeader from "../../hooks/useScrollHeader";
 
@@ -55,12 +55,20 @@ const PRIMARY_BUTTON_GRADIENT = [PRIMARY_YELLOW, "#ffeb3b", "#fbc02d"] as const;
 const SECONDARY_BUTTON_GRADIENT = ["#ffffff", "#fafafa"] as const;
 const WARNING_BUTTON_GRADIENT = ["#ffcdd2", "#ef9a9a", "#e57373"] as const;
 const BUTTON_DISABLED_GRADIENT = ["#f0f0f0", "#e0e0e0"] as const;
+const PENDING_QRIS_EXPIRES_MINUTES = 15;
 
 const Cart = () => {
-  const { userToken } = useAuth();
+  const { userToken, fetchProfile } = useAuth();
   const insets = useSafeAreaInsets();
   const { tab } = useLocalSearchParams<{ tab: string }>(); // Get tab param
-  const [redirectUrl, setRedirectUrl] = useState<string | null>(null); // Track Midtrans Snap URL
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null); // legacy midtrans
+  const [qrisData, setQrisData] = useState<{
+    order_id: string;
+    qris_url: string;
+    status: string;
+    expires_at: string;
+    sales_id: number;
+  } | null>(null);
   const [cartItems, setCartItems] = useState<
     {
       id_produk?: (id_produk: any) => string;
@@ -93,8 +101,14 @@ const Cart = () => {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [selectedTab, setSelectedTab] = useState<string>(tab || "List Belanja");
   const [description, setDescription] = useState<string>("");
-  const [orderIds, setOrderId] = useState<string>("");
-  const [responsePayment, setResponsePayment] = useState<any>(null);
+  const responsePayment: any[] = [];
+  const [pendingQris, setPendingQris] = useState<any[]>([]);
+  const [completedTrx, setCompletedTrx] = useState<any[]>([]);
+  const [completedPage, setCompletedPage] = useState(1);
+  const pendingPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [pendingNow, setPendingNow] = useState<number>(Date.now());
+  const qrisShotRefs = useRef<Record<string, ViewShot | null>>({});
+  const completedShotRefs = useRef<Record<string, ViewShot | null>>({});
   const [responseByorderId, setResponseByorderId] = useState<any>(null);
   const { headerStyle, handleScroll } = useScrollHeader();
 
@@ -107,7 +121,7 @@ const Cart = () => {
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
-        const response = await fetchProfile(userToken || "");
+        const response = await fetchProfile();
         if (response) {
           setIdUser(response.id);
           setProfile(response);
@@ -137,16 +151,226 @@ const Cart = () => {
   useFocusEffect(
     React.useCallback(() => {
       fetchTrxMember();
+      fetchPendingQris();
     }, [userToken, idUser])
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchTrxMember();
-    await fetchAndJoinResponses();
-    await _cekOrderid();
+    await fetchPendingQris();
+    await fetchCompletedTrx();
     setRefreshing(false);
   };
+
+  const normalizeStatus = (value: unknown) => {
+    if (value === null || value === undefined) return undefined;
+    return String(value).toLowerCase();
+  };
+
+  const normalizeDateString = (value?: string) => {
+    if (!value) return null;
+    const trimmed = value.trim();
+    const match = trimmed.match(
+      /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(\.\d+)?$/
+    );
+    if (!match) return trimmed;
+    const fraction = match[2]
+      ? match[2].slice(0, 4).padEnd(4, "0").slice(0, 4)
+      : "";
+    if (!fraction) return match[1];
+    return `${match[1]}${fraction.slice(0, 4)}`;
+  };
+
+  const formatDateTime = (value?: string) => {
+    const normalized = normalizeDateString(value);
+    if (!normalized) return "-";
+    const parsed = Date.parse(normalized);
+    if (Number.isNaN(parsed)) return "-";
+    return new Date(parsed).toLocaleString("id-ID", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const parseDateMs = (value?: string) => {
+    const normalized = normalizeDateString(value);
+    if (!normalized) return null;
+    const parsed = Date.parse(normalized);
+    if (Number.isNaN(parsed)) return null;
+    return parsed;
+  };
+
+  const isTerminalStatus = (status?: string, paidProcessed?: boolean) => {
+    if (paidProcessed) return true;
+    const normalized = normalizeStatus(status);
+    return normalized === "expire" || normalized === "expired" ||
+      normalized === "settlement" || normalized === "success" ||
+      normalized === "paid" || normalized === "capture";
+  };
+
+  const fetchPendingQris = async () => {
+    if (!userToken) {
+      setPendingQris([]);
+      return true;
+    }
+    if (!idUser) {
+      setPendingQris([]);
+      return true;
+    }
+    try {
+      const result = await getPendingQris(Number(idUser), userToken);
+      const list = Array.isArray(result) ? result : [];
+      const enriched = await Promise.all(
+        list.map(async (item: any) => {
+          if (!item?.reference) {
+            return { ...item, status: "pending" };
+          }
+          try {
+            const statusRes = await getQrisStatusByOrderId(
+              item.reference,
+              userToken
+            );
+            const status = normalizeStatus(
+              statusRes?.status || statusRes?.midtrans_status
+            );
+            const expiresAt = statusRes?.expires_at || item.expires_at;
+            return {
+              ...item,
+              status: status || "pending",
+              expires_at: expiresAt,
+              paid_processed: statusRes?.paid_processed === true,
+            };
+          } catch (error) {
+            console.error("Error fetching QRIS status:", error);
+            return { ...item, status: "pending" };
+          }
+        })
+      );
+      setPendingQris(enriched);
+      return (
+        enriched.length === 0 ||
+        enriched.every((item) =>
+          isTerminalStatus(item.status, item.paid_processed)
+        )
+      );
+    } catch (error) {
+      console.error("Error fetching pending QRIS:", error);
+      setPendingQris([]);
+      return true;
+    }
+  };
+
+  const fetchCompletedTrx = async () => {
+    if (!userToken || !idUser) {
+      setCompletedTrx([]);
+      return;
+    }
+    try {
+      const result = await _cekStrukByproduk(Number(idUser), userToken);
+      const list = Array.isArray(result) ? result : [];
+      const pendingRefs = Array.from(
+        new Set(
+          list
+            .filter(
+              (item: any) =>
+                String(item?.qris_status || "").toUpperCase() === "PENDING" &&
+                typeof item?.reference === "string"
+            )
+            .map((item: any) => item.reference)
+        )
+      );
+      const statusUpdates = await Promise.all(
+        pendingRefs.map(async (reference) => {
+          try {
+            const res = await getQrisStatusByOrderId(reference, userToken);
+            const status = normalizeStatus(
+              res?.status || res?.midtrans_status
+            );
+            return { reference, status };
+          } catch (error) {
+            console.error("Error fetching QRIS status:", error);
+            return { reference, status: null };
+          }
+        })
+      );
+      const statusMap = new Map(
+        statusUpdates
+          .filter((item) => item.status)
+          .map((item) => [item.reference, String(item.status).toUpperCase()])
+      );
+      const updated = list.map((item: any) => {
+        const updatedStatus = statusMap.get(item.reference);
+        if (!updatedStatus) return item;
+        return { ...item, qris_status: updatedStatus };
+      });
+      setCompletedTrx(updated);
+    } catch (error) {
+      console.error("Error fetching completed transactions:", error);
+      setCompletedTrx([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingQris();
+  }, [userToken, idUser]);
+
+  useEffect(() => {
+    if (selectedTab !== "Belum Bayar") {
+      if (pendingPollRef.current) {
+        clearInterval(pendingPollRef.current);
+        pendingPollRef.current = null;
+      }
+      return;
+    }
+    let isMounted = true;
+    const startPolling = async () => {
+      const done = await fetchPendingQris();
+      if (!isMounted || done) return;
+      if (pendingPollRef.current) {
+        clearInterval(pendingPollRef.current);
+      }
+      pendingPollRef.current = setInterval(async () => {
+        const stop = await fetchPendingQris();
+        if (stop && pendingPollRef.current) {
+          clearInterval(pendingPollRef.current);
+          pendingPollRef.current = null;
+        }
+      }, 60000);
+    };
+    startPolling();
+    return () => {
+      isMounted = false;
+      if (pendingPollRef.current) {
+        clearInterval(pendingPollRef.current);
+        pendingPollRef.current = null;
+      }
+    };
+  }, [selectedTab, userToken, idUser]);
+
+  useEffect(() => {
+    if (selectedTab !== "Belum Bayar") return;
+    const interval = setInterval(() => {
+      setPendingNow(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [selectedTab]);
+
+  useEffect(() => {
+    if (selectedTab === "Belum Bayar") {
+      fetchPendingQris();
+    }
+  }, [selectedTab]);
+
+  useEffect(() => {
+    if (selectedTab === "Selesai") {
+      fetchCompletedTrx();
+      setCompletedPage(1);
+    }
+  }, [selectedTab]);
 
   const handleAddToCart = (newItem: {
     id_produk: () => string;
@@ -186,10 +410,22 @@ const Cart = () => {
 
   const [isModalVisible, setModalVisible] = useState(false);
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [isPaymentMethodModalVisible, setPaymentMethodModalVisible] =
+    useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("QRIS");
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const [isDeletePaymentModalVisible, setDeletePaymentModalVisible] =
     useState(false);
   const [pendingDeleteTrx, setPendingDeleteTrx] = useState<number | null>(null);
+  const paymentMethods = [
+    "QRIS",
+    "Gopay",
+    "Shopeepay",
+    "BRIVA",
+    "LinkAja",
+    "OVO",
+    "Saving",
+  ];
 
   const handleRemoveItem = (id: number) => {
     setPendingDeleteId(id);
@@ -240,6 +476,40 @@ const Cart = () => {
     await Clipboard.setStringAsync(text);
   };
 
+  const handleShareQris = async (qrisKey: string, reference?: string) => {
+    const shotRef = qrisShotRefs.current[qrisKey];
+    if (!shotRef) return;
+    try {
+      const uri = await captureRef(shotRef, { format: "png", quality: 1 });
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri);
+        return;
+      }
+      await Share.share({
+        message: `QRIS ${reference || ""}`.trim(),
+      });
+    } catch (error) {
+      console.error("Error sharing QRIS:", error);
+    }
+  };
+
+  const handleShareReceipt = async (receiptKey: string) => {
+    const shotRef = completedShotRefs.current[receiptKey];
+    if (!shotRef) return;
+    try {
+      const uri = await captureRef(shotRef, { format: "png", quality: 1 });
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri);
+        return;
+      }
+      await Share.share({ message: "Struk pembayaran" });
+    } catch (error) {
+      console.error("Error sharing receipt:", error);
+    }
+  };
+
   const selectedStore =
     selectedItems.length > 0
       ? cartItems.find((item) => selectedItems.includes(item.id))?.name_store
@@ -259,6 +529,8 @@ const Cart = () => {
           (typeof item.disc_member === "number" ? item.disc_member : 0)),
       0
     );
+  const handlingFee = Math.round(totalPrice * 0.007);
+  const grandTotal = totalPrice + handlingFee;
 
   const totalDiscount = cartItems.reduce(
     (total, item) =>
@@ -322,31 +594,91 @@ const Cart = () => {
   const confirmCheckout = async () => {
     setModalVisible(false); // Tutup modal
     try {
-      const products = cartItems
-        .filter((item) => selectedItems.includes(item.id)) // Hanya ambil item yang terselected
-        .map((item) => ({
-          id_produk: String(item.id_produk), // Convert id to string
-          nama_produk: item.name_produk,
-          harga:
-            item.price_origin -
-            (typeof item.disc_member === "number" ? item.disc_member : 0),
-          qty: item.qty,
-        }));
-
-      const response = await paymentMidtrans(
-        Number(selectedid),
-        String(userToken) || "",
-        totalPrice,
-        profil?.nama || "",
-        profil?.no_tlp || "",
-        products,
-        description
+      const selectedCartItems = cartItems.filter((item) =>
+        selectedItems.includes(item.id)
       );
+      if (selectedCartItems.length === 0) {
+        Alert.alert("Error", "Pilih minimal 1 item untuk dibayar.");
+        return;
+      }
 
-      setRedirectUrl(response.redirect_url);
+      const uniqueIdh = Array.from(
+        new Set(
+          selectedCartItems
+            .map((item) => item.idh)
+            .filter((idh) => typeof idh === "number")
+        )
+      );
+      if (uniqueIdh.length !== 1) {
+        Alert.alert(
+          "Error",
+          "Pilih item dari satu transaksi/toko saja untuk dibayar."
+        );
+        return;
+      }
+
+      const selectedTrxId = uniqueIdh[0];
+      if (!selectedTrxId) {
+        Alert.alert("Error", "Transaksi tidak valid. Coba pilih ulang item.");
+        return;
+      }
+
+      const products = selectedCartItems.map((item) => ({
+        id_produk: String(item.id_produk), // Convert id to string
+        nama_produk: item.name_produk,
+        harga:
+          item.price_origin -
+          (typeof item.disc_member === "number" ? item.disc_member : 0),
+        qty: item.qty,
+      }));
+
+      const derivedAmount = products.reduce(
+        (sum, item) => sum + item.harga * item.qty,
+        0
+      );
+      if (derivedAmount <= 0) {
+        Alert.alert("Error", "Total transaksi tidak valid.");
+        return;
+      }
+
+      if (!profil?.no_tlp || !profil?.nama) {
+        Alert.alert(
+          "Error",
+          "Data profil belum lengkap. Mohon lengkapi nama dan nomor telepon."
+        );
+        return;
+      }
+
+      const productIds = selectedCartItems.map((item) =>
+        Number(item.id_produk || item.id)
+      );
+      const qrisResponse = await createQris(
+        Number(selectedTrxId),
+        grandTotal,
+        productIds,
+        description,
+        15,
+        String(userToken) || ""
+      );
+      setQrisData({
+        order_id: qrisResponse.order_id,
+        qris_url: qrisResponse.qris_url,
+        status: qrisResponse.status,
+        expires_at: qrisResponse.expires_at,
+        sales_id: Number(selectedTrxId),
+      });
     } catch (error) {
       console.error("Error during checkout:", error);
-      Alert.alert("Error", "Gagal memproses pembayaran. Silakan coba lagi.");
+      let message = "Gagal memproses pembayaran. Silakan coba lagi.";
+      if (error instanceof Error && error.message) {
+        try {
+          const parsed = JSON.parse(error.message);
+          message = parsed?.message || message;
+        } catch {
+          message = error.message;
+        }
+      }
+      Alert.alert("Error", message);
     }
   };
 
@@ -376,64 +708,32 @@ const Cart = () => {
     }
   };
 
-  if (redirectUrl) {
+  useEffect(() => {
+    if (redirectUrl) {
+      router.push({
+        pathname: "/cart/checkout/CheckoutDetail",
+        params: { redirectUrl },
+      });
+      setRedirectUrl(null);
+      setDescription("");
+    }
+  }, [redirectUrl]);
+
+  useEffect(() => {
+    if (!qrisData) return;
     router.push({
       pathname: "/cart/checkout/CheckoutDetail",
-      params: { redirectUrl },
+      params: {
+        qrisUrl: qrisData.qris_url,
+        orderId: qrisData.order_id,
+        status: qrisData.status,
+        expiresAt: qrisData.expires_at,
+        salesId: String(qrisData.sales_id),
+      },
     });
-    setRedirectUrl(null);
+    setQrisData(null);
     setDescription("");
-  }
-
-  const _cekOrderid = async () => {
-    const orderId = await cekOrderId(idUser || 0, userToken || "");
-    const newOrderIds = orderId.map((item: { reference: any; }) => item.reference);
-
-    if (JSON.stringify(newOrderIds) !== JSON.stringify(orderIds)) {
-      setOrderId(newOrderIds);
-    }
-  };
-
-  useEffect(() => {
-    _cekOrderid();
-  }, [idUser, userToken]);
-
-  const fetchAndJoinResponses = async () => {
-    try {
-      const validOrderIds = Array.isArray(orderIds)
-        ? orderIds.filter(id => id && id.trim() !== '')
-        : [orderIds].filter(id => id && id.trim() !== '');
-
-
-      if (validOrderIds.length === 0) {
-        // console.warn("Order ID kosong atau tidak valid.");
-        return;
-      }
-
-
-      const _StatusPay = await _cekStatusPayment(validOrderIds, userToken || "");
-      const _cekStruk = await _cekStrukByproduk(Number(idUser), userToken || "");
-
-      const joinedData = _StatusPay.map((statusItem: any) => {
-        const matchingStruks = _cekStruk.filter(
-          (strukItem: any) => strukItem.reference === statusItem.order_id
-        );
-        return {
-          ...statusItem,
-          strukDetailsList: matchingStruks,
-        };
-      });
-
-      setResponsePayment(joinedData);
-    } catch (error) {
-      console.error("Error joining responses:", error);
-    }
-  };
-
-
-  useEffect(() => {
-    fetchAndJoinResponses();
-  }, [orderIds, idUser, userToken]);
+  }, [qrisData]);
 
   const handleDelete = (trx_num: number) => {
     setPendingDeleteTrx(trx_num);
@@ -451,7 +751,6 @@ const Cart = () => {
     }
     try {
       await deleteTrxexp(pendingDeleteTrx, userToken || "");
-      await fetchAndJoinResponses();
     } catch (error) {
       console.error("Error deleting transaction:", error);
     } finally {
@@ -597,141 +896,110 @@ const Cart = () => {
     } else if (selectedTab === "Belum Bayar") {
       return (
         <View style={[styles.sectionSpacing, styles.paymentListWrapper]}>
-          {responsePayment?.length > 0 &&
-            responsePayment.some(
-              (payment: any) => payment.status !== "settlement"
-            ) ? (
-            responsePayment
-              .filter((payment: any) => payment.status !== "settlement")
-              .map((payment: any, index: number) => (
+          {pendingQris.length > 0 ? (
+            pendingQris.map((item: any, index: number) => {
+              const qrisKey = String(item.reference || item.id || index);
+              return (
                 <View key={index} style={styles.paymentCardShell}>
-                  <View
-                    style={[
-                      styles.paymentCard,
-                      (payment.status === "expire" || payment.status === null) &&
-                      styles.disabledCards,
-                    ]}
-                  >
-                    <Text style={styles.groupName}>
-                      {payment.strukDetailsList?.[0]?.group_name || "Nama Toko"}
-                    </Text>
-                    <Text style={styles.slogan}>
-                      {payment.strukDetailsList?.[0]?.slogan || "Slogan Toko"}
-                    </Text>
-                    <Text style={styles.address}>
-                      {payment.strukDetailsList?.[0]?.alamat_store ||
-                        "Alamat Toko"}
-                    </Text>
-
-                    <View style={styles.transactionDetails}>
-                      <Text style={styles.transactionText}>
-                        No Transaksi:{" "}
-                        {payment.strukDetailsList?.[0]?.trx_num || "N/A"}
-                      </Text>
-                      <View style={styles.statusPill}>
+                  <View style={styles.paymentCard}>
+                    <Text style={styles.groupName}>Pembayaran QRIS</Text>
+                    <Text style={styles.slogan}>Menunggu pembayaran</Text>
+                    <Text style={styles.qrisLabelCenter}>QRIS</Text>
+                    {item.qris_url && (
+                      <View style={styles.qrisCardLite}>
+                        <ViewShot
+                          ref={(ref) => {
+                            qrisShotRefs.current[qrisKey] = ref;
+                          }}
+                          style={styles.qrisShot}
+                        >
+                          <Image
+                            source={{ uri: item.qris_url }}
+                            style={styles.qrisImagePreview}
+                          />
+                        </ViewShot>
                         <Text
                           style={[
-                            styles.statusPillText,
-                            payment.status === "pending" && styles.statusPending,
-                            payment.status === "expire" && styles.statusExpire,
-                            payment.status === "settlement" &&
-                            styles.statusSettlement,
+                            styles.qrisStatusText,
+                            (() => {
+                              const status = String(item.status || "").toUpperCase();
+                              if (status === "EXPIRE" || status === "EXPIRED") {
+                                return styles.qrisStatusExpired;
+                              }
+                              if (status === "PENDING") {
+                                return styles.qrisStatusPending;
+                              }
+                              return styles.qrisStatusSuccess;
+                            })(),
                           ]}
                         >
-                          {payment.status || "N/A"}
+                          Status: {(item.status || "PENDING").toUpperCase()}
                         </Text>
+                        <Text style={styles.qrisExpiryText}>
+                          Expired:{" "}
+                          {formatDateTime(item.expires_at || item.create_date)}
+                        </Text>
+                        <Text style={styles.qrisTimerText}>
+                          Sisa waktu:{" "}
+                          {(() => {
+                            const baseTime =
+                              item.expires_at || item.create_date;
+                            if (!baseTime) return "-";
+                            const baseMs = parseDateMs(baseTime);
+                            if (!baseMs) return "-";
+                            const finalExpiresMs = item.expires_at
+                              ? baseMs
+                              : baseMs +
+                                PENDING_QRIS_EXPIRES_MINUTES * 60 * 1000;
+                            const diff = Math.max(
+                              0,
+                              finalExpiresMs - pendingNow
+                            );
+                            const totalSeconds = Math.floor(diff / 1000);
+                            const minutes = Math.floor(totalSeconds / 60);
+                            const seconds = totalSeconds % 60;
+                            return `${String(minutes).padStart(
+                              2,
+                              "0"
+                            )}:${String(seconds).padStart(2, "0")}`;
+                          })()}
+                        </Text>
+                        <View style={styles.qrisActionRow}>
+                          <TouchableOpacity
+                            style={styles.qrisPrimaryButton}
+                            onPress={() =>
+                              handleShareQris(qrisKey, item.reference)
+                            }
+                          >
+                            <Ionicons
+                              name="download-outline"
+                              size={16}
+                              color="#ffffff"
+                            />
+                            <Text style={styles.qrisPrimaryText}>
+                              Simpan QR
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.qrisSecondaryButton}
+                            onPress={fetchPendingQris}
+                          >
+                            <Ionicons
+                              name="refresh"
+                              size={16}
+                              color="#3a2f00"
+                            />
+                            <Text style={styles.qrisSecondaryText}>
+                              Cek Status
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
-                    </View>
-                    <View style={styles.transactionDetails}>
-                      <Text style={styles.transactionText}>
-                        Store:{" "}
-                        {payment.strukDetailsList?.[0]?.name_store || "N/A"}
-                      </Text>
-                      <Text style={styles.transactionText}>
-                        Member:{" "}
-                        {payment.strukDetailsList?.[0]?.user_name || "N/A"}
-                      </Text>
-                    </View>
-
-                    <View style={styles.productList}>
-                      {payment.strukDetailsList?.map((item: any, idx: number) => (
-                        <React.Fragment key={idx}>
-                          <View style={styles.productItem}>
-                            <Text style={styles.productName}>
-                              {idx + 1}. {item.name_produk}
-                            </Text>
-                          </View>
-                          <View style={styles.productDetails}>
-                            <Text style={styles.productQty}>Qty: {item.qty}</Text>
-                            <Text style={styles.productPrice}>
-                              Harga: Rp {item.price.toLocaleString("id-ID")}
-                            </Text>
-                          </View>
-                        </React.Fragment>
-                      ))}
-                    </View>
-
-                    <View style={styles.transactionDetails}>
-                      <Text style={styles.transactionText}>
-                        Subtotal: Rp{" "}
-                        {payment?.strukDetailsList?.[0]?.total_price?.toLocaleString(
-                          "id-ID"
-                        ) || "N/A"}
-                      </Text>
-                      <Text style={styles.transactionText}>
-                        PPN: Rp{" "}
-                        {payment?.strukDetailsList?.[0]?.ppn?.toLocaleString(
-                          "id-ID"
-                        ) || 0}
-                      </Text>
-                    </View>
-                    <View style={styles.transactionDetails}>
-                      <Text style={styles.transactionText}>
-                        Grand Total: Rp{" "}
-                        {payment?.strukDetailsList?.[0]?.total?.toLocaleString(
-                          "id-ID"
-                        ) || "N/A"}
-                      </Text>
-                    </View>
-
-                    <View style={styles.transactionDetails}>
-                      <Text style={styles.transactionText}>
-                        Bank: {payment.va_numbers?.[0]?.bank || "N/A"}
-                      </Text>
-                      <TouchableOpacity
-                        style={styles.copyRow}
-                        onPress={() =>
-                          typeof payment.va_numbers?.[0]?.va_number === "string" &&
-                          handleCopy(payment.va_numbers[0].va_number)
-                        }
-                      >
-                        <Text style={styles.transactionText}>
-                          VA:{" "}
-                          {payment.va_numbers?.[0]?.va_number ||
-                            payment.permata_va_number ||
-                            "-"}
-                        </Text>
-                        <Icon name="content-copy" size={18} color="#6b3a00" />
-                      </TouchableOpacity>
-                    </View>
-                    <Text style={styles.vaHint}>
-                      Note: Lakukan pembayaran melalui VA di atas.
-                    </Text>
-
-                    {(payment.status === null || payment.status === "expire") && (
-                      <TouchableOpacity>
-                        <Text
-                          style={[styles.deleteButton, { opacity: 1 }]}
-                          onPress={() => handleDelete(payment.strukDetailsList[0].id)}
-                        >
-                          <Ionicons name="trash" size={15} />
-                          Delete
-                        </Text>
-                      </TouchableOpacity>
                     )}
                   </View>
                 </View>
-              ))
+              );
+            })
           ) : (
             <Text style={styles.emptyStateText}>
               Tidak ada pembayaran yang belum selesai.
@@ -740,64 +1008,109 @@ const Cart = () => {
         </View>
       );
     } else if (selectedTab === "Selesai") {
+      const grouped = completedTrx.reduce(
+        (acc: Record<string, any[]>, item: any) => {
+          const key = item.reference || String(item.trx_num || "unknown");
+          if (!acc[key]) acc[key] = [];
+          acc[key].push(item);
+          return acc;
+        },
+        {}
+      );
+      const completedGroups = Object.values(grouped).sort((a: any[], b: any[]) => {
+        const dateA = Date.parse(a?.[0]?.create_date || "");
+        const dateB = Date.parse(b?.[0]?.create_date || "");
+        return (Number.isNaN(dateB) ? 0 : dateB) - (Number.isNaN(dateA) ? 0 : dateA);
+      });
+      const pageSize = 10;
+      const visibleGroups = completedGroups.slice(0, completedPage * pageSize);
       return (
         <View style={[styles.sectionSpacing, styles.historyListWrapper]}>
-          {responsePayment?.length > 0 &&
-            responsePayment.some(
-              (payment: any) => payment.status === "settlement"
-            ) ? (
-            responsePayment
-              .filter((payment: any) => payment.status === "settlement") // Filter untuk mengecualikan status settlement
-              .map((payment: any, index: number) => (
+          {visibleGroups.length > 0 ? (
+            visibleGroups.map((items: any[], index: number) => {
+              const header = items[0] || {};
+              const receiptKey = String(header.reference || header.trx_num || index);
+              return (
                 <View key={index} style={styles.paymentCardShell}>
-                  <View style={styles.paymentCard}>
-                    {/* Header */}
-                    <Text style={styles.groupName}>
-                      {payment.strukDetailsList?.[0]?.group_name || "Nama Toko"}
-                    </Text>
-                    <Text style={styles.slogan}>
-                      {payment.strukDetailsList?.[0]?.slogan || "Slogan Toko"}
-                    </Text>
-                    <Text style={styles.address}>
-                      {payment.strukDetailsList?.[0]?.alamat_store ||
-                        "Alamat Toko"}
-                    </Text>
-
-                    {/* Informasi Transaksi */}
-                    <View style={styles.transactionDetails}>
-                      <Text style={styles.transactionText}>
-                        No Transaksi:{" "}
-                        {payment.strukDetailsList?.[0]?.trx_num || "N/A"}
+                  <ViewShot
+                    ref={(ref) => {
+                      completedShotRefs.current[receiptKey] = ref;
+                    }}
+                    style={[styles.paymentCard, styles.historyCard]}
+                  >
+                    <View style={styles.historyHeaderRow}>
+                      <Text style={styles.historyTitle}>
+                        {header.group_name || "Nama Toko"}
                       </Text>
-                      <Text style={styles.transactionText}>
-                        Status:{" "}
+                      <View
+                        style={[
+                          styles.statusPill,
+                          (() => {
+                            const status = String(
+                              header.qris_status || ""
+                            ).toUpperCase();
+                            if (status === "EXPIRE" || status === "EXPIRED") {
+                              return styles.statusPillExpired;
+                            }
+                            if (status === "PENDING") {
+                              return styles.statusPillPending;
+                            }
+                            return styles.statusPillSuccess;
+                          })(),
+                        ]}
+                      >
                         <Text
                           style={[
-                            payment.status === "settlement"
-                              ? styles.settlement
-                              : payment.status === "expire"
-                                ? { color: "red" }
-                                : { color: "black" },
+                            styles.statusPillText,
+                            (() => {
+                              const status = String(
+                                header.qris_status || ""
+                              ).toUpperCase();
+                              if (status === "EXPIRE" || status === "EXPIRED") {
+                                return styles.statusExpire;
+                              }
+                              if (status === "PENDING") {
+                                return styles.statusPending;
+                              }
+                              return styles.statusSettlement;
+                            })(),
                           ]}
                         >
-                          {payment.status || "N/A"}
+                          {header.qris_status || "N/A"}
                         </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.historySubtitle}>
+                      {header.slogan || "Slogan Toko"}
+                    </Text>
+                    <Text style={styles.historyMeta}>
+                      {header.alamat_store || "Alamat Toko"}
+                    </Text>
+
+                    <View style={styles.historyDivider} />
+                    <View style={styles.historyInfoRow}>
+                      <Text style={styles.historyLabel}>No Transaksi</Text>
+                      <Text style={styles.historyValue}>
+                        {header.trx_num || "N/A"}
+                      </Text>
+                    </View>
+                    <View style={styles.historyInfoRow}>
+                      <Text style={styles.historyLabel}>Reference</Text>
+                      <Text style={styles.historyValue}>
+                        {header.reference || "N/A"}
                       </Text>
                     </View>
                     <View style={styles.transactionDetails}>
                       <Text style={styles.transactionText}>
-                        Store:{" "}
-                        {payment.strukDetailsList?.[0]?.name_store || "N/A"}
+                        Store: {header.name_store || "N/A"}
                       </Text>
                       <Text style={styles.transactionText}>
-                        Member:{" "}
-                        {payment.strukDetailsList?.[0]?.user_name || "N/A"}
+                        Member: {header.user_name || "N/A"}
                       </Text>
                     </View>
 
-                    {/* Produk */}
                     <View style={styles.productList}>
-                      {payment.strukDetailsList?.map((item: any, idx: number) => (
+                      {items.map((item: any, idx: number) => (
                         <React.Fragment key={idx}>
                           <View style={styles.productItem}>
                             <Text style={styles.productName}>
@@ -807,88 +1120,73 @@ const Cart = () => {
                           <View style={styles.productDetails}>
                             <Text style={styles.productQty}>Qty: {item.qty}</Text>
                             <Text style={styles.productPrice}>
-                              Harga: Rp {item.price.toLocaleString("id-ID")}
+                              Harga: Rp{" "}
+                              {item.price?.toLocaleString("id-ID") || "0"}
                             </Text>
                           </View>
                         </React.Fragment>
                       ))}
                     </View>
 
-                    {/* Footer */}
-                    <Text style={styles.detailRow}>
-                      Expired At: {payment.expired_at || "N/A"}
-                    </Text>
-                    <Text style={styles.detailRow}>
-                      Payment Type: {payment.payment_type || "N/A"}
-                    </Text>
                     <Text style={styles.detailRow}>
                       Tanggal:{" "}
-                      {payment.strukDetailsList?.[0]?.create_date
-                        ? new Date(
-                          payment.strukDetailsList[0].create_date
-                        ).toLocaleString("id-ID", {
-                          day: "2-digit",
-                          month: "long",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
+                      {header.create_date
+                        ? new Date(header.create_date).toLocaleString("id-ID", {
+                            day: "2-digit",
+                            month: "long",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
                         : "Tanggal tidak tersedia"}
                     </Text>
-                    {payment.va && payment.va.length > 0 && (
-                      <View>
-                        {payment.va.map(
-                          (
-                            vaItem: {
-                              bank: string;
-                              va_number: string;
-                            },
-                            index: React.Key | null | undefined
-                          ) => (
-                            <View key={index}>
-                              <Text>Bank: {vaItem.bank}</Text>
-                              <View style={styles.detailRow}>
-                                <Text style={styles.detailRow}>
-                                  VA Number: {vaItem.va_number}
-                                </Text>
-                                <TouchableOpacity
-                                  onPress={() =>
-                                    typeof vaItem.va_number === "string" &&
-                                    handleCopy(vaItem.va_number)
-                                  }
-                                >
-                                  <Icon
-                                    name="content-copy"
-                                    size={20}
-                                    color="#007AFF"
-                                  />
-                                </TouchableOpacity>
-                              </View>
-                            </View>
-                          )
-                        )}
-                      </View>
-                    )}
-                    {(payment.status === null || payment.status === "expire") && (
-                      <TouchableOpacity>
-                        <Text
-                          style={styles.deleteButton}
-                          onPress={() =>
-                            handleDelete(payment.strukDetailsList[0].id)
-                          }
-                        >
-                          <Ionicons name="trash" size={15} />
-                          Delete
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
+                    <View style={styles.historyFeeRow}>
+                      <Text style={styles.historyFeeLabel}>
+                        Biaya penanganan
+                      </Text>
+                      <Text style={styles.historyFeeValue}>
+                        Rp{" "}
+                        {(() => {
+                          const baseTotal =
+                            header.total ?? header.sub_total ?? 0;
+                          return Math.round(baseTotal * 0.007).toLocaleString(
+                            "id-ID"
+                          );
+                        })()}
+                      </Text>
+                    </View>
+                    <View style={styles.historyTotalRow}>
+                      <Text style={styles.historyTotalLabel}>Total</Text>
+                      <Text style={styles.historyTotalValue}>
+                        Rp{" "}
+                        {header.total?.toLocaleString("id-ID") ||
+                          header.sub_total?.toLocaleString("id-ID") ||
+                          "0"}
+                      </Text>
+                    </View>
+                  </ViewShot>
+                  <TouchableOpacity
+                    style={styles.historyShareButton}
+                    onPress={() => handleShareReceipt(receiptKey)}
+                  >
+                    <Ionicons name="share-social" size={16} color="#ffffff" />
+                    <Text style={styles.historyShareText}>Share Struk</Text>
+                  </TouchableOpacity>
                 </View>
-              ))
+              );
+            })
           ) : (
             <Text style={styles.emptyStateText}>
               Tidak ada pembayaran yang selesai.
             </Text>
+          )}
+          {completedGroups.length > visibleGroups.length && (
+            <TouchableOpacity
+              style={styles.historyLoadMore}
+              onPress={() => setCompletedPage((prev) => prev + 1)}
+            >
+              <Text style={styles.historyLoadMoreText}>Muat lebih banyak</Text>
+            </TouchableOpacity>
           )}
         </View>
       );
@@ -934,7 +1232,10 @@ const Cart = () => {
           <TabButton
             label="Belum Bayar"
             isActive={selectedTab === "Belum Bayar"}
-            onPress={() => setSelectedTab("Belum Bayar")}
+            onPress={() => {
+              setSelectedTab("Belum Bayar");
+              fetchPendingQris();
+            }}
           />
           <TabButton
             label="Selesai"
@@ -967,10 +1268,38 @@ const Cart = () => {
                 style={styles.checkoutCardGradient}
               >
                 <View style={styles.checkoutCard}>
+                  <View style={styles.paymentMethodRow}>
+                    <Text style={styles.paymentMethodLabel}>Metode Pembayaran</Text>
+                    <TouchableOpacity
+                      style={styles.paymentMethodButton}
+                      onPress={() => setPaymentMethodModalVisible(true)}
+                    >
+                      <Text style={styles.paymentMethodValue}>
+                        {selectedPaymentMethod}
+                      </Text>
+                      <Ionicons
+                        name="chevron-down"
+                        size={16}
+                        color="#de0866"
+                      />
+                    </TouchableOpacity>
+                  </View>
                   <View style={styles.totalRow}>
                     <Text style={styles.totalLabel}>Total</Text>
                     <Text style={styles.totalText}>
                       Rp{totalPrice.toLocaleString()}
+                    </Text>
+                  </View>
+                  <View style={styles.feeRow}>
+                    <Text style={styles.feeLabel}>Biaya penanganan</Text>
+                    <Text style={styles.feeValue}>
+                      Rp{handlingFee.toLocaleString()}
+                    </Text>
+                  </View>
+                  <View style={styles.grandTotalRow}>
+                    <Text style={styles.grandTotalLabel}>Grand Total</Text>
+                    <Text style={styles.grandTotalValue}>
+                      Rp{grandTotal.toLocaleString()}
                     </Text>
                   </View>
                   <TextInput
@@ -1025,6 +1354,58 @@ const Cart = () => {
           ) : null}
         </ScrollView>
         <View style={styles.bottomFill} pointerEvents="none" />
+        <Modal
+          transparent={true}
+          visible={isPaymentMethodModalVisible}
+          animationType="slide"
+          onRequestClose={() => setPaymentMethodModalVisible(false)}
+        >
+          <View style={styles.sheetOverlay}>
+            <TouchableOpacity
+              style={styles.sheetOverlay}
+              activeOpacity={1}
+              onPress={() => setPaymentMethodModalVisible(false)}
+            />
+            <View style={styles.sheetContainer}>
+              <View style={styles.sheetHandle} />
+              <Text style={styles.sheetTitle}>Pilih Metode Pembayaran</Text>
+              {paymentMethods.map((method) => {
+                const isEnabled = method === "QRIS" || method === "Saving";
+                return (
+                <TouchableOpacity
+                  key={method}
+                  style={[
+                    styles.sheetOption,
+                    selectedPaymentMethod === method && styles.sheetOptionActive,
+                    !isEnabled && styles.sheetOptionDisabled,
+                  ]}
+                  onPress={() => {
+                    if (!isEnabled) return;
+                    setSelectedPaymentMethod(method);
+                    setPaymentMethodModalVisible(false);
+                  }}
+                  disabled={!isEnabled}
+                >
+                  <Text
+                    style={[
+                      styles.sheetOptionText,
+                      selectedPaymentMethod === method &&
+                        styles.sheetOptionTextActive,
+                      !isEnabled && styles.sheetOptionTextDisabled,
+                    ]}
+                  >
+                    {method === "Saving"
+                      ? `Saving - Rp ${Number(profil?.saving || 0).toLocaleString()}`
+                      : method}
+                  </Text>
+                  {selectedPaymentMethod === method && (
+                    <Ionicons name="checkmark" size={18} color="#de0866" />
+                  )}
+                </TouchableOpacity>
+              )})}
+            </View>
+          </View>
+        </Modal>
         <Modal
           transparent={true}
           visible={isModalVisible}
@@ -1347,11 +1728,124 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: "#ffffff",
   },
+  paymentMethodRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  paymentMethodButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  paymentMethodLabel: {
+    fontSize: 12,
+    color: "#7a7a7a",
+    fontWeight: "600",
+    letterSpacing: 0.2,
+  },
+  paymentMethodValue: {
+    fontSize: 13,
+    color: "#de0866",
+    fontWeight: "700",
+  },
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "flex-end",
+  },
+  sheetContainer: {
+    backgroundColor: "#ffffff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 18,
+    paddingBottom: 24,
+    paddingTop: 10,
+  },
+  sheetHandle: {
+    width: 48,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: "#d7d7d7",
+    alignSelf: "center",
+    marginBottom: 12,
+  },
+  sheetTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#3a2f00",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  sheetOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+    backgroundColor: "#ffffff",
+  },
+  sheetOptionActive: {
+    borderColor: "#ffd24d",
+    backgroundColor: "#fff6d6",
+  },
+  sheetOptionDisabled: {
+    borderColor: "#f0f0f0",
+    backgroundColor: "#f7f7f7",
+  },
+  sheetOptionText: {
+    fontSize: 14,
+    color: "#3a2f00",
+    fontWeight: "600",
+  },
+  sheetOptionTextActive: {
+    color: "#de0866",
+  },
+  sheetOptionTextDisabled: {
+    color: "#9a9a9a",
+  },
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 10,
+  },
+  feeRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  feeLabel: {
+    fontSize: 12,
+    color: "#7a7a7a",
+    fontWeight: "600",
+  },
+  feeValue: {
+    fontSize: 12,
+    color: "#3a2f00",
+    fontWeight: "700",
+  },
+  grandTotalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  grandTotalLabel: {
+    fontSize: 14,
+    color: "#3a2f00",
+    fontWeight: "700",
+  },
+  grandTotalValue: {
+    fontSize: 16,
+    color: "#de0866",
+    fontWeight: "800",
   },
   totalLabel: {
     fontSize: 14,
@@ -1537,6 +2031,91 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     paddingBottom: 30,
   },
+  qrisLabelCenter: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6b3a00",
+    marginTop: 6,
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  qrisCardLite: {
+    marginTop: 12,
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
+  },
+  qrisImagePreview: {
+    width: 240,
+    height: 240,
+    resizeMode: "contain",
+  },
+  qrisShot: {
+    borderRadius: 12,
+    backgroundColor: "#ffffff",
+  },
+  qrisStatusText: {
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 12,
+    marginBottom: 4,
+    color: "#de0866",
+  },
+  qrisStatusExpired: {
+    color: "#d7263d",
+  },
+  qrisStatusPending: {
+    color: "#f4b400",
+  },
+  qrisStatusSuccess: {
+    color: "#1b8f3a",
+  },
+  qrisExpiryText: {
+    fontSize: 12,
+    color: "#7a7a7a",
+  },
+  qrisTimerText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#3a2f00",
+    marginTop: 4,
+  },
+  qrisActionRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 16,
+  },
+  qrisPrimaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: "#e21864",
+  },
+  qrisPrimaryText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#ffffff",
+  },
+  qrisSecondaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: "#fff6d6",
+  },
+  qrisSecondaryText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6b3a00",
+  },
   paymentCardShell: {
     width: "100%",
     borderRadius: 20,
@@ -1561,6 +2140,51 @@ const styles = StyleSheet.create({
     elevation: 3,
     borderWidth: 1,
     borderColor: "#f0f0f0",
+  },
+  historyCard: {
+    paddingTop: 16,
+  },
+  historyHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  historyTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#4b2d00",
+    flex: 1,
+  },
+  historySubtitle: {
+    fontSize: 13,
+    color: "#7a5c00",
+    marginTop: 6,
+  },
+  historyMeta: {
+    fontSize: 12,
+    color: "#a07c18",
+    marginTop: 2,
+  },
+  historyDivider: {
+    height: 1,
+    backgroundColor: "#f1e2b8",
+    marginVertical: 12,
+  },
+  historyInfoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  historyLabel: {
+    fontSize: 12,
+    color: "#7a5c00",
+  },
+  historyValue: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#3a2f00",
   },
   paymentOrderId: {
     fontSize: 14,
@@ -1676,11 +2300,84 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginBottom: 4,
   },
+  historyTotalRow: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#f1e2b8",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  historyFeeRow: {
+    marginTop: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  historyFeeLabel: {
+    fontSize: 12,
+    color: "#7a5c00",
+  },
+  historyFeeValue: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#3a2f00",
+  },
+  historyTotalLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#3a2f00",
+  },
+  historyTotalValue: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#1b8f3a",
+  },
+  historyShareButton: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: "#e21864",
+  },
+  historyShareText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#ffffff",
+  },
+  historyLoadMore: {
+    marginTop: 10,
+    alignSelf: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 18,
+    backgroundColor: "#fff6d6",
+    borderWidth: 1,
+    borderColor: "#f1d18a",
+  },
+  historyLoadMoreText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#6b3a00",
+  },
   statusPill: {
     backgroundColor: "rgba(255,195,0,0.12)",
     paddingVertical: 4,
     paddingHorizontal: 12,
     borderRadius: 16,
+  },
+  statusPillExpired: {
+    backgroundColor: "rgba(215,38,61,0.12)",
+  },
+  statusPillPending: {
+    backgroundColor: "rgba(245,165,36,0.16)",
+  },
+  statusPillSuccess: {
+    backgroundColor: "rgba(28,141,58,0.12)",
   },
   statusPillText: {
     fontSize: 12,
@@ -1823,6 +2520,3 @@ const styles = StyleSheet.create({
 });
 
 export default Cart;
-function fetchTransactions() {
-  throw new Error("Function not implemented.");
-}

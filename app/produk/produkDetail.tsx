@@ -17,7 +17,6 @@ import { fetchProdukDetail } from "../../services/ProdukDetail";
 import { useLocalSearchParams } from "expo-router";
 import { fetchProducts, sendLike } from "../../services/productService"; // Import fetchProducts
 import { fetchDeliveryServices } from "../../services/deliveryServices"; // Import fetchDeliveryServices
-import { fetchProfile } from "../../services/profileServices";
 import CustomHeader from "../../components/CustomWithbackground";
 
 
@@ -28,16 +27,18 @@ const ProdukDetail = () => {
 
   console.log("ProdukDetail Params:", { detailId, idStoreParam, idProdukParam });
 
-  const productIdNumber = useMemo(
-    () => Number(idProdukParam || detailId),
-    [idProdukParam, detailId]
-  );
+  const productIdNumber = useMemo(() => {
+    const raw = idProdukParam ?? detailId;
+    if (!raw || raw === "undefined") return 0;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }, [idProdukParam, detailId]);
   const storeIdFromParam = useMemo(
     () => Number(idStoreParam || 0),
     [idStoreParam]
   );
 
-  const { userToken } = useAuth();
+  const { userToken, fetchProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showCartAlert, setShowCartAlert] = useState(false);
   const [products, setProducts] = useState<
@@ -67,7 +68,8 @@ const ProdukDetail = () => {
   >([]);
   const [randomProducts, setRandomProducts] = useState<any[]>([]);
   const [idUser, setIdUser] = useState<number | null>(null);
-  const [loading, setLoading] = useState<boolean>(true); // Add loading state for random products
+  const [loading, setLoading] = useState<boolean>(true); // random products loading
+  const [detailLoading, setDetailLoading] = useState<boolean>(true);
   const resolveImage = useCallback((prod: any) => {
     return (
       prod?.foto ||
@@ -106,7 +108,7 @@ const ProdukDetail = () => {
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
-        const response = await fetchProfile(userToken || "");
+        const response = await fetchProfile();
         if (response?.id) {
           setIdUser(response.id);
         }
@@ -124,9 +126,11 @@ const ProdukDetail = () => {
       try {
         if (!storeIdFromParam || !productIdNumber) {
           console.warn("idStore atau idProduk tidak ditemukan.");
+          setDetailLoading(false);
           return;
         }
 
+        setDetailLoading(true);
         const response = await fetchProdukDetail(
           storeIdFromParam,
           productIdNumber,
@@ -164,6 +168,8 @@ const ProdukDetail = () => {
         }
       } catch (error) {
         console.error("Error fetching product details:", error);
+      } finally {
+        setDetailLoading(false);
       }
     };
 
@@ -189,7 +195,8 @@ const ProdukDetail = () => {
           String(effectiveStoreId),
           1,
           userToken || "",
-          new Set<number>()
+          new Set<number>(),
+          20
         );
         const shuffled = allProducts.sort(() => 0.5 - Math.random());
         setRandomProducts(shuffled.slice(0, 10)); // Select 10 random products
@@ -206,44 +213,39 @@ const ProdukDetail = () => {
 
   const [likedProducts, setLikedProducts] = useState<number[]>([]);
 
-  const handleLikePress = async (productId: number) => {
-    const isLiked =
-      likedProducts.includes(productId) ||
-      randomProducts.find((p) => p.id === productId)?.liked !== 0;
+  const getProductId = (product: any) =>
+    Number(product?.id ?? product?.id_produk ?? product?.idProduct);
 
-    setLikedProducts((prev) =>
-      isLiked ? prev.filter((id) => id !== productId) : [...prev, productId]
+  const handleLikePress = async (product: any) => {
+    const productId = getProductId(product);
+    const storeId = Number(
+      product?.id_store ?? product?.store_id ?? product?.storeid ?? effectiveStoreId
     );
-    setRandomProducts((prevProducts) =>
-      prevProducts.map((product) =>
-        product.id === productId
-          ? {
-            ...product,
-            likes: isLiked ? product.likes - 1 : product.likes + 1,
-            liked: isLiked ? 0 : 1,
-          }
-          : product
-      )
-    );
-
+    if (!Number.isFinite(productId) || !Number.isFinite(storeId)) {
+      console.warn("Like gagal: id produk/store tidak valid", { productId, storeId });
+      return;
+    }
     try {
-      await sendLike(userToken || "", productId, effectiveStoreId);
-    } catch (error) {
-      console.error("Failed to like/unlike product:", error);
-      setLikedProducts((prev) =>
-        isLiked ? [...prev, productId] : prev.filter((id) => id !== productId)
-      );
+      const result = await sendLike(userToken || "", productId, storeId);
+      const didLike = result?.action === "liked";
       setRandomProducts((prevProducts) =>
-        prevProducts.map((product) =>
-          product.id === productId
+        prevProducts.map((item) =>
+          getProductId(item) === productId
             ? {
-              ...product,
-              likes: isLiked ? product.likes + 1 : product.likes - 1,
-              liked: isLiked ? 1 : 0,
-            }
-            : product
+                ...item,
+                likes: didLike
+                  ? Number(item.likes || 0) + 1
+                  : Math.max(0, Number(item.likes || 0) - 1),
+                liked: didLike ? 1 : 0,
+              }
+            : item
         )
       );
+      setLikedProducts((prev) =>
+        didLike ? [...prev, productId] : prev.filter((id) => id !== productId)
+      );
+    } catch (error) {
+      console.error("Failed to like/unlike product:", error);
     }
   };
 
@@ -346,13 +348,20 @@ const ProdukDetail = () => {
 
   const renderMainProduct = () => {
     console.log("Rendering Main Product. Loading:", loading, "SelectedProduct:", selectedProduct ? "Found" : "Missing");
-    if (loading || !selectedProduct) {
+    if (detailLoading) {
       return (
         <View style={styles.skeletonMainProduct}>
           <View style={styles.skeletonMainImage} />
           <View style={styles.skeletonMainText} />
           <View style={styles.skeletonMainTextSmall} />
           <View style={styles.skeletonMainTextSmall} />
+        </View>
+      );
+    }
+    if (!selectedProduct) {
+      return (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateText}>Produk tidak ditemukan.</Text>
         </View>
       );
     }
@@ -492,16 +501,16 @@ const ProdukDetail = () => {
             <Text style={styles.sectionTitle}>Produk Lainnya</Text>
             <View style={styles.randomProductsGrid}>
               {loading
-                ? Array.from({ length: 6 }).map((_, index) => (
-                  <View key={index} style={styles.skeletonProductCard}>
-                    <View style={styles.skeletonProductImage} />
-                    <View style={styles.skeletonProductText} />
-                    <View style={styles.skeletonProductTextSmall} />
-                  </View>
-                ))
-                : randomProducts.map((product) => (
+                ? Array.from({ length: 6 }, (_, index) => (
+                    <View key={`skeleton-${index}`} style={styles.skeletonProductCard}>
+                      <View style={styles.skeletonProductImage} />
+                      <View style={styles.skeletonProductText} />
+                      <View style={styles.skeletonProductTextSmall} />
+                    </View>
+                  ))
+                : (Array.isArray(randomProducts) ? randomProducts : []).map((product) => (
                   <TouchableOpacity
-                    key={product.id}
+                    key={getProductId(product)}
                     style={styles.randomProductCard}
                     onPress={() => {
                       const storeParam =
@@ -510,8 +519,9 @@ const ProdukDetail = () => {
                         product.store_id ||
                         product.storeid ||
                         product.idStore;
+                      const detailId = getProductId(product);
                       router.push(
-                        `/produk/produkDetail?detailId=${product.id}&idStore=${storeParam}&nameProduk=${product.name_produk}&idProduk=${product.id}`
+                        `/produk/produkDetail?detailId=${detailId}&idStore=${storeParam}&nameProduk=${product.name_produk}&idProduk=${detailId}`
                       );
                     }}
                   >
@@ -585,27 +595,27 @@ const ProdukDetail = () => {
                           <Ionicons name="cart-outline" size={18} color="#3a2f00" />
                         </TouchableOpacity>
                         <TouchableOpacity
-                          onPress={() => handleLikePress(product.id)}
+                          onPress={() => handleLikePress(product)}
                           style={styles.actionButton}
                         >
                           <Ionicons
                             name={
-                              likedProducts.includes(product.id) || product.liked !== 0
+                              likedProducts.includes(getProductId(product)) ||
+                              Number(product.liked) === 1
                                 ? "heart"
                                 : "heart-outline"
                             }
                             size={18}
                             color={
-                              likedProducts.includes(product.id) || product.liked !== 0
+                              likedProducts.includes(getProductId(product)) ||
+                              Number(product.liked) === 1
                                 ? "red"
                                 : "#3a2f00"
                             }
                           />
                         </TouchableOpacity>
                         <Text style={styles.totalLikesText}>
-                          {product.likes !== 0
-                            ? `${product.likes} Likes`
-                            : "Belum ada Like"}
+                          {Number(product.likes || 0)} Likes
                         </Text>
                       </View>
                     </View>
@@ -961,6 +971,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#e0e0e0",
     borderRadius: 5,
     marginBottom: 8,
+  },
+  emptyState: {
+    paddingVertical: 24,
+    alignItems: "center",
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: "#7a7a7a",
   },
   customHeaderContainer: {
     backgroundColor: "#fff247",

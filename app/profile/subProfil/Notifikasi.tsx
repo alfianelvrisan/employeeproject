@@ -1,126 +1,127 @@
-import { AuthProvider } from "../../../context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, ScrollView, View, Image, Switch } from "react-native";
-import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
-import { useAuth } from "../../../context/AuthContext";
-import { fetchProfile } from "../../../services/profileServices";
+import React, { useState } from "react";
+import { StyleSheet, Text, ScrollView, View, Switch } from "react-native";
+import {
+  SafeAreaView,
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import CustomHeader from "../../../components/CustomHeader";
 
 const App = () => {
   const [isEnabled, setIsEnabled] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const toggleSwitch = () => setIsEnabled((previousState) => !previousState);
 
 
   return (
-    <AuthProvider>
-      <SafeAreaProvider>
+    <SafeAreaProvider>
       <Stack.Screen
-                options={{
-                  headerShown: false,
-                  headerTitle: "Notifikasi",
-                  headerTitleAlign: "center",
-                  headerStyle: {
-                    backgroundColor: "#fff",
-                  },
-                  headerTintColor: "#115f9f",
-                }}
-              />
-        <SafeAreaView style={styles.container}>
-          <CustomHeader title="Notification"/>
-          <ScrollView contentContainerStyle={styles.scrollView}>
-          <View style={styles.container}>
-          <View style={styles.inputContainer}>
-            <Ionicons
-              name="notifications-outline"
-              size={20}
-              style={styles.icon}
-            />
-            <Text style={styles.label}>Terima Notifikasi</Text>
-            <Switch
-              trackColor={{ false: "#767577", true: "#81b0ff" }}
-              thumbColor={isEnabled ? "#115f9f" : "#f4f3f4"}
-              onValueChange={toggleSwitch}
-              value={isEnabled}
-            />
-          </View>
+        options={{
+          headerShown: false,
+          headerTitle: "Notifikasi",
+          headerTitleAlign: "center",
+          headerStyle: {
+            backgroundColor: "#fff",
+          },
+          headerTintColor: "#115f9f",
+        }}
+      />
+      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+        <View style={[styles.headerWrap, { paddingTop: insets.top }]}>
+          <CustomHeader title="Notifikasi" variant="accent" />
         </View>
-
-          </ScrollView>
-        </SafeAreaView>
-      </SafeAreaProvider>
-    </AuthProvider>
+        <ScrollView contentContainerStyle={styles.scrollView}>
+          <Text style={styles.sectionTitle}>Pengaturan</Text>
+          <View style={styles.sectionCard}>
+            <View style={styles.row}>
+              <View style={styles.rowLeft}>
+                <View style={styles.iconBubble}>
+                  <Ionicons name="notifications-outline" size={18} color={PALETTE.icon} />
+                </View>
+                <Text style={styles.rowLabel}>Terima Notifikasi</Text>
+              </View>
+              <Switch
+                trackColor={{ false: "#d6d3c4", true: "#f6d94a" }}
+                thumbColor={isEnabled ? "#b08d00" : "#f4f3f4"}
+                onValueChange={toggleSwitch}
+                value={isEnabled}
+              />
+            </View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
+};
+
+const PALETTE = {
+  background: "#fffdf5",
+  card: "#ffffff",
+  border: "#efe7c4",
+  accent: "#fff247",
+  accentSoft: "#fff8d7",
+  textPrimary: "#3a2f00",
+  textMuted: "#6f5a1a",
+  icon: "#b08d00",
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: PALETTE.background,
   },
   scrollView: {
     padding: 20,
-    paddingTop: 20, // Move profile section further down
+    paddingTop: 24,
+    paddingBottom: 40,
   },
-  headerCard: {
-    alignItems: "center",
-    marginBottom: 30, // Add more space below the profile header
+  headerWrap: {
+    backgroundColor: PALETTE.accent,
   },
-  profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 10,
-    backgroundColor: "#f0f0f0",
-  },
-  profileInfo: {
-    alignItems: "center",
-  },
-  profileName: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#115f9f",
-  },
-  profileGreeting: {
+  sectionTitle: {
     fontSize: 14,
-    color: "#333",
+    fontWeight: "700",
+    color: PALETTE.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 10,
   },
-  inputContainer: {
+  sectionCard: {
+    backgroundColor: PALETTE.card,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: PALETTE.border,
+  },
+  row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#f9f9f9",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    paddingVertical: 14,
   },
-  addressContainer: {
-    alignItems: "flex-start", // Align items to the top for multiline text
+  rowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flexShrink: 1,
   },
-  icon: {
-    color: "#115f9f",
-    marginRight: 10,
+  iconBubble: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: PALETTE.accentSoft,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  label: {
-    fontSize: 16,
-    color: "#333",
-    flex: 1,
-  },
-  value: {
-    fontSize: 16,
-    color: "#555",
-    textAlign: "right",
-    flex: 2, // Allow the text to take more space
-  },
-  wrapText: {
-    flexWrap: "wrap", // Ensure text wraps to the next line
+  rowLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: PALETTE.textPrimary,
   },
 });
 

@@ -16,7 +16,6 @@ import Location from "../location/location";
 import React, { useEffect, useRef, useState } from "react";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
-import { fetchProfile } from "../../services/profileServices";
 import useScrollHeader from "../../hooks/useScrollHeader";
 import { Animated, Alert } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -42,8 +41,7 @@ import useLocationData from "../../services/useLocationData";
 export default function Index() {
   const [selectedLocation, setSelectedLocation] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const { userToken } = useAuth();
-  const { logout } = useAuth();
+  const { userToken, fetchProfile } = useAuth();
 
   // Initialize location data once here to share between components
   const locationInstance = useLocationData(setSelectedLocation, userToken || "");
@@ -68,10 +66,11 @@ export default function Index() {
     setRefreshing(true);
     try {
       if (userToken) {
-        const profile = await fetchProfile(userToken);
-        setProfile(profile);
-        if (profile === undefined) {
-          logout();
+        const profile = await fetchProfile();
+        if (profile) {
+          setProfile(profile);
+        } else {
+          setProfile(null);
         }
         setProdukKey((prevKey) => prevKey + 1); // Update Produk key to refresh it
       }
@@ -84,9 +83,15 @@ export default function Index() {
 
   useEffect(() => {
     if (userToken) {
-      fetchProfile(userToken)
-        .then((profile) => setProfile(profile))
-        .catch((error) => console.warn(error.message));
+      fetchProfile()
+        .then((profile) => {
+          if (profile) {
+            setProfile(profile);
+          }
+        })
+        .catch((error) => {
+          console.warn(error.message);
+        });
     }
   }, [userToken]);
 

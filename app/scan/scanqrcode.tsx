@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { router, Stack } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from "../../context/AuthContext";
 import {cekTrxMember} from "../../services/cekTrxMember";
 import React from 'react';
@@ -40,13 +40,14 @@ export default function App() {
             ),
           }}
         />
-        <Text style={styles.message}>We need your permission to show the camera</Text>
-      <View style={styles.button1}>
-        <Button
-          onPress={requestPermission}
-          title="Grant permission"
-        />
-      </View>
+        <View style={styles.permissionCard}>
+          <Ionicons name="camera" size={40} color="#111" />
+          <Text style={styles.permissionTitle}>Akses Kamera Dibutuhkan</Text>
+          <Text style={styles.message}>Izinkan kamera untuk memindai QR Code.</Text>
+          <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
+            <Text style={styles.permissionButtonText}>Continue</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -112,13 +113,24 @@ export default function App() {
       />
       <View pointerEvents="box-none" style={styles.overlay}>
         <CustomHeader title="Scan Qr Code"/>
-        {/* Kotak tengah fokus (scanner box) */}
-        <View style={styles.scannerBox} />
+        <View style={styles.scanHintWrap}>
+          <Text style={styles.scanTitle}>Arahkan QR di dalam kotak</Text>
+          <Text style={styles.scanSubtitle}>Pemindaian akan otomatis</Text>
+        </View>
+        <View style={styles.scannerMask}>
+          <View style={styles.scannerBox}>
+            <View style={[styles.corner, styles.cornerTopLeft]} />
+            <View style={[styles.corner, styles.cornerTopRight]} />
+            <View style={[styles.corner, styles.cornerBottomLeft]} />
+            <View style={[styles.corner, styles.cornerBottomRight]} />
+            <View style={styles.scanLine} />
+          </View>
+        </View>
 
         {/* Tombol flip kamera */}
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
-            <Text style={styles.text}><Ionicons name="camera-reverse" size={35} color="#fff" /></Text>
+            <Ionicons name="camera-reverse" size={30} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
@@ -130,12 +142,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)', 
+    backgroundColor: '#0c0f14',
   },
   message: {
     textAlign: 'center',
-    paddingBottom: 10,
-    borderRadius: 10,
+    color: '#2b2b2b',
+    marginTop: 8,
+    marginBottom: 18,
   },
   camera: {
     flex: 1,
@@ -143,16 +156,105 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
   },
-  scannerBox: {
+  permissionCard: {
+    alignSelf: 'center',
+    width: '85%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  permissionTitle: {
+    marginTop: 10,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111',
+  },
+  permissionButton: {
+    marginTop: 6,
+    backgroundColor: '#111',
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+  },
+  permissionButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  scanHintWrap: {
     position: 'absolute',
-    top: '15%',
-    left: '15%',
-    width: '70%',
-    height: 300,
-    borderWidth: 2,
-    borderColor: 'white',
-    borderRadius: 15,
-    // backgroundColor: 'rgba(0, 0, 0, 0.3)', 
+    top: 90,
+    alignSelf: 'center',
+    alignItems: 'center',
+  },
+  scanTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  scanSubtitle: {
+    marginTop: 6,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  scannerMask: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scannerBox: {
+    width: 260,
+    height: 260,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    overflow: 'hidden',
+  },
+  corner: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    borderColor: '#ffe133',
+  },
+  cornerTopLeft: {
+    top: 0,
+    left: 0,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+  },
+  cornerTopRight: {
+    top: 0,
+    right: 0,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+  },
+  cornerBottomLeft: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+  },
+  cornerBottomRight: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+  },
+  scanLine: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    top: 20,
+    height: 2,
+    backgroundColor: 'rgba(255, 225, 51, 0.9)',
   },
   buttonContainer: {
     position: 'absolute',
@@ -163,17 +265,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   button: {
-    flex: 1,
-    alignSelf: 'flex-end',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
-  text: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  button1:{
-    width: "70%",
-    marginHorizontal:"auto"
-  }
 });

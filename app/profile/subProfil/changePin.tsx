@@ -5,16 +5,22 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  ImageBackground,
-  Alert,
 } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
-import { AuthProvider, useAuth } from "../../../context/AuthContext";
+import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "../../../context/AuthContext";
 import RequirePin from "../../middleware/requirePin";
 import { PinProvider } from "../../../context/PinContext";
+import CustomHeader from "../../../components/CustomHeader";
+import {
+  SafeAreaView,
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 export default function PinLogin() {
   const { whatsapp, kode, option } = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
 
   const whatsappString = Array.isArray(whatsapp) ? whatsapp[0] : whatsapp ?? "";
   const formattedWhatsapp = whatsappString.replace(/^0/, "");
@@ -54,6 +60,26 @@ export default function PinLogin() {
     }
   };
 
+  const handlePinBackspace = (index: number, isPin1: boolean) => {
+    const current = isPin1 ? pin1[index] : pin2[index];
+    if (current !== "") {
+      return;
+    }
+    const prevIndex = index - 1;
+    if (prevIndex < 0) return;
+    if (isPin1) {
+      const updated = [...pin1];
+      updated[prevIndex] = "";
+      setPin1(updated);
+      pin1Refs.current[prevIndex]?.focus();
+    } else {
+      const updated = [...pin2];
+      updated[prevIndex] = "";
+      setPin2(updated);
+      pin2Refs.current[prevIndex]?.focus();
+    }
+  };
+
   const handleRegister = async () => {
     const enteredPin1 = pin1.join("");
     const enteredPin2 = pin2.join("");
@@ -76,32 +102,43 @@ export default function PinLogin() {
   };
 
   return (
-    <AuthProvider>
+    <SafeAreaProvider>
       <PinProvider>
         <RequirePin>
-          <ImageBackground
-            source={require("../../../assets/images/bg_otp.png")}
-            style={styles.background}
-          >
-            <Stack.Screen
-              options={{
-                headerShown: true,
-                headerTransparent: true,
-                title: "PIN",
-                headerTitleStyle: {
-                  fontSize: 18,
-                  fontWeight: "800",
-                },
-                headerStyle: {
-                  backgroundColor: "transparent", // Pastikan tidak ada warna latar
-                },
-                headerTitleAlign: "center",
-                headerTintColor: "#fff",
-              }}
-            />
-            <View style={styles.container}>
+          <Stack.Screen
+            options={{
+              headerShown: false,
+              headerTitle: "PIN",
+              headerTitleAlign: "center",
+              headerStyle: {
+                backgroundColor: "#fff",
+              },
+              headerTintColor: "#115f9f",
+            }}
+          />
+          <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+            <View style={[styles.headerWrap, { paddingTop: insets.top }]}>
+              <CustomHeader title="Ganti PIN" variant="accent" />
+            </View>
+            <Text style={styles.sectionTitle}>Keamanan Akun</Text>
+            <View style={styles.sectionCard}>
+              <View style={styles.cardHeader}>
+                <View style={styles.cardIcon}>
+                  <Ionicons name="lock-closed" size={18} color={PALETTE.icon} />
+                </View>
+                <View style={styles.cardHeaderText}>
+                  <Text style={styles.cardTitle}>Ubah PIN</Text>
+                  <Text style={styles.cardSub}>
+                    Gunakan 6 digit angka dan jangan dibagikan ke siapa pun.
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.cardDivider} />
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
-              <Text style={styles.text}>Masukkan PIN Baru:</Text>
+              <View style={styles.labelRow}>
+                <Text style={styles.text}>Masukkan PIN Baru</Text>
+                <Text style={styles.helperText}>6 digit</Text>
+              </View>
               <View style={styles.pinContainer}>
                 {pin1.map((digit, index) => (
                   <TextInput
@@ -115,15 +152,23 @@ export default function PinLogin() {
                     ]}
                     keyboardType="numeric"
                     maxLength={1}
-                    secureTextEntry // Input akan berbentuk password
+                    secureTextEntry
                     value={digit}
                     onChangeText={(value) =>
                       handlePinChange(value, index, true)
                     }
+                    onKeyPress={({ nativeEvent }) => {
+                      if (nativeEvent.key === "Backspace") {
+                        handlePinBackspace(index, true);
+                      }
+                    }}
                   />
                 ))}
               </View>
-              <Text style={styles.text}>Konfirmasi PIN:</Text>
+              <View style={styles.labelRow}>
+                <Text style={styles.text}>Konfirmasi PIN</Text>
+                <Text style={styles.helperText}>Ulangi PIN</Text>
+              </View>
               <View style={styles.pinContainer}>
                 {pin2.map((digit, index) => (
                   <TextInput
@@ -137,11 +182,16 @@ export default function PinLogin() {
                     ]}
                     keyboardType="numeric"
                     maxLength={1}
-                    secureTextEntry // Input akan berbentuk password
+                    secureTextEntry
                     value={digit}
                     onChangeText={(value) =>
                       handlePinChange(value, index, false)
                     }
+                    onKeyPress={({ nativeEvent }) => {
+                      if (nativeEvent.key === "Backspace") {
+                        handlePinBackspace(index, false);
+                      }
+                    }}
                   />
                 ))}
               </View>
@@ -153,70 +203,147 @@ export default function PinLogin() {
                 disabled={!!error}
                 onPress={handleRegister}
               >
-                <Text style={styles.submitButtonText}>Change Pin</Text>
+                <Text style={styles.submitButtonText}>Simpan PIN</Text>
               </TouchableOpacity>
             </View>
-          </ImageBackground>
+          </SafeAreaView>
         </RequirePin>
       </PinProvider>
-    </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
+const PALETTE = {
+  background: "#fffdf5",
+  card: "#ffffff",
+  border: "#efe7c4",
+  accent: "#fff247",
+  accentSoft: "#fff8d7",
+  textPrimary: "#3a2f00",
+  textMuted: "#6f5a1a",
+  icon: "#b08d00",
+};
+
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-    resizeMode: "cover",
-  },
   container: {
     flex: 1,
-    justifyContent: "center",
+    backgroundColor: PALETTE.background,
+  },
+  headerWrap: {
+    backgroundColor: PALETTE.accent,
+  },
+  sectionTitle: {
+    marginTop: 20,
+    marginHorizontal: 20,
+    fontSize: 14,
+    fontWeight: "700",
+    color: PALETTE.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  sectionCard: {
+    margin: 20,
+    marginTop: 10,
+    backgroundColor: PALETTE.card,
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: PALETTE.border,
+    shadowColor: "rgba(58,47,0,0.08)",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 18,
+    elevation: 2,
+  },
+  cardHeader: {
+    flexDirection: "row",
     alignItems: "center",
-    padding: 20,
+    gap: 12,
+    marginBottom: 12,
+  },
+  cardIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: PALETTE.accentSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardHeaderText: {
+    flex: 1,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: PALETTE.textPrimary,
+  },
+  cardSub: {
+    marginTop: 4,
+    fontSize: 12,
+    color: PALETTE.textMuted,
+    lineHeight: 16,
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: PALETTE.border,
+    marginBottom: 14,
+  },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
   },
   text: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 20,
+    fontSize: 15,
+    fontWeight: "700",
+    color: PALETTE.textPrimary,
+  },
+  helperText: {
+    fontSize: 12,
+    color: PALETTE.textMuted,
   },
   errorText: {
-    color: "red",
+    color: "#c0392b",
     fontSize: 14,
     marginBottom: 10,
     textAlign: "center",
+    backgroundColor: "#fff1f0",
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   pinContainer: {
     flexDirection: "row",
-    justifyContent: "center",
-    marginBottom: 20,
+    justifyContent: "space-between",
+    marginBottom: 18,
+    gap: 8,
   },
   pinInput: {
-    width: 50,
-    height: 50,
+    width: 46,
+    height: 52,
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
+    borderColor: PALETTE.border,
+    borderRadius: 10,
     textAlign: "center",
     fontSize: 18,
-    marginHorizontal: 5,
-    backgroundColor: "#fff",
+    backgroundColor: PALETTE.accentSoft,
+    color: PALETTE.textPrimary,
   },
   errorInput: {
     borderColor: "red",
   },
   submitButton: {
-    width: "96%",
-    backgroundColor: "#fff",
+    width: "100%",
+    backgroundColor: PALETTE.accent,
     paddingVertical: 15,
     paddingHorizontal: 30,
-    borderRadius: 8,
+    borderRadius: 12,
   },
   submitButtonDisabled: {
-    backgroundColor: "#ccc",
+    backgroundColor: "#e5e1ce",
   },
   submitButtonText: {
-    color: "#000",
+    color: PALETTE.textPrimary,
     fontSize: 16,
     fontWeight: "bold",
     textAlign: "center",

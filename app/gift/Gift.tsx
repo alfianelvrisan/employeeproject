@@ -206,9 +206,10 @@ export default function GiftReels() {
                 const tryFetchProducts = async () => {
                   const res = await fetchProducts(
                     DEFAULT_STORE_ID,
-                    0,
+                    1,
                     userToken || "",
-                    new Set<number>()
+                    new Set<number>(),
+                    20
                   );
                   return Array.isArray(res) ? res : [];
                 };

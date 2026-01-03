@@ -2,10 +2,10 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   StyleSheet,
   Text,
-  ScrollView,
   TouchableOpacity,
   View,
   Image,
+  ImageBackground,
   Modal,
   TouchableWithoutFeedback,
   ProgressBarAndroid,
@@ -18,9 +18,7 @@ import { Link, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import QRCode from "react-native-qrcode-svg";
 import * as Brightness from "expo-brightness";
-import { AuthProvider } from "../../context/AuthContext";
 import { useAuth } from "../../context/AuthContext";
-import { fetchProfile } from "../../services/profileServices";
 import useScrollHeader from "../../hooks/useScrollHeader";
 
 const goldmember = require("../../assets/images/silver.png");
@@ -72,14 +70,14 @@ export default function Profile() {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
   const { headerStyle, handleScroll } = useScrollHeader();
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const [isModalVisible, setModalVisible] = useState(false);
   const [barcodeValue, setBarcodeValue] = useState("");
   const [originalBrightness, setOriginalBrightness] = useState<number | null>(
     null
   );
-  const { logout } = useAuth();
-  const { userToken } = useAuth();
+  const { logout, userToken, fetchProfile } = useAuth();
   const [rank, setRank] = useState<string | null>(null);
   const [target, setTarget] = useState<number | null>(null);
   const [current, setCurrent] = useState<number | null>(null);
@@ -122,13 +120,22 @@ export default function Profile() {
 
   useEffect(() => {
     if (userToken) {
-      fetchProfile(userToken)
+      fetchProfile()
         .then((profile) => {
+          if (!profile) {
+            return;
+          }
           setProfile(profile);
-          setBarcodeValue(profile.member_card.toString());
-          setRank(profile.rankd);
-          setTarget(profile.target);
-          setCurrent(profile.pencapaian);
+          setBarcodeValue(
+            profile.member_card ? profile.member_card.toString() : "-"
+          );
+          setRank(profile.rankd || null);
+          setTarget(
+            typeof profile.target === "number" ? profile.target : null
+          );
+          setCurrent(
+            typeof profile.pencapaian === "number" ? profile.pencapaian : null
+          );
         })
         .catch((error) => console.warn(error.message));
     }
@@ -174,7 +181,6 @@ export default function Profile() {
   const insets = useSafeAreaInsets();
 
   return (
-    <AuthProvider>
       <SafeAreaProvider>
         <StatusBar
           barStyle="dark-content"
@@ -184,13 +190,17 @@ export default function Profile() {
           {/* Header Background */}
           <View style={[styles.headerBg, { height: 120 + insets.top }]} />
 
-          <ScrollView
+          <Animated.ScrollView
             style={styles.scrollView}
             contentContainerStyle={[
               styles.contentContainer,
               { paddingTop: insets.top + 20 }
             ]}
-            onScroll={handleScroll}
+            stickyHeaderIndices={[1]}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: true, listener: handleScroll }
+            )}
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}
           >
@@ -203,11 +213,7 @@ export default function Profile() {
                 </Text>
                 <View style={styles.profileDetailRow}>
                   <Text style={styles.profileId}>
-                    ID: {profil?.member_card || "-"}
-                  </Text>
-                  <View style={styles.dotSeparator} />
-                  <Text style={styles.profilePhone}>
-                    {profil?.no_tlp || "-"}
+                    {profil?.member_card || "-"}
                   </Text>
                 </View>
               </View>
@@ -225,39 +231,58 @@ export default function Profile() {
             </View>
 
             {/* Member Card Shell */}
-            <View style={styles.memberCardShell}>
-              <View style={styles.rankBadge}>
-                <Ionicons name="trophy" size={14} color="#C99618" />
-                <Text style={styles.rankText}>{displayRank} Member</Text>
-              </View>
-
-              <Image
-                source={
-                  normalizedRank === "gold"
-                    ? gold2
-                    : normalizedRank === "platinum"
-                      ? diamond
-                      : goldmember
-                }
-                style={styles.memberCardImage}
-              />
-
-              <Animated.Image
-                source={
-                  normalizedRank === "gold"
-                    ? goldlogo2
-                    : normalizedRank === "platinum"
-                      ? premiumlogo
-                      : goldlogo
-                }
+            <View style={styles.memberCardWrap}>
+              <Animated.View
                 style={[
-                  styles.memberCardLogo,
+                  styles.memberCardShell,
                   {
-                    transform: [{ scale: scaleAnim }],
-                    opacity: opacityAnim,
+                    transform: [
+                      {
+                        scale: scrollY.interpolate({
+                          inputRange: [0, 120],
+                          outputRange: [1, 0.98],
+                          extrapolate: "clamp",
+                        }),
+                      },
+                    ],
+                    opacity: 1,
                   },
                 ]}
-              />
+              >
+                <ImageBackground
+                  source={
+                    normalizedRank === "gold"
+                      ? gold2
+                      : normalizedRank === "platinum"
+                        ? diamond
+                        : goldmember
+                  }
+                  style={styles.memberCardImage}
+                  imageStyle={styles.memberCardImageInner}
+                >
+                  <View style={styles.rankBadge}>
+                    <Ionicons name="trophy" size={14} color="#C99618" />
+                    <Text style={styles.rankText}>{displayRank} Member</Text>
+                  </View>
+
+                  <Animated.Image
+                    source={
+                      normalizedRank === "gold"
+                        ? goldlogo2
+                        : normalizedRank === "platinum"
+                          ? premiumlogo
+                          : goldlogo
+                    }
+                    style={[
+                      styles.memberCardLogo,
+                      {
+                        transform: [{ scale: scaleAnim }],
+                        opacity: opacityAnim,
+                      },
+                    ]}
+                  />
+                </ImageBackground>
+              </Animated.View>
             </View>
 
             {/* Achievement Section */}
@@ -398,7 +423,7 @@ export default function Profile() {
 
             </View>
             <Text style={styles.versionText}>Aplikasi Versi 1.0.0</Text>
-          </ScrollView>
+          </Animated.ScrollView>
 
           <View pointerEvents="none" style={styles.bottomFill} />
 
@@ -465,7 +490,6 @@ export default function Profile() {
 
         </View>
       </SafeAreaProvider>
-    </AuthProvider>
   );
 }
 
@@ -559,22 +583,32 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   memberCardShell: {
-    marginHorizontal: 20,
     marginBottom: 24,
-    backgroundColor: "#fff",
     borderRadius: 20,
-    height: 160,
+    height: 180,
     overflow: "hidden",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#f0f0f0",
+    backgroundColor: "#ffffff",
+    borderWidth: 0,
+    width: "100%",
+    zIndex: 5,
+    elevation: 5,
+  },
+  memberCardWrap: {
+    paddingHorizontal: 20,
   },
   memberCardImage: {
     width: "100%",
     height: "100%",
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  memberCardImageInner: {
     resizeMode: "cover",
     borderRadius: 20,
+    backgroundColor: "#ffffff",
   },
   memberCardLogo: {
     position: "absolute",

@@ -54,7 +54,7 @@ export default function useLocationData(
 
       const reversePromise = Location.reverseGeocodeAsync({ latitude, longitude });
       const fetchPromise = fetch(
-        `https://api.laskarbuah.com/api/location?latitute=${latitude}&longitute=${longitude}&latitude=${latitude}&longitude=${longitude}&v_latitude=${latitude}&v_longitude=${longitude}&lat=${latitude}&lng=${longitude}`,
+        `https://api.laskarbuah.com/api/Master/location?latitute=${latitude}&longitute=${longitude}`,
         {
           method: "GET",
           headers: {
@@ -68,7 +68,7 @@ export default function useLocationData(
 
       setLocation(formatReverseAddress(reverseGeocode[0] ?? null));
 
-      let json = rawJson;
+      let json = Array.isArray(rawJson) ? rawJson : rawJson?.data || [];
       if (Array.isArray(json)) {
         json.sort((a: any, b: any) => {
           const distA = parseFloat((a.distance || "0").toString().replace(",", "."));
@@ -107,7 +107,7 @@ export default function useLocationData(
       setLocation(formatReverseAddress(reverseGeocode[0] ?? null));
 
       const response = await fetch(
-        `https://api.laskarbuah.com/api/location?latitute=${coordinate.latitude}&longitute=${coordinate.longitude}&latitude=${coordinate.latitude}&longitude=${coordinate.longitude}&v_latitude=${coordinate.latitude}&v_longitude=${coordinate.longitude}&lat=${coordinate.latitude}&lng=${coordinate.longitude}`,
+        `https://api.laskarbuah.com/api/Master/location?latitute=${coordinate.latitude}&longitute=${coordinate.longitude}`,
         {
           method: "GET",
           headers: {
@@ -117,6 +117,7 @@ export default function useLocationData(
         }
       );
       let json = await response.json();
+      json = Array.isArray(json) ? json : json?.data || [];
 
       if (Array.isArray(json)) {
         json.sort((a: any, b: any) => {

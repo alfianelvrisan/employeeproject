@@ -6,11 +6,9 @@ import { ThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native
 import { useColorScheme } from "../hooks/useColorScheme";
 import { AuthProvider } from "../context/AuthContext";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
 import { FONTS } from "../constants/theme";
 
-SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -30,7 +28,7 @@ export default function RootLayout() {
     }
 
     if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync().catch(() => {});
+      // Rely on default splash behavior; no manual hide.
     }
   }, [fontsLoaded, fontError]);
 
@@ -48,6 +46,8 @@ export default function RootLayout() {
               <Stack.Screen name="gift/Gift" options={{ headerShown: false }} />
               <Stack.Screen name="cart/cart" options={{ headerShown: false }} />
               <Stack.Screen name="search/search" options={{ headerShown: false }} />
+              <Stack.Screen name="topup/TopupSavings" />
+              <Stack.Screen name="topup/TopupHistory" />
               <Stack.Screen name="+not-found" />
             </Stack>
             <StatusBar style="auto" />

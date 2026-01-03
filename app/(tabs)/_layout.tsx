@@ -16,7 +16,6 @@ import Explore from "./explore";
 import Profile from "../profile/profile";
 import Carts from "../cart/cart";
 import { router, Stack, useRouter } from "expo-router";
-import { AuthProvider } from "../../context/AuthContext";
 import { MaterialIcons } from "@expo/vector-icons";
 import Gift from "../gift/Gift";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -115,90 +114,88 @@ export default function App() {
 
   return (
     <>
-      <AuthProvider>
-        <CurvedBottomBarExpo.Navigator
-          type="DOWN"
-          style={[styles.bottomBar, { paddingBottom: insets.bottom }]}
-          shadowStyle={styles.shadow}
-          height={55}
-          circleWidth={50}
-          bgColor="white"
-          initialRouteName="Home"
-          id="mainNavigator" // Unique ID for the navigator
-          screenOptions={{ headerShown: false }} // Example screen options
-          borderColor="transparent" // Example border color
-          borderWidth={0} // Example border width
-          width={Dimensions.get("window").width}
-          circlePosition="CENTER"
-          borderTopLeftRight={true}
-          screenListeners={{}}
-          defaultScreenOptions={{}}
-          backBehavior="history"
-          renderCircle={({ }) => (
-            <View style={styles.btnCircleUp}>
-              <TouchableOpacity
-                style={styles.button}
-                onPress={() => router.push("/scan/scanqrcode")}
-              >
-                <MaterialIcons name={"qr-code-scanner"} color="#000000ff" size={25} />
-              </TouchableOpacity>
-            </View>
-          )}
-          tabBar={renderTabBar}
-        >
-          <CurvedBottomBarExpo.Screen
-            name="Home"
-            position="LEFT"
-            component={Index}
-            options={{
-              headerShown: false,
-            }}
-          />
-          <CurvedBottomBarExpo.Screen
-            name="Settings"
-            position="RIGHT"
-            component={() => <Gift />}
-            options={{
-              headerShown: true,
-              headerTitle: "GiftLbi",
-              headerTitleAlign: "center",
-              headerStyle: {
-                elevation: 0,
-                shadowOpacity: 0,
-              },
-              headerTintColor: "#115f9f",
-            }}
-          />
-          <CurvedBottomBarExpo.Screen
-            name="Cart"
-            position="LEFT"
-            component={() => <Carts />}
-            options={{
-              headerShown: true,
-              headerTitle: "Pesanan",
-              headerTitleAlign: "center",
-              headerStyle: {
-                elevation: 0,
-                shadowOpacity: 0,
-              },
-              headerTintColor: "#115f9f",
-            }}
-          />
-          <CurvedBottomBarExpo.Screen
-            name="Profiles"
-            position="RIGHT"
-            component={() => <Profiles />}
-            options={{
-              headerShown: false,
-              headerStyle: {
-                backgroundColor: "#fff", // Latar belakang putih
-              },
-            }}
+      <CurvedBottomBarExpo.Navigator
+        type="DOWN"
+        style={[styles.bottomBar, { paddingBottom: insets.bottom }]}
+        shadowStyle={styles.shadow}
+        height={55}
+        circleWidth={50}
+        bgColor="white"
+        initialRouteName="Home"
+        id="mainNavigator" // Unique ID for the navigator
+        screenOptions={{ headerShown: false }} // Example screen options
+        borderColor="transparent" // Example border color
+        borderWidth={0} // Example border width
+        width={Dimensions.get("window").width}
+        circlePosition="CENTER"
+        borderTopLeftRight={true}
+        screenListeners={{}}
+        defaultScreenOptions={{}}
+        backBehavior="history"
+        renderCircle={({ }) => (
+          <View style={styles.btnCircleUp}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => router.push("/scan/scanqrcode")}
+            >
+              <MaterialIcons name={"qr-code-scanner"} color="#000000ff" size={25} />
+            </TouchableOpacity>
+          </View>
+        )}
+        tabBar={renderTabBar}
+      >
+        <CurvedBottomBarExpo.Screen
+          name="Home"
+          position="LEFT"
+          component={Index}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <CurvedBottomBarExpo.Screen
+          name="Settings"
+          position="RIGHT"
+          component={() => <Gift />}
+          options={{
+            headerShown: true,
+            headerTitle: "GiftLbi",
+            headerTitleAlign: "center",
+            headerStyle: {
+              elevation: 0,
+              shadowOpacity: 0,
+            },
+            headerTintColor: "#115f9f",
+          }}
+        />
+        <CurvedBottomBarExpo.Screen
+          name="Cart"
+          position="LEFT"
+          component={() => <Carts />}
+          options={{
+            headerShown: true,
+            headerTitle: "Pesanan",
+            headerTitleAlign: "center",
+            headerStyle: {
+              elevation: 0,
+              shadowOpacity: 0,
+            },
+            headerTintColor: "#115f9f",
+          }}
+        />
+        <CurvedBottomBarExpo.Screen
+          name="Profiles"
+          position="RIGHT"
+          component={() => <Profiles />}
+          options={{
+            headerShown: false,
+            headerStyle: {
+              backgroundColor: "#fff", // Latar belakang putih
+            },
+          }}
 
-          />
+        />
 
-        </CurvedBottomBarExpo.Navigator>
-      </AuthProvider>
+      </CurvedBottomBarExpo.Navigator>
     </>
   );
 }

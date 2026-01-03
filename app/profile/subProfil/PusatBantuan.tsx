@@ -2,11 +2,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
 import React from "react";
 import { StyleSheet, Text, ScrollView, View, TouchableOpacity, Linking } from "react-native";
-import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomHeader from "../../../components/CustomHeader";
 
 const App = () => {
+  const insets = useSafeAreaInsets();
   const links = [
     {
       label: "WhatsApp",
@@ -66,15 +71,15 @@ const App = () => {
           headerTintColor: "#115f9f",
         }}
       />
-      <SafeAreaView style={styles.root}>
-        <LinearGradient
-          colors={["#d9eaff", "#b7d4ff", "#8cb7ff"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFillObject}
-        />
-        <CustomHeader title="Pusat Bantuan" variant="dark" />
+      <SafeAreaView style={styles.root} edges={["left", "right", "bottom"]}>
+        <View style={[styles.headerWrap, { paddingTop: insets.top }]}>
+          <CustomHeader title="Hubungi CS" variant="accent" />
+        </View>
         <ScrollView contentContainerStyle={styles.scrollView}>
+          <Text style={styles.sectionTitle}>Butuh bantuan cepat?</Text>
+          <Text style={styles.sectionSub}>
+            Pilih kanal resmi Laskar Buah Indonesia untuk layanan pelanggan.
+          </Text>
 
           {links.map((item) => (
             <TouchableOpacity
@@ -122,11 +127,14 @@ const App = () => {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#eaf3ff",
+    backgroundColor: "#fffdf5",
+  },
+  headerWrap: {
+    backgroundColor: "#fff247",
   },
   scrollView: {
     padding: 20,
-    paddingTop: 12,
+    paddingTop: 24,
     paddingBottom: 32,
   },
   sectionHeader: {
@@ -135,18 +143,19 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#ffffff",
-    marginBottom: 6,
+    color: "#3a2f00",
+    marginBottom: 8,
   },
   sectionSub: {
     fontSize: 14,
-    color: "rgba(255,255,255,0.9)",
+    color: "#6f5a1a",
     lineHeight: 20,
+    marginBottom: 18,
   },
   cardShadow: {
     marginBottom: 14,
     borderRadius: 16,
-    shadowColor: "#0a3e7a",
+    shadowColor: "rgba(58,47,0,0.25)",
     shadowOpacity: 0.25,
     shadowOffset: { width: 0, height: 8 },
     shadowRadius: 16,

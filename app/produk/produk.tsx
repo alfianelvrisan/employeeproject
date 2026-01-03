@@ -15,13 +15,12 @@ import {
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
-import { useAuth } from "../../context/AuthContext";
 import {
   fetchProducts,
   fetchCategories,
   sendLike,
 } from "../../services/productService";
-import { fetchProfile } from "../../services/profileServices";
+import { useAuth } from "../../context/AuthContext";
 import { fetchDeliveryServices } from "../../services/deliveryServices";
 
 const PRIMARY_YELLOW = "#ffe133";
@@ -41,11 +40,11 @@ const CATEGORY_ICON_MAP: Record<string, ImageSourcePropType> = {
   "sayuran kering": require("../../assets/icons/Sayuran Kering.png"),
   vegetables: require("../../assets/icons/Sayuran Basah.png"),
   vegetable: require("../../assets/icons/Sayuran Basah.png"),
-  snack: require("../../assets/icons/Snack.png"),
-  roti: require("../../assets/icons/Roti.png"),
-  minuman: require("../../assets/icons/Minuman.png"),
+  snack: require("../../assets/icons/snack.png"),
+  roti: require("../../assets/icons/roti.png"),
+  minuman: require("../../assets/icons/minuman.png"),
   frozen: require("../../assets/icons/Frozen food.png"),
-  grosir: require("../../assets/icons/Grosir.png"),
+  grosir: require("../../assets/icons/grosir.png"),
   telur: require("../../assets/icons/Telur.png"),
   konsinyasi: require("../../assets/icons/Konsinyasi.png"),
   production: require("../../assets/icons/Production.png"),
@@ -103,7 +102,7 @@ const Produk = ({
   showSearchBar = true,
   style,
   initialLimit = 20,
-  pageSize = 10,
+  pageSize = 20,
   ListHeaderComponent,
   onRefreshParent,
   onScroll,
@@ -117,16 +116,18 @@ const Produk = ({
   const [search, setSearch] = useState(searchQuery);
   const [showCartAlert, setShowCartAlert] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const { userToken } = useAuth();
+  const { userToken, fetchProfile } = useAuth();
   const [idUser, setIdUser] = useState<number | null>(null);
 
   // Pagination State
-  const [visibleLimit, setVisibleLimit] = useState(initialLimit);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
-        const response = await fetchProfile(userToken || "");
+        const response = await fetchProfile();
         if (response) {
           setIdUser(response.id);
         }
@@ -138,23 +139,48 @@ const Produk = ({
     fetchUserProfile();
   }, [userToken]);
 
-  const fetchAndSetProducts = useCallback(async () => {
-    if (!idStore || isLoading) return;
-    setIsLoading(true);
-    try {
-      const products = await fetchProducts(idStore, 1, userToken || "", new Set<number>());
-      setProducts(products); // Replace, no pagination
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [idStore, userToken, isLoading]);
+  const getSelectedCategoryLabel = useCallback(() => {
+    if (selectedCategory === 0) return "";
+    const match = categorys.find((c) => c.id === selectedCategory);
+    return match?.kategory || "";
+  }, [selectedCategory, categorys]);
+
+  const fetchAndSetProducts = useCallback(
+    async (pageToLoad: number, append: boolean, useCache: boolean) => {
+      if (!idStore || isLoading || isFetchingMore) return;
+      append ? setIsFetchingMore(true) : setIsLoading(true);
+      try {
+        const vWhere = getSelectedCategoryLabel();
+        const existingIds = append
+          ? new Set(produck.map((p) => getProductId(p)))
+          : new Set<number>();
+        const products = await fetchProducts(
+          idStore,
+          pageToLoad,
+          userToken || "",
+          existingIds,
+          pageSize,
+          useCache,
+          vWhere
+        );
+        setProducts((prev) => (append ? [...prev, ...products] : products));
+        setHasMore(products.length >= pageSize);
+        setPage(pageToLoad);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        append ? setIsFetchingMore(false) : setIsLoading(false);
+      }
+    },
+    [idStore, userToken, isLoading, isFetchingMore, produck, pageSize, getSelectedCategoryLabel]
+  );
 
   useEffect(() => {
     if (!idStore) return;
-    fetchAndSetProducts();
-  }, [idStore]);
+    setPage(1);
+    setHasMore(true);
+    fetchAndSetProducts(1, false, true);
+  }, [idStore, selectedCategory, categorys]);
 
   useEffect(() => {
     setSearch(searchQuery);
@@ -163,7 +189,7 @@ const Produk = ({
   useEffect(() => {
     if (!idStore) return;
 
-    fetchCategories(idStore)
+    fetchCategories(idStore, userToken || "")
       .then((json) => setCategory(json))
       .catch((err) => console.error(err));
   }, [idStore]);
@@ -173,14 +199,10 @@ const Produk = ({
     if (onRefreshParent) {
       await onRefreshParent();
     }
-    await fetchAndSetProducts();
+    setHasMore(true);
+    await fetchAndSetProducts(1, false, false);
     setRefreshing(false);
   };
-
-  // Reset limit when search or category changes
-  useEffect(() => {
-    setVisibleLimit(initialLimit);
-  }, [search, selectedCategory, initialLimit]);
 
   // Filter Logic
   const filteredProducts = useMemo(() => {
@@ -196,59 +218,51 @@ const Produk = ({
     });
   }, [produck, search, selectedCategory]);
 
-  // Sliced Data for Display
   const displayedProducts = useMemo(() => {
-    return filteredProducts.slice(0, visibleLimit);
-  }, [filteredProducts, visibleLimit]);
+    return filteredProducts;
+  }, [filteredProducts]);
 
   const handleLoadMore = () => {
-    if (visibleLimit < filteredProducts.length) {
-      setVisibleLimit((prev) => prev + pageSize);
-    }
+    if (!hasMore || isLoading || isFetchingMore) return;
+    fetchAndSetProducts(page + 1, true, true);
   };
 
-  const handleLikePress = async (productId: number) => {
-    const isLiked =
-      likedProducts.includes(productId) ||
-      produck.find((p) => p.id === productId)?.liked !== 0;
+  const getProductId = (product: any) =>
+    Number(product?.id ?? product?.id_produk ?? product?.idProduct);
 
-    setLikedProducts((prev) =>
-      isLiked ? prev.filter((id) => id !== productId) : [...prev, productId]
+  const handleLikePress = async (product: any) => {
+    const productId = getProductId(product);
+    const storeId = Number(
+      product?.id_store ?? product?.store_id ?? product?.storeid ?? idStore
     );
-    setProducts((prevProducts) =>
-      prevProducts.map((product) =>
-        product.id === productId
-          ? {
-            ...product,
-            likes: isLiked ? product.likes - 1 : product.likes + 1,
-            liked: isLiked ? 0 : 1,
-          }
-          : product
-      )
-    );
-
+    if (!Number.isFinite(productId) || !Number.isFinite(storeId)) {
+      console.warn("Like gagal: id produk/store tidak valid", { productId, storeId });
+      return;
+    }
     try {
-      await sendLike(userToken || "", productId, idStore);
-      // Sinkronkan kembali dengan data server agar hitungan like konsisten antar pengguna
-      await fetchAndSetProducts();
-    } catch (error) {
-      console.error("Failed to like/unlike product:", error);
-      setLikedProducts((prev) =>
-        isLiked ? [...prev, productId] : prev.filter((id) => id !== productId)
-      );
+      const result = await sendLike(userToken || "", productId, storeId);
+      const didLike = result?.action === "liked";
       setProducts((prevProducts) =>
         prevProducts.map((product) =>
-          product.id === productId
+          getProductId(product) === productId
             ? {
-              ...product,
-              likes: isLiked ? product.likes + 1 : product.likes - 1,
-              liked: isLiked ? 1 : 0,
-            }
+                ...product,
+                likes: didLike
+                  ? Number(product.likes || 0) + 1
+                  : Math.max(0, Number(product.likes || 0) - 1),
+                liked: didLike ? 1 : 0,
+              }
             : product
         )
       );
+      setLikedProducts((prev) =>
+        didLike ? [...prev, productId] : prev.filter((id) => id !== productId)
+      );
+    } catch (error) {
+      console.error("Failed to like/unlike product:", error);
     }
   };
+
 
   const handleAddToCart = useCallback(
     async (id: any) => {
@@ -390,7 +404,7 @@ const Produk = ({
         style={[styles.container, style]}
         contentContainerStyle={{ paddingBottom: 140 }}
         data={displayedProducts} // Use sliced data
-        keyExtractor={(item, index) => `${item.id}-${index}`}
+        keyExtractor={(item, index) => `${getProductId(item)}-${index}`}
         numColumns={2}
         columnWrapperStyle={[styles.row, { paddingHorizontal: 12 }]}
         onEndReached={handleLoadMore} // Use local load more
@@ -417,14 +431,15 @@ const Produk = ({
                 item.storeid ||
                 item.idStore;
 
+              const detailId = getProductId(item);
               console.log("Navigating to produkDetail with:", {
-                detailId: item.id,
+                detailId,
                 idStore: storeParam,
                 nameProduk: item.name_produk,
               });
 
               router.push(
-                `/produk/produkDetail?detailId=${item.id}&idStore=${storeParam}&nameProduk=${encodeURIComponent(item.name_produk)}&idProduk=${item.id}`
+                `/produk/produkDetail?detailId=${detailId}&idStore=${storeParam}&nameProduk=${encodeURIComponent(item.name_produk)}&idProduk=${detailId}`
               );
             }}
           >
@@ -482,31 +497,33 @@ const Produk = ({
 
               <View style={styles.actionContainer}>
                 <TouchableOpacity
-                  onPress={() => handleAddToCart(item.id)}
+                  onPress={() => handleAddToCart(getProductId(item))}
                   style={styles.actionButton}
                 >
                   <Ionicons name="cart-outline" size={18} color={PRIMARY_TEXT_DARK} />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => handleLikePress(item.id)}
+                  onPress={() => handleLikePress(item)}
                   style={styles.actionButton}
                 >
                   <Ionicons
                     name={
-                      likedProducts.includes(item.id) || item.liked !== 0
+                      likedProducts.includes(getProductId(item)) ||
+                      Number(item.liked) === 1
                         ? "heart"
                         : "heart-outline"
                     }
                     size={18}
                     color={
-                      likedProducts.includes(item.id) || item.liked !== 0
+                      likedProducts.includes(getProductId(item)) ||
+                      Number(item.liked) === 1
                         ? "red"
                         : PRIMARY_TEXT_DARK
                     }
                   />
                 </TouchableOpacity>
                 <Text style={styles.totalLikesText}>
-                  {item.likes !== 0 ? `${item.likes} Likes` : "Belum ada Like"}
+                  {Number(item.likes || 0)} Likes
                 </Text>
               </View>
             </View>
@@ -578,11 +595,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderRadius: 16,
     padding: 10,
-    marginBottom: 2,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: "#e0e0e0", // Clean border, no shadow
     width: "49%",
-    height: "95%",
+    minHeight: 310,
+    flexDirection: "column",
   },
   imageWrapper: {
     borderRadius: 14,
@@ -610,7 +628,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   productInfo: {
-    marginBottom: 10,
+    flexGrow: 1,
   },
   productName: {
     fontSize: 15,
@@ -681,7 +699,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginTop: 10,
+    marginTop: "auto",
   },
   actionButton: {
     width: 38,

@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useState } from "react";
+import React, { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ScrollView,
   Modal,
   Alert,
+  Share,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, Stack, useLocalSearchParams } from "expo-router";
@@ -15,8 +16,9 @@ import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../../context/AuthContext";
 import { listTrxDetail } from "../../../services/listTrxDetail";
-import { fetchProfile } from "../../../services/profileServices";
 import { fetchPotMember } from "../../../services/potMember";
+import ViewShot, { captureRef } from "react-native-view-shot";
+import * as Sharing from "expo-sharing";
 
 const PALETTE = {
   pageBg: "#ffffff",
@@ -33,7 +35,7 @@ export default function ApproveTransaksi() {
   const { id } = useLocalSearchParams();
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
-  const { userToken } = useAuth();
+  const { userToken, fetchProfile } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
   const [isDisabled, setIsDisabled] = useState(false);
@@ -58,26 +60,49 @@ export default function ApproveTransaksi() {
   }
 
   const [receipt, setReceipt] = useState<ReceiptItem[]>([]);
+  const receiptShotRef = useRef<ViewShot | null>(null);
+
+  const fetchtrx = async () => {
+    const response = await listTrxDetail(Number(id), String(userToken));
+    setReceipt(response);
+    return response;
+  };
+
+  const hasTrxNumber = (data: ReceiptItem[] = receipt) =>
+    Boolean((data?.[0] as any)?.trx_num);
+
   useEffect(() => {
-    const fetchtrx = async () => {
+    let interval: NodeJS.Timeout | null = null;
+    const startPolling = async () => {
       try {
-        const response = await listTrxDetail(Number(id), String(userToken));
-        setReceipt(response);
+        await fetchtrx();
       } catch (error) {
         console.error(error);
       }
+      interval = setInterval(async () => {
+        try {
+          const latest = await fetchtrx();
+          if (isTransactionComplete(latest) || hasTrxNumber(latest)) {
+            if (interval) clearInterval(interval);
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }, 4000);
     };
-    fetchtrx();
-    // const interval = setInterval(async () => {
-    //   fetchtrx();
-    // }, 3000);
 
-    // return () => clearInterval(interval);
+    if (userToken && id) {
+      startPolling();
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [id, userToken]);
 
   useEffect(() => {
     if (userToken) {
-      fetchProfile(userToken)
+      fetchProfile()
         .then((profile) => {
           setProfile(profile);
         })
@@ -102,51 +127,113 @@ export default function ApproveTransaksi() {
       ? receipt[0].potongan
       : 0);
 
-      const handleconfirm = async (id: number) => {
-        try {
-          const result = await fetchPotMember(
-            id,
-            String(profile?.saving),
-            Number(profile.id),
-            Number(selectedOption),
-            String(userToken)
-          );
-      
-          // Periksa nilai yang dikembalikan
-          if (result?.corp_sp_save_trx_sales_potongan_member === 1) {
-            setModalMessage("Transaksi berhasil!,Saving akan Terpotong setelah selesai transaksi");
-            setModalVisible(true);
-          } else {
-            setModalMessage("Transaksi gagal!");
-            setModalVisible(true);
-          }
-        } catch (error) {
-          console.error(error);
-          Alert.alert("Error", "Terjadi kesalahan saat memproses transaksi.");
+  const handleconfirm = async (id: number) => {
+    try {
+      const result = await fetchPotMember(
+        id,
+        String(profile?.saving),
+        Number(profile.id),
+        Number(selectedOption),
+        String(userToken)
+      );
+
+      if (result?.corp_sp_save_trx_sales_potongan_member === 1) {
+        setModalMessage(
+          "Transaksi berhasil!,Saving akan Terpotong setelah selesai transaksi"
+        );
+        setModalVisible(true);
+      } else {
+        setModalMessage("Transaksi gagal!");
+        setModalVisible(true);
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "Terjadi kesalahan saat memproses transaksi.");
+    }
+  };
+
+  const isTransactionComplete = (data: ReceiptItem[] = receipt) => {
+    const trx = data?.[0] as any;
+    if (!trx) return false;
+    const status =
+      trx.status ??
+      trx.trx_status ??
+      trx.status_trx ??
+      trx.status_transaksi ??
+      trx.status_trx_member;
+    return String(status) === "1" || status === 1 || status === "settlement";
+  };
+
+  const shareText = useMemo(() => {
+    const trx = receipt[0] as any;
+    const items = receipt
+      .map(
+        (item) =>
+          `${item.name_produk} x${item.qty} - Rp ${(item.qty * item.master_price).toLocaleString()}`
+      )
+      .join("\n");
+    return [
+      "Nota Belanja",
+      trx?.group_name ? `Toko: ${trx.group_name}` : "",
+      trx?.trx_num ? `No: ${trx.trx_num}` : "",
+      trx?.create_date ? `Tanggal: ${trx.create_date}` : "",
+      "",
+      items,
+      "",
+      `Subtotal: Rp ${totalPrice.toLocaleString()}`,
+      `Discount: Rp ${totaldiscount.toLocaleString()}`,
+      `Potongan: Rp ${receipt[0]?.potongan || 0}`,
+      `Total: Rp ${total.toLocaleString()}`,
+      `Bayar: Rp ${receipt[0]?.bayar?.toLocaleString() || 0}`,
+      `Kembalian: Rp ${receipt[0]?.kembalian?.toLocaleString() || 0}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }, [receipt, total, totalPrice, totaldiscount]);
+
+  const handleShare = async () => {
+    try {
+      if (receiptShotRef.current) {
+        const uri = await captureRef(receiptShotRef, {
+          format: "png",
+          quality: 1,
+        });
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(uri);
+          return;
         }
-      };
+      }
+      await Share.share({ message: shareText });
+    } catch (error) {
+      console.error("Share failed:", error);
+    }
+  };
 
   return (
       <SafeAreaView style={styles.container}>
-        <View style={[styles.headerBg, { height: 110 + insets.top }]} />
-        <View style={[styles.headerBar, { paddingTop: insets.top + 8 }]}>
-          <TouchableOpacity
-            style={styles.headerBack}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="chevron-back" size={22} color={PALETTE.textPrimary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Nota Belanja</Text>
-        </View>
         <ScrollView contentContainerStyle={styles.content}>
           <Stack.Screen
             options={{
-              headerShown: false,
+              headerShown: true,
+              title: "Nota Belanja",
+              headerStyle: { backgroundColor: PALETTE.accentYellow },
+              headerTitleStyle: {
+                color: PALETTE.textPrimary,
+                fontWeight: "700",
+              },
             }}
           />
 
           {/* Receipt Card */}
-          <View style={styles.receiptCard}>
+          <ViewShot ref={receiptShotRef} style={styles.receiptShot}>
+            <View style={styles.receiptCard}>
+            <View style={styles.watermarkLayer}>
+              {Array.from({ length: 120 }).map((_, idx) => (
+                <Text key={idx} style={styles.watermarkText}>
+                  LASKAR BUAH
+                </Text>
+              ))}
+            </View>
             {/* Header */}
             <>
               <View style={styles.header}>
@@ -238,77 +325,98 @@ export default function ApproveTransaksi() {
                 {receipt.length > 0 ? receipt[0].bayar?.toLocaleString() : "0"}
               </Text>
             </View>
-            <View style={styles.totalContainer}>
-              <Text style={styles.totalLabel}>Kembalian</Text>
-              <Text style={styles.totalPrice}>
-                Rp{" "}
-                {receipt.length > 0
-                  ? receipt[0].kembalian?.toLocaleString()
-                  : "0"}
-              </Text>
-            </View>
           </View>
-          <View style={styles.receiptCard}>
-            <Text style={styles.paymentTitle}>Pilih metode pembayaran</Text>
-            <TouchableOpacity
-              style={[
-                styles.paymentOption,
-                selectedOption === "2" && styles.paymentOptionActive,
-              ]}
-              onPress={() => setSelectedOption("2")}
-              activeOpacity={0.85}
-            >
-              <View style={styles.paymentOptionLeft}>
-                <View
-                  style={[
-                    styles.radioButton,
-                    selectedOption === "2" && styles.radioButtonSelected,
-                  ]}
-                >
-                  {selectedOption === "2" && (
-                    <Ionicons name="checkmark" size={12} color="#ffffff" />
-                  )}
+          </ViewShot>
+          {!hasTrxNumber() && (
+            <View style={styles.receiptCard}>
+              <Text style={styles.paymentTitle}>Pilih metode pembayaran</Text>
+              <TouchableOpacity
+                style={[
+                  styles.paymentOption,
+                  selectedOption === "2" && styles.paymentOptionActive,
+                ]}
+                onPress={() => setSelectedOption("2")}
+                activeOpacity={0.85}
+              >
+                <View style={styles.paymentOptionLeft}>
+                  <View
+                    style={[
+                      styles.radioButton,
+                      selectedOption === "2" && styles.radioButtonSelected,
+                    ]}
+                  >
+                    {selectedOption === "2" && (
+                      <Ionicons name="checkmark" size={12} color="#ffffff" />
+                    )}
+                  </View>
+                  <Text style={styles.paymentLabel}>Poin</Text>
                 </View>
-                <Text style={styles.paymentLabel}>Poin</Text>
-              </View>
-              <Text style={styles.paymentValue}>{profile?.poin || "0"}</Text>
-            </TouchableOpacity>
+                <Text style={styles.paymentValue}>{profile?.poin || "0"}</Text>
+              </TouchableOpacity>
 
+              <TouchableOpacity
+                style={[
+                  styles.paymentOption,
+                  selectedOption === "1" && styles.paymentOptionActive,
+                ]}
+                onPress={() => setSelectedOption("1")}
+                activeOpacity={0.85}
+              >
+                <View style={styles.paymentOptionLeft}>
+                  <View
+                    style={[
+                      styles.radioButton,
+                      selectedOption === "1" && styles.radioButtonSelected,
+                    ]}
+                  >
+                    {selectedOption === "1" && (
+                      <Ionicons name="checkmark" size={12} color="#ffffff" />
+                    )}
+                  </View>
+                  <Text style={styles.paymentLabel}>Savings</Text>
+                </View>
+                <Text style={styles.paymentValue}>{profile?.saving || "0"}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {hasTrxNumber() || isTransactionComplete() ? (
+            <View style={styles.shareRow}>
+              <TouchableOpacity
+                style={[styles.confirmButton, styles.shareButton, styles.halfButton]}
+                onPress={handleShare}
+              >
+                <Ionicons name="share-social-outline" size={20} color="#ffffff" />
+                <Text style={[styles.confirmButtonText, styles.shareButtonText]}>
+                  Share
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmButton, styles.doneButton, styles.halfButton]}
+                onPress={() => router.replace("/")}
+              >
+                <Ionicons name="checkmark-circle-outline" size={20} color="#ffffff" />
+                <Text style={[styles.confirmButtonText, styles.shareButtonText]}>
+                  Selesai
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
             <TouchableOpacity
               style={[
-                styles.paymentOption,
-                selectedOption === "1" && styles.paymentOptionActive,
+                styles.confirmButton,
+                receipt[0]?.potongan !== 0 && styles.disabledButton,
               ]}
-              onPress={() => setSelectedOption("1")}
-              activeOpacity={0.85}
+              onPress={() => handleconfirm(Number(id))}
+              disabled={receipt[0]?.potongan !== 0}
             >
-              <View style={styles.paymentOptionLeft}>
-                <View
-                  style={[
-                    styles.radioButton,
-                    selectedOption === "1" && styles.radioButtonSelected,
-                  ]}
-                >
-                  {selectedOption === "1" && (
-                    <Ionicons name="checkmark" size={12} color="#ffffff" />
-                  )}
-                </View>
-                <Text style={styles.paymentLabel}>Savings</Text>
-              </View>
-              <Text style={styles.paymentValue}>{profile?.saving || "0"}</Text>
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={20}
+                color="#000000ff"
+              />
+              <Text style={styles.confirmButtonText}>Konfirmasi</Text>
             </TouchableOpacity>
-          </View>
-          <TouchableOpacity
-  style={[
-    styles.confirmButton,
-    receipt[0]?.potongan !== 0 && styles.disabledButton, // Tambahkan gaya jika tombol dinonaktifkan
-  ]}
-  onPress={() => handleconfirm(Number(id))}
-  disabled={receipt[0]?.potongan !== 0} // Nonaktifkan tombol jika potongan tidak sama dengan 0
->
-  <Ionicons name="checkmark-circle-outline" size={20} color="#000000ff" />
-  <Text style={styles.confirmButtonText}>Konfirmasi</Text>
-</TouchableOpacity>
+          )}
           <Modal
             transparent={true}
             visible={modalVisible}
@@ -337,39 +445,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: PALETTE.pageBg,
   },
-  headerBg: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: PALETTE.accentYellow,
-    borderBottomLeftRadius: 26,
-    borderBottomRightRadius: 26,
-    zIndex: 0,
-  },
-  headerBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    zIndex: 1,
-  },
-  headerBack: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: PALETTE.borderSoft,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: PALETTE.textPrimary,
-    marginLeft: 12,
-  },
   content: {
     paddingHorizontal: 16,
     paddingTop: 10,
@@ -379,16 +454,41 @@ const styles = StyleSheet.create({
     backgroundColor: PALETTE.surface,
     borderRadius: 16,
     padding: 16,
-    shadowColor: "transparent",
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 0,
+    shadowColor: "rgba(0,0,0,0.18)",
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: PALETTE.borderSoft,
     borderTopWidth: 3,
     borderTopColor: PALETTE.accentSoft,
+  },
+  watermarkLayer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    opacity: 0.1,
+    pointerEvents: "none",
+    alignContent: "space-between",
+    justifyContent: "space-between",
+  },
+  watermarkText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#7a5c00",
+    letterSpacing: 0.6,
+    width: "25%",
+    textAlign: "center",
+  },
+  receiptShot: {
+    backgroundColor: PALETTE.surface,
+    borderRadius: 16,
   },
   header: {
     marginBottom: 20,
@@ -503,6 +603,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     marginLeft: 8,
+  },
+  shareButton: {
+    backgroundColor: PALETTE.accentPink,
+  },
+  shareButtonText: {
+    color: "#ffffff",
+  },
+  doneButton: {
+    backgroundColor: PALETTE.accentPink,
+  },
+  shareRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  halfButton: {
+    flex: 1,
   },
   emptyMessage: {
     textAlign: "center",
