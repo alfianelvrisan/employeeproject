@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   Modal,
   FlatList,
+  Platform,
   StyleProp,
   ViewStyle,
   Image,
@@ -15,6 +16,7 @@ import React from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import MapView, { Marker, MapPressEvent, Region } from "react-native-maps";
+import { WebView } from "react-native-webview";
 import { useAuth } from "../../context/AuthContext";
 import useLocationData from "../../services/useLocationData";
 
@@ -30,6 +32,11 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 0.08,
 };
 
+const DEFAULT_COORDS: Coordinates = {
+  latitude: DEFAULT_REGION.latitude,
+  longitude: DEFAULT_REGION.longitude,
+};
+
 const { width } = Dimensions.get('window');
 const CARD_HEIGHT = width * 0.38; // Match aspect ratio with CardHome
 
@@ -42,6 +49,94 @@ type LocationComponentProps = {
 
 const LOCATION_ICON = {
   uri: "https://laskarbuah-sales.s3.ap-southeast-3.amazonaws.com/foto_produk/4cdf88f8-319b-4e52-a65d-b9e7d96f323a.png",
+};
+
+const buildMapHtml = (center: Coordinates, marker: Coordinates | null) => {
+  const centerLat = center.latitude;
+  const centerLng = center.longitude;
+  const markerLat = marker?.latitude ?? 0;
+  const markerLng = marker?.longitude ?? 0;
+  const hasMarker = marker ? "true" : "false";
+
+  return `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.css"
+    />
+    <style>
+      html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; }
+      .attribution {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.85);
+        font-size: 10px;
+        padding: 2px 4px;
+        font-family: Arial, sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div class="attribution">(c) OpenStreetMap contributors</div>
+    <script src="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js"></script>
+    <script>
+      const style = {
+        "version": 8,
+        "sources": {
+          "osm": {
+            "type": "raster",
+            "tiles": [
+              "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+              "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+              "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            ],
+            "tileSize": 256
+          }
+        },
+        "layers": [
+          { "id": "osm", "type": "raster", "source": "osm" }
+        ]
+      };
+
+      const map = new maplibregl.Map({
+        container: "map",
+        style,
+        center: [${centerLng}, ${centerLat}],
+        zoom: 15
+      });
+
+      let marker = null;
+      function setMarker(lng, lat) {
+        if (marker) {
+          marker.setLngLat([lng, lat]);
+        } else {
+          marker = new maplibregl.Marker().setLngLat([lng, lat]).addTo(map);
+        }
+      }
+
+      const hasMarker = ${hasMarker};
+      if (hasMarker) {
+        setMarker(${markerLng}, ${markerLat});
+      }
+
+      map.on("click", function(e) {
+        const lng = e.lngLat.lng;
+        const lat = e.lngLat.lat;
+        setMarker(lng, lat);
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: "select",
+          latitude: lat,
+          longitude: lng
+        }));
+      });
+    </script>
+  </body>
+</html>`;
 };
 
 export default function LocationComponent({
@@ -69,6 +164,13 @@ export default function LocationComponent({
   const [showMapModal, setShowMapModal] = React.useState(false);
   const [pickerCoords, setPickerCoords] = React.useState<Coordinates | null>(null);
   const [savingManualLocation, setSavingManualLocation] = React.useState(false);
+  const [mapBootstrap, setMapBootstrap] = React.useState<{
+    center: Coordinates;
+    marker: Coordinates | null;
+  }>(() => ({
+    center: DEFAULT_COORDS,
+    marker: null,
+  }));
   const effectiveRegion = React.useMemo<Region>(() => {
     const target = pickerCoords ?? coords;
     if (target) {
@@ -81,6 +183,11 @@ export default function LocationComponent({
     }
     return DEFAULT_REGION;
   }, [coords, pickerCoords]);
+  const mapHtml = React.useMemo(
+    () => buildMapHtml(mapBootstrap.center, mapBootstrap.marker),
+    [mapBootstrap]
+  );
+  const webViewSource = React.useMemo(() => ({ html: mapHtml }), [mapHtml]);
 
   const handleSelectStore = (value: string) => {
     setSelectedStore(value);
@@ -88,13 +195,34 @@ export default function LocationComponent({
   };
 
   const handleOpenMapModal = () => {
-    setPickerCoords(coords);
+    const nextCoords = coords ?? null;
+    setPickerCoords(nextCoords);
+    setMapBootstrap({
+      center: nextCoords ?? DEFAULT_COORDS,
+      marker: nextCoords,
+    });
     setShowMapModal(true);
   };
 
   const handleMapPress = (event: MapPressEvent) => {
     const { latitude, longitude } = event.nativeEvent.coordinate;
     setPickerCoords({ latitude, longitude });
+  };
+
+  const handleWebViewMessage = (event: any) => {
+    try {
+      const payload = JSON.parse(event.nativeEvent.data);
+      if (payload?.type !== "select") {
+        return;
+      }
+      const latitude = Number(payload.latitude);
+      const longitude = Number(payload.longitude);
+      if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+        setPickerCoords({ latitude, longitude });
+      }
+    } catch (error) {
+      // Ignore invalid payloads.
+    }
   };
 
   const handleConfirmMap = async () => {
@@ -312,13 +440,24 @@ export default function LocationComponent({
                 </TouchableOpacity>
               </View>
               <View style={styles.mapContainer}>
-                <MapView
-                  style={styles.map}
-                  region={effectiveRegion}
-                  onPress={handleMapPress}
-                >
-                  {pickerCoords && <Marker coordinate={pickerCoords} />}
-                </MapView>
+                {Platform.OS === "android" ? (
+                  <WebView
+                    source={webViewSource}
+                    originWhitelist={["*"]}
+                    onMessage={handleWebViewMessage}
+                    javaScriptEnabled
+                    domStorageEnabled
+                    style={styles.map}
+                  />
+                ) : (
+                  <MapView
+                    style={styles.map}
+                    region={effectiveRegion}
+                    onPress={handleMapPress}
+                  >
+                    {pickerCoords && <Marker coordinate={pickerCoords} />}
+                  </MapView>
+                )}
               </View>
               <View style={styles.mapHint}>
                 <Ionicons

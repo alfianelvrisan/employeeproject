@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Keyboard,
   TouchableWithoutFeedback,
 } from "react-native";
 import { router } from "expo-router";
@@ -329,21 +330,28 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.modalBackdrop}
       >
-        <TouchableWithoutFeedback onPress={onClose}>
+        <TouchableWithoutFeedback
+          onPress={() => {
+            Keyboard.dismiss();
+            onClose();
+          }}
+        >
           <View style={styles.modalBackdropFlex} />
         </TouchableWithoutFeedback>
         <View style={styles.centerWrapper} pointerEvents="box-none">
-          <View style={styles.modalContent}>
-            <View style={styles.modalHandle} />
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Ionicons name="close" size={22} color="#7b7b7b" />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>{getTitle()}</Text>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHandle} />
+              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                <Ionicons name="close" size={22} color="#7b7b7b" />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>{getTitle()}</Text>
 
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            {renderContent()}
-          </View>
+              {renderContent()}
+            </View>
+          </TouchableWithoutFeedback>
         </View>
       </KeyboardAvoidingView>
     </Modal>
