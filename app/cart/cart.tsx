@@ -419,12 +419,12 @@ const Cart = () => {
   const [pendingDeleteTrx, setPendingDeleteTrx] = useState<number | null>(null);
   const paymentMethods = [
     "QRIS",
+    "Saving",
     "Gopay",
     "Shopeepay",
     "BRIVA",
     "LinkAja",
     "OVO",
-    "Saving",
   ];
 
   const handleRemoveItem = (id: number) => {
@@ -793,105 +793,112 @@ const Cart = () => {
   const renderTabContent = () => {
     if (selectedTab === "List Belanja") {
       return (
-        <View style={[styles.sectionSpacing, styles.cardList]}>
-          {cartItems.length > 0 ? (
-            cartItems.map((item) => {
-              const isDisabled =
-                Boolean(
-                  selectedStore &&
-                  selectedStore !== item.name_store &&
-                  !selectedItems.includes(item.id)
-                );
-              const hasDiscount =
-                typeof item.disc_member === "number" &&
-                item.disc_member > 0;
-              const finalPrice = hasDiscount
-                ? item.price_origin - (item.disc_member as number)
-                : item.price_origin;
-              return (
-                <View
-                  key={item.id}
-                  style={[
-                    styles.cartItem,
-                    isDisabled ? styles.disabledCard : null,
-                  ]}
-                >
-                  <View style={styles.cartItemContent}>
-                    <TouchableOpacity
-                      style={styles.checkboxContainer}
-                      onPress={() => handleToggleSelection(item.id)}
-                      disabled={isDisabled}
-                    >
-                      <Ionicons
-                        name={
-                          selectedItems.includes(item.id)
-                            ? "radio-button-on"
-                            : "radio-button-off"
-                        }
-                        size={22}
-                        color="#6b3a00"
-                      />
-                    </TouchableOpacity>
-                    <Image source={{ uri: item.foto }} style={styles.itemImage} />
-                    <View style={styles.itemSummary}>
-                      <Text style={styles.itemName}>{item.name_produk}</Text>
-                      <View style={styles.storeChip}>
-                        <Ionicons name="storefront-outline" size={12} color="#fff" />
-                        <Text style={styles.storeText} numberOfLines={1}>
-                          {item.name_store}
-                        </Text>
-                      </View>
-                      <View style={styles.priceRow}>
-                        <Text style={styles.currentPrice}>
-                          Rp {finalPrice.toLocaleString()}
-                        </Text>
-                        {hasDiscount && (
-                          <Text style={styles.originalPrice}>
-                            Rp {item.price_origin.toLocaleString()}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                    <View style={styles.actionsColumn}>
+        <LinearGradient
+          colors={NEON_GRADIENT}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.sectionSpacing, styles.listCardGradient]}
+        >
+          <View style={[styles.cardList, styles.listCard]}>
+            {cartItems.length > 0 ? (
+              cartItems.map((item) => {
+                const isDisabled =
+                  Boolean(
+                    selectedStore &&
+                    selectedStore !== item.name_store &&
+                    !selectedItems.includes(item.id)
+                  );
+                const hasDiscount =
+                  typeof item.disc_member === "number" &&
+                  item.disc_member > 0;
+                const finalPrice = hasDiscount
+                  ? item.price_origin - (item.disc_member as number)
+                  : item.price_origin;
+                return (
+                  <View
+                    key={item.id}
+                    style={[
+                      styles.cartItem,
+                      isDisabled ? styles.disabledCard : null,
+                    ]}
+                  >
+                    <View style={styles.cartItemContent}>
                       <TouchableOpacity
-                        style={styles.deleteIconContainer}
-                        onPress={() => handleRemoveItem(item.id)}
+                        style={styles.checkboxContainer}
+                        onPress={() => handleToggleSelection(item.id)}
                         disabled={isDisabled}
                       >
-                        <Ionicons name="trash-outline" size={20} color="#d7263d" />
-                      </TouchableOpacity>
-                      <View style={styles.quantityControls}>
-                        <TouchableOpacity
-                          style={styles.qtyButton}
-                          onPress={() => handleDecreaseQuantity(item.id)}
-                          disabled={isDisabled}
-                        >
-                          <Ionicons name="remove" size={20} color="#6b3a00" />
-                        </TouchableOpacity>
-                        <View style={styles.qtyValue}>
-                          <Text style={styles.qtyValueText}>{item.qty}</Text>
-                        </View>
-                        <TouchableOpacity
-                          style={styles.qtyButton}
-                          onPress={() =>
-                            handleIncreaseQuantity(item.id, Number(item.idh))
+                        <Ionicons
+                          name={
+                            selectedItems.includes(item.id)
+                              ? "radio-button-on"
+                              : "radio-button-off"
                           }
+                          size={22}
+                          color="#6b3a00"
+                        />
+                      </TouchableOpacity>
+                      <Image source={{ uri: item.foto }} style={styles.itemImage} />
+                      <View style={styles.itemSummary}>
+                        <Text style={styles.itemName}>{item.name_produk}</Text>
+                        <View style={styles.storeChip}>
+                          <Ionicons name="storefront-outline" size={12} color="#fff" />
+                          <Text style={styles.storeText} numberOfLines={1}>
+                            {item.name_store}
+                          </Text>
+                        </View>
+                        <View style={styles.priceRow}>
+                          <Text style={styles.currentPrice}>
+                            Rp {finalPrice.toLocaleString()}
+                          </Text>
+                          {hasDiscount && (
+                            <Text style={styles.originalPrice}>
+                              Rp {item.price_origin.toLocaleString()}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                      <View style={styles.actionsColumn}>
+                        <TouchableOpacity
+                          style={styles.deleteIconContainer}
+                          onPress={() => handleRemoveItem(item.id)}
                           disabled={isDisabled}
                         >
-                          <Ionicons name="add" size={20} color="#6b3a00" />
+                          <Ionicons name="trash-outline" size={20} color="#d7263d" />
                         </TouchableOpacity>
+                        <View style={styles.quantityControls}>
+                          <TouchableOpacity
+                            style={styles.qtyButton}
+                            onPress={() => handleDecreaseQuantity(item.id)}
+                            disabled={isDisabled}
+                          >
+                            <Ionicons name="remove" size={20} color="#6b3a00" />
+                          </TouchableOpacity>
+                          <View style={styles.qtyValue}>
+                            <Text style={styles.qtyValueText}>{item.qty}</Text>
+                          </View>
+                          <TouchableOpacity
+                            style={styles.qtyButton}
+                            onPress={() =>
+                              handleIncreaseQuantity(item.id, Number(item.idh))
+                            }
+                            disabled={isDisabled}
+                          >
+                            <Ionicons name="add" size={20} color="#6b3a00" />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     </View>
                   </View>
-                </View>
-              );
-            })
-          ) : (
-            <Text style={styles.emptyStateText}>
-              No items found in List Belanja.
-            </Text>
-          )}
-        </View>
+                );
+              })
+            ) : (
+              <Text style={styles.emptyStateText}>
+                No items found in List Belanja.
+              </Text>
+            )}
+          </View>
+        </LinearGradient>
       );
     } else if (selectedTab === "Belum Bayar") {
       return (
@@ -1268,86 +1275,109 @@ const Cart = () => {
                 style={styles.checkoutCardGradient}
               >
                 <View style={styles.checkoutCard}>
-                  <View style={styles.paymentMethodRow}>
-                    <Text style={styles.paymentMethodLabel}>Metode Pembayaran</Text>
-                    <TouchableOpacity
-                      style={styles.paymentMethodButton}
-                      onPress={() => setPaymentMethodModalVisible(true)}
-                    >
-                      <Text style={styles.paymentMethodValue}>
-                        {selectedPaymentMethod}
-                      </Text>
-                      <Ionicons
-                        name="chevron-down"
-                        size={16}
-                        color="#de0866"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>Total</Text>
-                    <Text style={styles.totalText}>
-                      Rp{totalPrice.toLocaleString()}
-                    </Text>
-                  </View>
-                  <View style={styles.feeRow}>
-                    <Text style={styles.feeLabel}>Biaya penanganan</Text>
-                    <Text style={styles.feeValue}>
-                      Rp{handlingFee.toLocaleString()}
-                    </Text>
-                  </View>
-                  <View style={styles.grandTotalRow}>
-                    <Text style={styles.grandTotalLabel}>Grand Total</Text>
-                    <Text style={styles.grandTotalValue}>
-                      Rp{grandTotal.toLocaleString()}
-                    </Text>
-                  </View>
-                  <TextInput
-                    style={styles.descriptionInput}
-                    onChangeText={(text) => setDescription(text)}
-                    value={description}
-                    placeholder="Tambahkan deskripsi pesanan (opsional)"
-                    placeholderTextColor="#000000ff"
-                  />
-                  <TouchableOpacity
-                    onPress={handleCheckout}
-                    disabled={selectedItems.length === 0}
-                    activeOpacity={0.8}
-                    style={styles.checkoutButtonWrapper}
-                  >
-                    <LinearGradient
-                      colors={
-                        selectedItems.length === 0
-                          ? BUTTON_DISABLED_GRADIENT
-                          : PRIMARY_BUTTON_GRADIENT
-                      }
-                      style={[
-                        styles.checkoutButtonGradient,
-                        selectedItems.length === 0 &&
-                        styles.checkoutButtonGradientDisabled,
-                      ]}
-                    >
-                      <View style={styles.buyNowContent}>
-                        <Text
-                          style={[
-                            styles.checkoutButtonText,
-                            selectedItems.length === 0 &&
-                            styles.checkoutButtonTextDisabled,
-                          ]}
+                  <View style={styles.paymentMethodBlock}>
+                    <View style={styles.paymentMethodRow}>
+                      <Text style={styles.paymentMethodLabel}>Metode Pembayaran</Text>
+                      <View style={styles.summaryValueColumn}>
+                        <TouchableOpacity
+                          style={styles.paymentMethodButton}
+                          onPress={() => setPaymentMethodModalVisible(true)}
                         >
-                          Bayar sekarang
-                        </Text>
-                        <Ionicons
-                          name="cart-outline"
-                          size={22}
-                          color={
-                            selectedItems.length === 0 ? "#000000ff" : "#4b2d00"
-                          }
-                          style={styles.checkoutIcon}
-                        />
+                          <Ionicons
+                            name="chevron-down"
+                            size={16}
+                            color="#de0866"
+                          />
+                          <Text style={styles.paymentMethodValue}>
+                            {selectedPaymentMethod}
+                          </Text>
+                        </TouchableOpacity>
                       </View>
-                    </LinearGradient>
-                  </TouchableOpacity>
+                    </View>
+                  </View>
+                  <View style={styles.summaryBlock}>
+                    <View style={styles.totalRow}>
+                      <Text style={styles.totalLabel}>Total</Text>
+                      <View style={styles.summaryValueColumn}>
+                        <Text style={styles.totalText}>
+                          Rp{totalPrice.toLocaleString()}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.feeRow}>
+                      <Text style={styles.feeLabel}>Biaya penanganan</Text>
+                      <View style={styles.summaryValueColumn}>
+                        <Text style={styles.feeValue}>
+                          Rp{handlingFee.toLocaleString()}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.grandTotalRow}>
+                      <Text style={styles.grandTotalLabel}>Grand Total</Text>
+                      <View style={styles.summaryValueColumn}>
+                        <Text style={styles.grandTotalValue}>
+                          Rp{grandTotal.toLocaleString()}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.descriptionBlock}>
+                    <Text style={styles.descriptionLabel}>Deskripsi Pesanan</Text>
+                    <Text style={styles.descriptionHint}>
+                      Tambahkan catatan untuk pesananmu (opsional).
+                    </Text>
+                    <TextInput
+                      style={styles.descriptionInput}
+                      onChangeText={(text) => setDescription(text)}
+                      value={description}
+                      placeholder="Tambahkan deskripsi pesanan (opsional)"
+                      placeholderTextColor="#000000ff"
+                    />
+                  </View>
+                  <View style={styles.checkoutActionBlock}>
+                    <TouchableOpacity
+                      onPress={handleCheckout}
+                      disabled={selectedItems.length === 0}
+                      activeOpacity={0.8}
+                      style={styles.checkoutButtonWrapper}
+                    >
+                      <LinearGradient
+                        colors={
+                          selectedItems.length === 0
+                            ? BUTTON_DISABLED_GRADIENT
+                            : PRIMARY_BUTTON_GRADIENT
+                        }
+                        style={[
+                          styles.checkoutButtonGradient,
+                          selectedItems.length === 0 &&
+                          styles.checkoutButtonGradientDisabled,
+                        ]}
+                      >
+                        <View style={styles.buyNowContent}>
+                          <Text
+                            style={[
+                              styles.checkoutButtonText,
+                              selectedItems.length === 0 &&
+                              styles.checkoutButtonTextDisabled,
+                            ]}
+                          >
+                            Bayar sekarang
+                          </Text>
+                          <Ionicons
+                            name="cart-outline"
+                            size={22}
+                            color={
+                              selectedItems.length === 0 ? "#000000ff" : "#4b2d00"
+                            }
+                            style={styles.checkoutIcon}
+                          />
+                        </View>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                    <Text style={styles.checkoutNote}>
+                      Kamu akan diarahkan ke proses pembayaran setelah menekan tombol ini.
+                    </Text>
+                  </View>
                 </View>
               </LinearGradient>
             </View>
@@ -1362,7 +1392,7 @@ const Cart = () => {
         >
           <View style={styles.sheetOverlay}>
             <TouchableOpacity
-              style={styles.sheetOverlay}
+              style={styles.sheetBackdrop}
               activeOpacity={1}
               onPress={() => setPaymentMethodModalVisible(false)}
             />
@@ -1555,11 +1585,27 @@ const styles = StyleSheet.create({
     width: "100%",
     marginBottom: 24,
   },
+  listCardGradient: {
+    borderRadius: 24,
+    padding: 2,
+    marginBottom: 8,
+    shadowColor: PRIMARY_YELLOW,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+  },
   cardList: {
     width: "100%",
     alignItems: "stretch",
     paddingTop: 4,
     paddingBottom: 12,
+  },
+  listCard: {
+    borderRadius: 22,
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   gradientBg: {
     flex: 1,
@@ -1712,7 +1758,7 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingBottom: 12,
     paddingTop: 8,
-    marginTop: 12,
+    marginTop: 4,
   },
   checkoutCardGradient: {
     borderRadius: 24,
@@ -1734,10 +1780,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 8,
   },
+  paymentMethodBlock: {
+    marginBottom: 10,
+  },
   paymentMethodButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+  },
+  summaryValueColumn: {
+    minWidth: 120,
+    alignItems: "flex-end",
   },
   paymentMethodLabel: {
     fontSize: 12,
@@ -1746,22 +1799,34 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   paymentMethodValue: {
-    fontSize: 13,
+    fontSize: 16,
     color: "#de0866",
-    fontWeight: "700",
+    fontWeight: "800",
+    textAlign: "right",
   },
   sheetOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.35)",
-    justifyContent: "flex-end",
+  },
+  sheetBackdrop: {
+    flex: 1,
   },
   sheetContainer: {
     backgroundColor: "#ffffff",
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingHorizontal: 16,
     paddingBottom: 24,
-    paddingTop: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 12,
   },
   sheetHandle: {
     width: 48,
@@ -1772,10 +1837,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sheetTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "700",
     color: "#3a2f00",
-    marginBottom: 12,
+    marginBottom: 10,
     textAlign: "center",
   },
   sheetOption: {
@@ -1815,6 +1880,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 10,
   },
+  summaryBlock: {
+    marginBottom: 6,
+  },
   feeRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1830,6 +1898,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#3a2f00",
     fontWeight: "700",
+    textAlign: "right",
   },
   grandTotalRow: {
     flexDirection: "row",
@@ -1846,6 +1915,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#de0866",
     fontWeight: "800",
+    textAlign: "right",
   },
   totalLabel: {
     fontSize: 14,
@@ -1872,13 +1942,15 @@ const styles = StyleSheet.create({
     color: "#000000ff",
     textAlign: "right",
     fontFamily: "bolder",
-    marginRight: 8,
   },
   checkoutButtonWrapper: {
     borderRadius: 30,
     overflow: "hidden",
     marginTop: 10,
     width: "100%",
+  },
+  checkoutActionBlock: {
+    marginTop: 6,
   },
   checkoutButtonGradient: {
     height: 52,
@@ -1907,6 +1979,12 @@ const styles = StyleSheet.create({
   },
   checkoutIcon: {
     marginLeft: 6,
+  },
+  checkoutNote: {
+    marginTop: 8,
+    fontSize: 11,
+    color: "#7a7a7a",
+    textAlign: "center",
   },
   checkoutButtonFull: {
     width: "100%",
@@ -2020,6 +2098,20 @@ const styles = StyleSheet.create({
     color: "#1a1a1a",
     borderRadius: 22,
     backgroundColor: "#fff9e7",
+  },
+  descriptionBlock: {
+    marginTop: 2,
+  },
+  descriptionLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#3a2f00",
+    marginBottom: 4,
+  },
+  descriptionHint: {
+    fontSize: 11,
+    color: "#8a7a4b",
+    marginBottom: 8,
   },
   belumBayar: {
     top: 100,
