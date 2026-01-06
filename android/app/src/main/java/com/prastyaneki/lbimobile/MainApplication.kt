@@ -1,4 +1,4 @@
-package com.prastyaneki.lbimobile
+package com.binatechnology.application
 
 import android.app.Application
 import android.content.res.Configuration

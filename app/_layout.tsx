@@ -15,6 +15,7 @@ export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     FontIOSCustom: require("../assets/fonts/fontioscustom.otf"),
     FontIOSCustomBold: require("../assets/fonts/fontioscustombold.otf"),
+    JamFont: require("../assets/fonts/jamfont.ttf"),
   });
 
   React.useEffect(() => {

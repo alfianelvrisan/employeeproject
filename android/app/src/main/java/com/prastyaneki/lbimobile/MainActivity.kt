@@ -1,4 +1,4 @@
-package com.prastyaneki.lbimobile
+package com.binatechnology.application
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

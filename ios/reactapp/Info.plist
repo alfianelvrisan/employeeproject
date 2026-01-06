@@ -30,7 +30,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>reactapp</string>
-				<string>com.prastyaneki.lbimobile</string>
+				<string>com.binatechnology.application</string>
 			</array>
 		</dict>
 	</array>

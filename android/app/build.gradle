@@ -88,13 +88,13 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.prastyaneki.lbimobile'
+    namespace 'com.binatechnology.application'
     defaultConfig {
-        applicationId 'com.prastyaneki.lbimobile'
+        applicationId 'com.binatechnology.application'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 29
-        versionName "1.7.0"
+        versionCode 1
+        versionName "1.0.0"
 
         manifestPlaceholders = [
             googleMapsApiKey: (project.findProperty("GOOGLE_MAPS_API_KEY") ?: "")

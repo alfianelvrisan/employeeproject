@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "1 - One",
-    "slug": "one-member",
-    "version": "1.1.0",
-    "scheme": "onemember",
+    "name": "1 - Employee",
+    "slug": "one-employee",
+    "version": "1.0.0",
+    "scheme": "oneemployee",
     "plugins": [
       "./app.plugin.js"
     ],
@@ -19,7 +19,7 @@
       }
     },
     "android": {
-      "package": "com.prastyaneki.lbimobile",
+      "package": "com.binatechnology.application",
       "icon": "./assets/images/lbilogo_padded.png",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/lbilogo_padded.png",
@@ -32,7 +32,7 @@
       }
     },
     "ios": {
-      "bundleIdentifier": "com.prastyaneki.lbimobile",
+      "bundleIdentifier": "com.binatechnology.application",
       "icon": "./assets/images/lbilogo.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false

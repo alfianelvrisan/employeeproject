@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Keyboard,
   TouchableWithoutFeedback,
+  Image,
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -309,16 +310,6 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
     }
   };
 
-  // Fungsi untuk mendapatkan judul modal
-  const getTitle = () => {
-    if (type === "login") return "Login";
-    if (type === "register") return "Registrasi";
-    if (type === "directRegister") return "Registrasi";
-    if (type === "forgotPin") return "Lupa PIN";
-    if (type === "whatsappRegister") return "Verifikasi Nomor";
-    return "";
-  };
-  
   return (
     <Modal
       visible={visible}
@@ -341,15 +332,17 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
         <View style={styles.centerWrapper} pointerEvents="box-none">
           <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
             <View style={styles.modalContent}>
-              <View style={styles.modalHandle} />
+              <Image
+                source={require("../assets/images/employee1.png")}
+                style={styles.modalIllustration}
+              />
               <TouchableOpacity style={styles.closeButton} onPress={onClose}>
                 <Ionicons name="close" size={22} color="#7b7b7b" />
               </TouchableOpacity>
-              <Text style={styles.modalTitle}>{getTitle()}</Text>
 
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-              {renderContent()}
+              <View style={styles.formContainer}>{renderContent()}</View>
             </View>
           </TouchableWithoutFeedback>
         </View>
@@ -378,8 +371,9 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     backgroundColor: "rgba(255,255,255,0.92)",
     padding: SIZES.extraLarge,
+    paddingTop: SIZES.extraLarge * 1.8,
     borderRadius: 28,
-    overflow: "hidden",
+    overflow: "visible",
     shadowColor: "#0a3e7a",
     shadowOpacity: 0.32,
     shadowOffset: { width: 0, height: 24 },
@@ -388,31 +382,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.65)",
   },
-  modalHandle: {
-    alignSelf: "center",
-    width: 60,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: "#d9d9d9",
-    marginBottom: SIZES.medium,
-  },
   closeButton: {
     position: "absolute",
     top: SIZES.medium,
     right: SIZES.medium,
   },
-  modalTitle: {
-    fontSize: SIZES.extraLarge,
-    fontFamily: FONTS.bold,
-    color: COLORS.black,
-    textAlign: "center",
-    marginBottom: SIZES.medium,
+  modalIllustration: {
+    position: "absolute",
+    top: -140,
+    width: 260,
+    height: 200,
+    resizeMode: "contain",
+    alignSelf: "center",
   },
   errorText: {
     color: COLORS.danger,
     textAlign: "center",
     marginBottom: SIZES.medium,
     fontSize: SIZES.font,
+  },
+  formContainer: {
+    marginTop: SIZES.large * 1.2,
   },
   switchText: {
     color: "#d5e9ff",
