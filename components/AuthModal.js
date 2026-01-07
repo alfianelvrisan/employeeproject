@@ -29,6 +29,18 @@ const CountryCodes = [
   // ...tambahkan sisa kode negara dari kode lama Anda
 ];
 
+const illustrationSource = require("../assets/images/employee1.png");
+const illustrationMeta = Image.resolveAssetSource(illustrationSource);
+const illustrationAspectRatio =
+  illustrationMeta && illustrationMeta.width && illustrationMeta.height
+    ? illustrationMeta.width / illustrationMeta.height
+    : 1;
+const ILLUSTRATION_WIDTH = 290;
+const illustrationSize = {
+  width: ILLUSTRATION_WIDTH,
+  height: ILLUSTRATION_WIDTH / illustrationAspectRatio,
+};
+
 const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
   const { login, cekode, cekwhastapp, register } = useAuth();
   const brandGradient = ["#ffea00", "#ffc400", "#ff9100"];
@@ -332,10 +344,13 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
         <View style={styles.centerWrapper} pointerEvents="box-none">
           <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
             <View style={styles.modalContent}>
-              <Image
-                source={require("../assets/images/employee1.png")}
-                style={styles.modalIllustration}
-              />
+              {type === "login" ? (
+                <Image
+                  source={illustrationSource}
+                  style={[styles.modalIllustration, illustrationSize]}
+                  pointerEvents="none"
+                />
+              ) : null}
               <TouchableOpacity style={styles.closeButton} onPress={onClose}>
                 <Ionicons name="close" size={22} color="#7b7b7b" />
               </TouchableOpacity>
@@ -363,17 +378,20 @@ const styles = StyleSheet.create({
   centerWrapper: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "flex-end",
-    alignItems: "center",
-    paddingHorizontal: SIZES.large,
-    paddingBottom: SIZES.extraLarge,
+    alignItems: "stretch",
+    paddingHorizontal: 0,
+    paddingBottom: 0,
   },
   modalContent: {
     width: "100%",
-    maxWidth: 420,
+    maxWidth: "100%",
     backgroundColor: "rgba(255,255,255,0.92)",
-    padding: SIZES.extraLarge,
-    paddingTop: SIZES.extraLarge * 1.8,
-    borderRadius: 28,
+    padding: SIZES.large,
+    paddingTop: SIZES.large * 1.2,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     overflow: "visible",
     shadowColor: "#0a3e7a",
     shadowOpacity: 0.32,
@@ -387,14 +405,14 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: SIZES.medium,
     right: SIZES.medium,
+    zIndex: 2,
   },
   modalIllustration: {
     position: "absolute",
-    top: -140,
-    width: 260,
-    height: 200,
+    top: -180,
     resizeMode: "contain",
     alignSelf: "center",
+    zIndex: 1,
   },
   errorText: {
     color: COLORS.danger,
@@ -403,7 +421,7 @@ const styles = StyleSheet.create({
     fontSize: SIZES.font,
   },
   formContainer: {
-    marginTop: SIZES.large * 1.2,
+    marginTop: SIZES.medium,
   },
   switchText: {
     color: "#d5e9ff",
