@@ -26,7 +26,7 @@ export default function LoginScreen() {
     type: "login", // Tipe awal: 'login', 'register', 'forgotPin', 'whatsappRegister'
   });
   const slideValue = useRef(new Animated.Value(0)).current;
-  const KNOB_WIDTH = 96;
+  const KNOB_WIDTH = 120;
   const DEFAULT_SLIDE_DISTANCE = 180;
   const [trackWidth, setTrackWidth] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -35,6 +35,10 @@ export default function LoginScreen() {
     const calculated = trackWidth - KNOB_WIDTH;
     return calculated > 40 ? calculated : DEFAULT_SLIDE_DISTANCE;
   }, [trackWidth]);
+  const fillWidth = useMemo(
+    () => Animated.add(slideValue, KNOB_WIDTH),
+    [slideValue]
+  );
 
   /**
    * Membuka modal dengan tipe konten tertentu.
@@ -102,20 +106,20 @@ export default function LoginScreen() {
             Animated.spring(slideValue, {
               toValue: slideDistance,
               bounciness: 10,
-              useNativeDriver: true,
+              useNativeDriver: false,
             }).start(() => {
               handleOpenModal("login");
               Animated.timing(slideValue, {
                 toValue: 0,
                 duration: 420,
                 easing: Easing.out(Easing.circle),
-                useNativeDriver: true,
+                useNativeDriver: false,
               }).start();
             });
           } else {
             Animated.spring(slideValue, {
               toValue: 0,
-              useNativeDriver: true,
+              useNativeDriver: false,
             }).start();
           }
         },
@@ -138,6 +142,20 @@ export default function LoginScreen() {
               <View style={styles.sliderTrack} onLayout={handleTrackLayout}>
                 <View style={styles.sliderRail} />
                 <Animated.View
+                  pointerEvents="none"
+                  style={[styles.sliderFill, { width: fillWidth }]}
+                >
+                  <LinearGradient
+                    colors={[
+                      "rgba(255,243,179,0.95)",
+                      "rgba(255,199,74,0.95)",
+                    ]}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                </Animated.View>
+                <Animated.View
                   style={[
                     styles.knobWrapper,
                     { transform: [{ translateX: slideValue }] },
@@ -145,14 +163,18 @@ export default function LoginScreen() {
                   {...sliderPanResponder.panHandlers}
                 >
                   <LinearGradient
-                    colors={["#2df594", "#11a4ff"]}
+                    colors={["#fff2b8", "#ffde6a", "#ffc24d"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.knob}
                   >
-                    <Ionicons name="sparkles" size={16} color="#01211a" />
+                    <Ionicons name="sparkles" size={16} color="#3a2f00" />
                     <View style={styles.knobArrows}>
-                      <Ionicons name="chevron-forward" size={18} color="#01211a" />
+                      <Ionicons
+                        name="chevron-forward"
+                        size={18}
+                        color="#3a2f00"
+                      />
                     </View>
                   </LinearGradient>
                 </Animated.View>
@@ -183,10 +205,13 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#02060f",
+    backgroundColor: "#ffde6a",
   },
   backgroundImage: {
     flex: 1,
+  },
+  backgroundOverlay: {
+    ...StyleSheet.absoluteFillObject,
   },
   container: {
     flex: 1,
@@ -196,20 +221,20 @@ const styles = StyleSheet.create({
     gap: SIZES.large,
   },
   switchCard: {
-    backgroundColor: "rgba(4,12,27,0.82)",
+    backgroundColor: "#FFDE6A",
     borderRadius: 28,
     padding: SIZES.large,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,222,106,0.4)",
     alignSelf: "flex-start",
     width: "100%",
     maxWidth: 420,
     gap: SIZES.small,
-    shadowColor: "#000",
-    shadowOpacity: 0.35,
-    shadowOffset: { width: 0, height: 16 },
-    shadowRadius: 22,
-    elevation: 18,
+    shadowColor: "rgba(88, 87, 0, 0.25)",
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 14,
+    elevation: 8,
   },
   cardEyebrow: {
     color: "#8dd5ff",
@@ -272,14 +297,30 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    backgroundColor: "rgba(1,10,22,0.65)",
+    borderColor: "rgba(255,222,106,0.7)",
+    backgroundColor: "rgba(255,255,255,0.7)",
+    shadowColor: "rgba(255,190,70,0.45)",
+    shadowOpacity: 0.35,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  sliderFill: {
+    position: "absolute",
+    left: 0,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(255,222,106,0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(255,199,74,0.75)",
+    overflow: "hidden",
   },
   sliderHint: {
-    fontSize: 12,
-    letterSpacing: 3,
-    color: "rgba(255,255,255,0.7)",
+    fontSize: 15,
+    letterSpacing: 2,
+    color: "rgba(20, 20, 20, 0.65)",
     textTransform: "uppercase",
+    fontFamily: FONTS.bold,
   },
   knobWrapper: {
     position: "absolute",
@@ -295,8 +336,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 18,
-    shadowColor: "#0ff5c5",
-    shadowOpacity: 0.35,
+    shadowColor: "rgba(255,169,20,0.5)",
+    shadowOpacity: 0.4,
     shadowOffset: { width: 0, height: 10 },
     shadowRadius: 20,
     elevation: 6,
@@ -306,10 +347,10 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(1,33,26,0.25)",
+    borderColor: "rgba(122,92,0,0.25)",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.85)",
+    backgroundColor: "rgba(255,255,255,0.92)",
   },
   helpButton: {
     flexDirection: "row",
@@ -317,14 +358,14 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    backgroundColor: "rgba(245, 245, 245, 0.42)",
+    backgroundColor: "rgba(255,255,255,0.6)",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: "rgba(255,222,106,0.6)",
     alignSelf: "flex-start",
   },
   helpText: {
-    color: "#000000ff",
+    color: "#4a3600",
     fontFamily: FONTS.medium,
     fontSize: SIZES.font * 0.85,
   },

@@ -313,7 +313,7 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
   return (
     <Modal
       visible={visible}
-      animationType="fade"
+      animationType="slide"
       transparent={true}
       onRequestClose={onClose}
     >
@@ -358,13 +358,14 @@ const styles = StyleSheet.create({
   },
   modalBackdropFlex: {
     flex: 1,
-    backgroundColor: "rgba(5, 12, 31, 0.9)",
+    backgroundColor: "#FFDE6A",
   },
   centerWrapper: {
     ...StyleSheet.absoluteFillObject,
-    justifyContent: "center",
+    justifyContent: "flex-end",
     alignItems: "center",
     paddingHorizontal: SIZES.large,
+    paddingBottom: SIZES.extraLarge,
   },
   modalContent: {
     width: "100%",
