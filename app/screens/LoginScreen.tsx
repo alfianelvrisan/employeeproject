@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   Animated,
   PanResponder,
@@ -133,41 +132,30 @@ export default function LoginScreen() {
         style={styles.backgroundImage}
       >
         <SafeAreaView style={styles.container}>
-          <View style={styles.contentArea}>
-            <Image
-              style={styles.logo}
-              source={require("../../assets/images/employeicon.png")}
-            />
-
-            <View style={styles.switchCard}>
-              <Image
-                style={styles.sliderBadge}
-                source={require("../../assets/images/employeicon.png")}
-              />
-              <View style={styles.sliderArea}>
-                <Text style={styles.sliderHint}>Swipe right to Login</Text>
-                <View style={styles.sliderTrack} onLayout={handleTrackLayout}>
-                  <View style={styles.sliderRail} />
-                  <Animated.View
-                    style={[
-                      styles.knobWrapper,
-                      { transform: [{ translateX: slideValue }] },
-                    ]}
-                    {...sliderPanResponder.panHandlers}
+          <View style={styles.switchCard}>
+            <View style={styles.sliderArea}>
+              <Text style={styles.sliderHint}>Swipe right to Login</Text>
+              <View style={styles.sliderTrack} onLayout={handleTrackLayout}>
+                <View style={styles.sliderRail} />
+                <Animated.View
+                  style={[
+                    styles.knobWrapper,
+                    { transform: [{ translateX: slideValue }] },
+                  ]}
+                  {...sliderPanResponder.panHandlers}
+                >
+                  <LinearGradient
+                    colors={["#2df594", "#11a4ff"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.knob}
                   >
-                    <LinearGradient
-                      colors={["#2df594", "#11a4ff"]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.knob}
-                    >
-                      <Ionicons name="sparkles" size={16} color="#01211a" />
-                      <View style={styles.knobArrows}>
-                        <Ionicons name="chevron-forward" size={18} color="#01211a" />
-                      </View>
-                    </LinearGradient>
-                  </Animated.View>
-                </View>
+                    <Ionicons name="sparkles" size={16} color="#01211a" />
+                    <View style={styles.knobArrows}>
+                      <Ionicons name="chevron-forward" size={18} color="#01211a" />
+                    </View>
+                  </LinearGradient>
+                </Animated.View>
               </View>
             </View>
           </View>
@@ -207,19 +195,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: SIZES.large,
   },
-  contentArea: {
-    width: "100%",
-    gap: SIZES.large,
-    flexGrow: 1,
-  },
-  logo: {
-    alignSelf: "flex-start",
-    marginTop: SIZES.small,
-    marginBottom: SIZES.base,
-    width: 120,
-    height: 120,
-    resizeMode: "contain",
-  },
   switchCard: {
     backgroundColor: "rgba(4,12,27,0.82)",
     borderRadius: 28,
@@ -235,12 +210,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 16 },
     shadowRadius: 22,
     elevation: 18,
-  },
-  sliderBadge: {
-    width: 64,
-    height: 64,
-    marginBottom: SIZES.small,
-    alignSelf: "flex-start",
   },
   cardEyebrow: {
     color: "#8dd5ff",
