@@ -42,7 +42,7 @@ export default function cardhome() {
   } | null>(null);
   const [hasPendingTopup, setHasPendingTopup] = useState(false);
 
-  const Image = require('../../assets/images/bg_card_home_update2.jpg');
+  const Image = require('../../assets/images/update_bglogin3.jpg');
 
   const openSheet = () => {
     setSheetVisible(true);

@@ -192,7 +192,7 @@ export default function Index() {
                 </TouchableOpacity>
               </View>
               <Image
-                source={require("../../assets/images/update_logolbi.png")}
+                source={require("../../assets/images/employeicon.png")}
                 style={styles.headerLogo}
                 resizeMode="contain"
               />
@@ -250,7 +250,7 @@ export default function Index() {
                     </View>
                   </View>
                   <Image
-                    source={require("../../assets/images/barindex.png")}
+                    source={require("../../assets/images/update_bglogin3.jpg")}
                     style={styles.sectionDivider}
                     resizeMode="cover"
                     accessible

@@ -21,12 +21,12 @@ import * as Brightness from "expo-brightness";
 import { useAuth } from "../../context/AuthContext";
 import useScrollHeader from "../../hooks/useScrollHeader";
 
-const goldmember = require("../../assets/images/silver.png");
-const gold2 = require("../../assets/images/gold2.png");
-const goldlogo = require("../../assets/images/silverlogo.png");
-const goldlogo2 = require("../../assets/images/goldslogo.png");
-const premiumlogo = require("../../assets/images/premiumlogo.png");
-const diamond = require("../../assets/images/diamond.png");
+const goldmember = require("../../assets/images/employeicon.png");
+const gold2 = require("../../assets/images/employeicon.png");
+const goldlogo = require("../../assets/images/employeicon.png");
+const goldlogo2 = require("../../assets/images/employeicon.png");
+const premiumlogo = require("../../assets/images/employeicon.png");
+const diamond = require("../../assets/images/employeicon.png");
 
 // Palette
 const PALETTE = {

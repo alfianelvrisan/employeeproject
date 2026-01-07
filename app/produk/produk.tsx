@@ -30,21 +30,22 @@ const PRIMARY_TEXT_DARK = "#3a2f00";
 const PRIMARY_TEXT_MUTED = "#6f5a1a";
 const PRIMARY_SHADOW = "rgba(255, 199, 0, 0.35)";
 const CATEGORY_ICON_BASE_URL = "https://api.laskarbuah.com"; // API icon sering berupa path relatif tanpa domain
+const CATEGORY_ICON_FALLBACK = require("../../assets/images/employeicon.png");
 
 const CATEGORY_ICON_MAP: Record<string, ImageSourcePropType> = {
-  "buah lokal": require("../../assets/icons/Buah Lokal.png"),
-  "buah import": require("../../assets/icons/Buah Impor.png"),
-  "buah impor": require("../../assets/icons/Buah Impor.png"),
-  sayuran: require("../../assets/icons/Sayuran Basah.png"),
-  "sayuran basah": require("../../assets/icons/Sayuran Basah.png"),
-  "sayuran kering": require("../../assets/icons/Sayuran Kering.png"),
-  vegetables: require("../../assets/icons/Sayuran Basah.png"),
-  vegetable: require("../../assets/icons/Sayuran Basah.png"),
-  frozen: require("../../assets/icons/Frozen food.png"),
-  telur: require("../../assets/icons/Telur.png"),
-  konsinyasi: require("../../assets/icons/Konsinyasi.png"),
-  production: require("../../assets/icons/Production.png"),
-  semua: require("../../assets/icons/Semua.png"),
+  "buah lokal": CATEGORY_ICON_FALLBACK,
+  "buah import": CATEGORY_ICON_FALLBACK,
+  "buah impor": CATEGORY_ICON_FALLBACK,
+  sayuran: CATEGORY_ICON_FALLBACK,
+  "sayuran basah": CATEGORY_ICON_FALLBACK,
+  "sayuran kering": CATEGORY_ICON_FALLBACK,
+  vegetables: CATEGORY_ICON_FALLBACK,
+  vegetable: CATEGORY_ICON_FALLBACK,
+  frozen: CATEGORY_ICON_FALLBACK,
+  telur: CATEGORY_ICON_FALLBACK,
+  konsinyasi: CATEGORY_ICON_FALLBACK,
+  production: CATEGORY_ICON_FALLBACK,
+  semua: CATEGORY_ICON_FALLBACK,
 };
 
 const getLocalIconByLabel = (label: string) => {

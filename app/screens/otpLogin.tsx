@@ -175,7 +175,7 @@ export default function OtpLogin() {
 
   return (
     <ImageBackground
-      source={require("../../assets/images/bg_otp.png")}
+      source={require("../../assets/images/update_bglogin3.jpg")}
       style={styles.background}
     >
       <Stack.Screen

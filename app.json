@@ -7,9 +7,9 @@
     "plugins": [
       "./app.plugin.js"
     ],
-    "icon": "./assets/images/lbilogo.png",
+    "icon": "./assets/images/employeicon.png",
     "splash": {
-      "image": "./assets/images/lbilogo.png",
+      "image": "./assets/images/update_bglogin3.jpg",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
@@ -20,20 +20,20 @@
     },
     "android": {
       "package": "com.binatechnology.application",
-      "icon": "./assets/images/lbilogo_padded.png",
+      "icon": "./assets/images/employeicon.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/lbilogo_padded.png",
+        "foregroundImage": "./assets/images/employeicon.png",
         "backgroundColor": "#FFFFFF"
       },
       "splash": {
-        "image": "./assets/images/lbilogo.png",
+        "image": "./assets/images/update_bglogin3.jpg",
         "resizeMode": "contain",
         "backgroundColor": "#FFFFFF"
       }
     },
     "ios": {
       "bundleIdentifier": "com.binatechnology.application",
-      "icon": "./assets/images/lbilogo.png",
+      "icon": "./assets/images/employeicon.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }

@@ -289,7 +289,7 @@ export default function GiftReels() {
           <View style={styles.avatarWrap}>
             <View style={styles.avatarCircle}>
               <Animated.Image
-                source={require("../../assets/images/update_logolbi.png")}
+                source={require("../../assets/images/employeicon.png")}
                 style={styles.avatar}
               />
             </View>

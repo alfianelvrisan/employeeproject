@@ -281,7 +281,7 @@ export default function LocationComponent({
         >
           <View style={styles.locationRow}>
             <Image
-              source={require("../../assets/images/locationbar.png")}
+              source={require("../../assets/images/update_bglogin3.jpg")}
               style={{ width: 160, height: 28, marginBottom: -2 }}
               resizeMode="contain"
             />
@@ -335,7 +335,7 @@ export default function LocationComponent({
 
       {displayMode !== "location" && (
         <ImageBackground
-          source={require("../../assets/images/bgpilihtoko.png")}
+          source={require("../../assets/images/update_bglogin3.jpg")}
           style={[styles.cardPicker, cardSizeStyle]}
           imageStyle={styles.cardPickerImage}
           resizeMode="cover"
@@ -343,7 +343,7 @@ export default function LocationComponent({
           <View style={styles.cardPickerOverlay}>
             <View style={styles.iconLabel}>
               <Image
-                source={require("../../assets/images/storechoose.png")}
+                source={require("../../assets/images/update_bglogin3.jpg")}
                 style={styles.headerImage}
                 resizeMode="contain"
               />
