@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,22 +12,14 @@ import {
   TouchableWithoutFeedback,
   Image,
 } from "react-native";
-import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Picker } from "@react-native-picker/picker";
-import { useAuth } from "../context/AuthContext"; // Sesuaikan path jika perlu
+import * as LocalAuthentication from "expo-local-authentication";
+import * as SecureStore from "expo-secure-store";
 import { LinearGradient } from "expo-linear-gradient";
 
-// Import komponen & tema
+import { useAuth } from "../context/AuthContext";
 import { COLORS, SIZES, FONTS } from "../constants/theme";
 import IconTextInput from "./IconTextInput";
-
-// Data Kode Negara (bisa dipindah ke file constants terpisah)
-const CountryCodes = [
-  { code: "+62", name: "Indonesia", flag: "🇮🇩" },
-  { code: "+60", name: "Malaysia", flag: "🇲🇾" },
-  // ...tambahkan sisa kode negara dari kode lama Anda
-];
 
 const illustrationSource = require("../assets/images/employee1.png");
 const illustrationMeta = Image.resolveAssetSource(illustrationSource);
@@ -35,292 +27,158 @@ const illustrationAspectRatio =
   illustrationMeta && illustrationMeta.width && illustrationMeta.height
     ? illustrationMeta.width / illustrationMeta.height
     : 1;
-const ILLUSTRATION_WIDTH = 290;
+const ILLUSTRATION_WIDTH = 260;
 const illustrationSize = {
   width: ILLUSTRATION_WIDTH,
   height: ILLUSTRATION_WIDTH / illustrationAspectRatio,
 };
 
 const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
-  const { login, cekode, cekwhastapp, register } = useAuth();
-  const brandGradient = ["#ffea00", "#ffc400", "#ff9100"];
-  const softGradient = ["#fff7c2", "#ffd85f", "#ff9f1c"];
-
-  // State Internal Modal
+  const { login, refreshSession, changePassword } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [isBiometricLoading, setIsBiometricLoading] = useState(false);
   const [error, setError] = useState("");
-
-  // State untuk form
+  const [success, setSuccess] = useState("");
   const [nik, setNik] = useState("");
   const [password, setPassword] = useState("");
-  const [kode, setKode] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
-  const [registerPin, setRegisterPin] = useState("");
-  const [selectedCode, setSelectedCode] = useState("+62");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [showKodeHelp, setShowKodeHelp] = useState(false);
+  const [biometricLabel, setBiometricLabel] = useState("Biometrik");
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricHasToken, setBiometricHasToken] = useState(false);
 
-  // Membersihkan state setiap kali modal ditutup
+  const isLoginView = type !== "changePassword";
+  const brandGradient = ["#ffea00", "#ffc400", "#ff9100"];
+  const isIOS = Platform.OS === "ios";
+
   useEffect(() => {
     if (!visible) {
       setError("");
+      setSuccess("");
       setIsLoading(false);
+      setIsBiometricLoading(false);
       setNik("");
       setPassword("");
-      setKode("");
-      setWhatsapp("");
-      setRegisterPin("");
-      setShowKodeHelp(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setIsPasswordVisible(false);
     }
   }, [visible]);
 
-  // Handler utama untuk submit
+  useEffect(() => {
+    setError("");
+    setSuccess("");
+  }, [type]);
+
+  useEffect(() => {
+    if (!visible) return;
+    let isActive = true;
+
+    const checkBiometric = async () => {
+      try {
+        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+        const types =
+          await LocalAuthentication.supportedAuthenticationTypesAsync();
+        let label = "Biometrik";
+        if (
+          types.includes(
+            LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION
+          )
+        ) {
+          label = "Face ID";
+        } else if (
+          types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)
+        ) {
+          label = "Fingerprint";
+        }
+        const refreshToken = await SecureStore.getItemAsync("refreshToken");
+        if (!isActive) return;
+        setBiometricLabel(label);
+        setBiometricAvailable(hasHardware && isEnrolled);
+        setBiometricHasToken(Boolean(refreshToken));
+      } catch {
+        if (!isActive) return;
+        setBiometricAvailable(false);
+        setBiometricHasToken(false);
+      }
+    };
+
+    checkBiometric();
+    return () => {
+      isActive = false;
+    };
+  }, [visible]);
+
   const handleSubmit = async () => {
     setIsLoading(true);
     setError("");
+    setSuccess("");
 
     try {
-      if (type === "login") {
+      if (isLoginView) {
+        if (!nik || !password) {
+          throw new Error("NIK dan password wajib diisi.");
+        }
         await login(nik, password);
-        onClose(); // Tutup modal
-      } 
-      else if (type === "register") {
-        const result = await cekode(kode);
-        if (result === 1) {
-          onSwitchType("directRegister");
-        } else {
-          setError("Kode Perusahaan tidak valid atau terjadi kesalahan.");
-        }
-      } 
-      else if (type === "directRegister") {
-        const normalizedPhone = whatsapp.replace(/\D/g, "").replace(/^0/, "");
-        if (!normalizedPhone) {
-          setError("Nomor telepon wajib diisi.");
-          return;
-        }
-        if (registerPin.length !== 6) {
-          setError("PIN harus 6 digit.");
-          return;
-        }
-        await register(normalizedPhone, registerPin, kode, "1");
         onClose();
-      }
-      else if (type === "whatsappRegister") {
-        const result = await cekwhastapp(whatsapp);
-        if (result === 0) { // Nomor belum terdaftar, bisa lanjut
-          router.push({
-            pathname: "/screens/otpLogin",
-            params: { whatsapp, kode, selectedCode, option: 1 },
-          });
-          onClose();
-        } else {
-          setError("Nomor WhatsApp sudah terdaftar.");
+      } else {
+        if (!nik || !currentPassword || !newPassword || !confirmPassword) {
+          throw new Error("Lengkapi semua field.");
         }
-      } 
-      else if (type === "forgotPin") {
-        const result = await cekwhastapp(whatsapp);
-        if (result === 1) { // Nomor sudah terdaftar, bisa lanjut lupa PIN
-          router.push({
-            pathname: "/screens/otpLogin",
-            params: { whatsapp, selectedCode, option: 2 },
-          });
-          onClose();
-        } else {
-          setError("Nomor WhatsApp tidak ditemukan.");
+        if (newPassword !== confirmPassword) {
+          throw new Error("Konfirmasi password tidak sama.");
         }
+        await changePassword(nik, currentPassword, newPassword);
+        setSuccess("Password berhasil diubah. Silakan login.");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
       }
     } catch (err) {
-      setError(String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Fungsi untuk merender konten modal secara dinamis
-  const renderContent = () => {
-    switch (type) {
-      case "login":
-        return (
-          <>
-            <IconTextInput
-              iconName="call-outline"
-              placeholder="No. Telepon"
-              value={nik}
-              onChangeText={setNik}
-              keyboardType="numeric"
-            />
-            {/* Input PIN dengan ikon mata */}
-            <View style={styles.passwordContainer}>
-              <IconTextInput
-                iconName="lock-closed-outline"
-                placeholder="PIN"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!isPasswordVisible}
-                keyboardType="numeric"
-                maxLength={6}
-              />
-              <TouchableOpacity
-                style={styles.eyeIcon}
-                onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-              >
-                <Ionicons
-                  name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
-                  size={24}
-                  color={COLORS.black}
-                />
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={handleSubmit}
-              disabled={isLoading}
-              style={styles.ctaShadow}
-            >
-              <LinearGradient colors={brandGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ctaButton}>
-                {isLoading ? (
-                  <ActivityIndicator color="#ffffff" />
-                ) : (
-                  <Text style={styles.ctaText}>Login</Text>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => onSwitchType("forgotPin")}>
-              <Text style={styles.switchText}>Lupa PIN?</Text>
-            </TouchableOpacity>
-          </>
-        );
+  const handleBiometricLogin = async () => {
+    if (!biometricAvailable) return;
+    if (!biometricHasToken) {
+      setError("Belum ada sesi tersimpan untuk login biometrik.");
+      return;
+    }
 
-      case "register":
-        return (
-          <>
-            <View style={styles.kodeRow}>
-              <View style={styles.kodeInput}>
-                <IconTextInput
-                  iconName="grid-outline"
-                  placeholder="Kode Perusahaan"
-                  value={kode}
-                  onChangeText={setKode}
-                  keyboardType="default"
-                />
-              </View>
-              <View style={styles.helpAnchor}>
-                <TouchableOpacity
-                  style={styles.helpButton}
-                  onPress={() => setShowKodeHelp((prev) => !prev)}
-                >
-                  <Ionicons name="help-circle-outline" size={22} color={COLORS.primary} />
-                </TouchableOpacity>
-                {showKodeHelp ? (
-                  <View style={styles.helpBubbleFloating}>
-                    <View style={styles.helpBubbleArrow} />
-                    <Text style={styles.helpText}>
-                      Kode didapat dari struk belanja jika total belanja lebih dari Rp 50.000.
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            </View>
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={handleSubmit}
-              disabled={isLoading}
-              style={styles.ctaShadow}
-            >
-              <LinearGradient colors={brandGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ctaButton}>
-                {isLoading ? (
-                  <ActivityIndicator color="#ffffff" />
-                ) : (
-                  <Text style={styles.ctaText}>Cek Kode</Text>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          </>
-        );
-      
-      case "whatsappRegister":
-      case "forgotPin":
-        return (
-          <>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={selectedCode}
-                onValueChange={(itemValue) => setSelectedCode(itemValue)}
-                style={styles.picker}
-              >
-                {CountryCodes.map((item) => (
-                  <Picker.Item
-                    key={item.code}
-                    label={`${item.flag} ${item.code}`}
-                    value={item.code}
-                  />
-                ))}
-              </Picker>
-              <IconTextInput
-                iconName="logo-whatsapp"
-                placeholder="Nomor WhatsApp (e.g., 812...)"
-                value={whatsapp}
-                onChangeText={setWhatsapp}
-                keyboardType="numeric"
-                style={{ flex: 1 }}
-              />
-            </View>
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={handleSubmit}
-              disabled={isLoading}
-              style={styles.ctaShadow}
-            >
-              <LinearGradient colors={brandGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ctaButton}>
-                {isLoading ? (
-                  <ActivityIndicator color="#ffffff" />
-                ) : (
-                  <Text style={styles.ctaText}>Lanjutkan</Text>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          </>
-        );
-      case "directRegister":
-        return (
-          <>
-            <IconTextInput
-              iconName="call-outline"
-              placeholder="No. Telepon (contoh: 812...)"
-              value={whatsapp}
-              onChangeText={setWhatsapp}
-              keyboardType="numeric"
-            />
-            <IconTextInput
-              iconName="lock-closed-outline"
-              placeholder="PIN (6 digit)"
-              value={registerPin}
-              onChangeText={setRegisterPin}
-              secureTextEntry
-              keyboardType="numeric"
-              maxLength={6}
-            />
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={handleSubmit}
-              disabled={isLoading}
-              style={styles.ctaShadow}
-            >
-              <LinearGradient colors={brandGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ctaButton}>
-                {isLoading ? (
-                  <ActivityIndicator color="#ffffff" />
-                ) : (
-                  <Text style={styles.ctaText}>Daftar</Text>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          </>
-        );
+    setIsBiometricLoading(true);
+    setError("");
 
-      default:
-        return null;
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: `Masuk dengan ${biometricLabel}`,
+        cancelLabel: "Batal",
+        fallbackLabel: "Gunakan password",
+      });
+
+      if (!result.success) {
+        throw new Error("Autentikasi dibatalkan.");
+      }
+
+      await refreshSession();
+      onClose();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+    } finally {
+      setIsBiometricLoading(false);
     }
   };
+
+  const biometricButtonVisible =
+    isLoginView && biometricAvailable && biometricHasToken;
 
   return (
     <Modal
@@ -330,7 +188,7 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={isIOS ? "padding" : "height"}
         style={styles.modalBackdrop}
       >
         <TouchableWithoutFeedback
@@ -344,7 +202,7 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
         <View style={styles.centerWrapper} pointerEvents="box-none">
           <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
             <View style={styles.modalContent}>
-              {type === "login" ? (
+              {isLoginView ? (
                 <Image
                   source={illustrationSource}
                   style={[styles.modalIllustration, illustrationSize]}
@@ -356,8 +214,161 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
               </TouchableOpacity>
 
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              {success ? (
+                <Text style={styles.successText}>{success}</Text>
+              ) : null}
 
-              <View style={styles.formContainer}>{renderContent()}</View>
+              <View style={styles.formContainer}>
+                {isLoginView ? (
+                  <>
+                    <View style={styles.header}>
+                      <Text style={styles.title}>Masuk</Text>
+                      <Text style={styles.subtitle}>
+                        Gunakan NIK dan password yang terdaftar.
+                      </Text>
+                    </View>
+                    <IconTextInput
+                      iconName="card-outline"
+                      placeholder="NIK"
+                      value={nik}
+                      onChangeText={setNik}
+                      keyboardType="numeric"
+                    />
+                    <View style={styles.passwordContainer}>
+                      <IconTextInput
+                        iconName="lock-closed-outline"
+                        placeholder="Password"
+                        value={password}
+                        onChangeText={setPassword}
+                        secureTextEntry={!isPasswordVisible}
+                        autoCapitalize="none"
+                      />
+                      <TouchableOpacity
+                        style={styles.eyeIcon}
+                        onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+                      >
+                        <Ionicons
+                          name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
+                          size={22}
+                          color={COLORS.black}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      onPress={handleSubmit}
+                      disabled={isLoading}
+                      style={styles.ctaShadow}
+                    >
+                      <LinearGradient
+                        colors={brandGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.ctaButton}
+                      >
+                        {isLoading ? (
+                          <ActivityIndicator color="#ffffff" />
+                        ) : (
+                          <Text style={styles.ctaText}>Login</Text>
+                        )}
+                      </LinearGradient>
+                    </TouchableOpacity>
+                    {biometricButtonVisible ? (
+                      <TouchableOpacity
+                        style={styles.biometricButton}
+                        onPress={handleBiometricLogin}
+                        disabled={isBiometricLoading}
+                      >
+                        {isBiometricLoading ? (
+                          <ActivityIndicator color="#3a2f00" />
+                        ) : (
+                          <>
+                            <Ionicons
+                              name="scan-outline"
+                              size={20}
+                              color="#3a2f00"
+                            />
+                            <Text style={styles.biometricText}>
+                              Masuk dengan {biometricLabel}
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    ) : null}
+                    <TouchableOpacity
+                      onPress={() => onSwitchType("changePassword")}
+                      style={styles.linkButton}
+                    >
+                      <Text style={styles.linkText}>Ubah Password</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.header}>
+                      <Text style={styles.title}>Ubah Password</Text>
+                      <Text style={styles.subtitle}>
+                        Masukkan NIK dan password baru Anda.
+                      </Text>
+                    </View>
+                    <IconTextInput
+                      iconName="card-outline"
+                      placeholder="NIK"
+                      value={nik}
+                      onChangeText={setNik}
+                      keyboardType="numeric"
+                    />
+                    <IconTextInput
+                      iconName="lock-closed-outline"
+                      placeholder="Password lama"
+                      value={currentPassword}
+                      onChangeText={setCurrentPassword}
+                      secureTextEntry
+                      autoCapitalize="none"
+                    />
+                    <IconTextInput
+                      iconName="lock-closed-outline"
+                      placeholder="Password baru"
+                      value={newPassword}
+                      onChangeText={setNewPassword}
+                      secureTextEntry
+                      autoCapitalize="none"
+                    />
+                    <IconTextInput
+                      iconName="shield-checkmark-outline"
+                      placeholder="Konfirmasi password baru"
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      secureTextEntry
+                      autoCapitalize="none"
+                    />
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      onPress={handleSubmit}
+                      disabled={isLoading}
+                      style={styles.ctaShadow}
+                    >
+                      <LinearGradient
+                        colors={brandGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.ctaButton}
+                      >
+                        {isLoading ? (
+                          <ActivityIndicator color="#ffffff" />
+                        ) : (
+                          <Text style={styles.ctaText}>Simpan</Text>
+                        )}
+                      </LinearGradient>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => onSwitchType("login")}
+                      style={styles.linkButton}
+                    >
+                      <Text style={styles.linkText}>Kembali ke Login</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
             </View>
           </TouchableWithoutFeedback>
         </View>
@@ -372,11 +383,11 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   modalBackdropFlex: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: "#FFDE6A",
   },
   centerWrapper: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
     justifyContent: "flex-end",
     alignItems: "stretch",
     paddingHorizontal: 0,
@@ -385,9 +396,9 @@ const styles = StyleSheet.create({
   modalContent: {
     width: "100%",
     maxWidth: "100%",
-    backgroundColor: "rgba(255,255,255,0.92)",
+    backgroundColor: "rgba(255,255,255,0.96)",
     padding: SIZES.large,
-    paddingTop: SIZES.large * 1.2,
+    paddingTop: SIZES.extraLarge * 1.6,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderBottomLeftRadius: 0,
@@ -414,98 +425,46 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     zIndex: 1,
   },
+  header: {
+    marginBottom: SIZES.medium,
+  },
+  title: {
+    fontSize: 22,
+    color: "#3a2f00",
+    fontFamily: FONTS.bold,
+  },
+  subtitle: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 18,
+    color: "rgba(58,47,0,0.6)",
+    fontFamily: FONTS.regular,
+  },
   errorText: {
     color: COLORS.danger,
     textAlign: "center",
     marginBottom: SIZES.medium,
     fontSize: SIZES.font,
   },
-  formContainer: {
-    marginTop: SIZES.medium,
-  },
-  switchText: {
-    color: "#d5e9ff",
+  successText: {
+    color: "#1b7f37",
     textAlign: "center",
-    fontFamily: FONTS.regular,
+    marginBottom: SIZES.medium,
+    fontSize: SIZES.font,
+  },
+  formContainer: {
     marginTop: SIZES.base,
   },
   passwordContainer: {
-    position: 'relative',
-    justifyContent: 'center'
+    position: "relative",
+    justifyContent: "center",
   },
   eyeIcon: {
-    position: 'absolute',
+    position: "absolute",
     right: 15,
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pickerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: SIZES.medium,
-  },
-  picker: {
-    width: 130, // Sesuaikan lebar picker
-  },
-  kodeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  kodeInput: {
-    flex: 1,
-  },
-  helpButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 201, 0, 0.15)",
-    alignItems: "center",
+    height: "100%",
     justifyContent: "center",
-  },
-  helpAnchor: {
-    position: "relative",
-    height: 50,
-    marginBottom: SIZES.medium,
     alignItems: "center",
-    justifyContent: "center",
-  },
-  helpBubbleFloating: {
-    position: "absolute",
-    right: 0,
-    bottom: 52,
-    minWidth: 210,
-    maxWidth: 250,
-    backgroundColor: "rgba(255,255,255,0.98)",
-    borderRadius: 12,
-    paddingVertical: SIZES.base,
-    paddingHorizontal: SIZES.medium,
-    borderWidth: 1,
-    borderColor: "rgba(255, 201, 0, 0.45)",
-    shadowColor: "#000000",
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 12,
-    elevation: 6,
-    zIndex: 10,
-  },
-  helpBubbleArrow: {
-    position: "absolute",
-    right: 16,
-    bottom: -6,
-    width: 12,
-    height: 12,
-    backgroundColor: "rgba(255,255,255,0.98)",
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: "rgba(255, 201, 0, 0.45)",
-    transform: [{ rotate: "45deg" }],
-  },
-  helpText: {
-    color: COLORS.black,
-    fontSize: SIZES.small,
-    fontFamily: FONTS.regular,
   },
   ctaShadow: {
     marginTop: SIZES.medium,
@@ -527,12 +486,32 @@ const styles = StyleSheet.create({
     fontSize: SIZES.large,
     fontFamily: FONTS.bold,
   },
-  lightButton: {
+  biometricButton: {
+    marginTop: SIZES.base,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(15,77,146,0.25)",
+    borderColor: "rgba(122,92,0,0.2)",
+    backgroundColor: "rgba(255,255,255,0.9)",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
-  lightText: {
-    color: "#0f4d92",
+  biometricText: {
+    color: "#3a2f00",
+    fontFamily: FONTS.medium,
+    fontSize: 14,
+  },
+  linkButton: {
+    marginTop: SIZES.small,
+    alignSelf: "center",
+  },
+  linkText: {
+    color: "#7b5a00",
+    fontFamily: FONTS.medium,
+    fontSize: 13,
   },
 });
 

@@ -35,7 +35,8 @@
       "bundleIdentifier": "com.binatechnology.application",
       "icon": "./assets/images/employeicon.png",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSFaceIDUsageDescription": "Gunakan Face ID untuk login."
       }
     }
   }
