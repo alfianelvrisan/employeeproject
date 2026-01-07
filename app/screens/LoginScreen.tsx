@@ -7,13 +7,13 @@ import {
   Animated,
   PanResponder,
   Easing,
-  ImageBackground,
   LayoutChangeEvent,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { ResizeMode, Video } from "expo-av";
 
 // Import komponen & tema yang sudah dibuat
 import { COLORS, SIZES, FONTS } from "../../constants/theme";
@@ -130,11 +130,17 @@ export default function LoginScreen() {
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
-      <ImageBackground
-        source={require("../../assets/images/update_bglogin3.jpg")}
-        resizeMode="cover"
-        style={styles.backgroundImage}
-      >
+      <View style={styles.backgroundContainer}>
+        <Video
+          source={require("../../assets/images/iconbg.mp4")}
+          style={styles.backgroundVideo}
+          resizeMode={ResizeMode.COVER}
+          shouldPlay
+          isLooping
+          isMuted
+          useNativeControls={false}
+          pointerEvents="none"
+        />
         <SafeAreaView style={styles.container}>
           <View style={styles.switchCard}>
             <View style={styles.sliderArea}>
@@ -190,7 +196,7 @@ export default function LoginScreen() {
             <Text style={styles.helpText}>Help Desk</Text>
           </TouchableOpacity>
         </SafeAreaView>
-      </ImageBackground>
+      </View>
 
       <AuthModal
         visible={modalState.visible}
@@ -207,10 +213,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#ffde6a",
   },
-  backgroundImage: {
+  backgroundContainer: {
     flex: 1,
   },
-  backgroundOverlay: {
+  backgroundVideo: {
     ...StyleSheet.absoluteFillObject,
   },
   container: {
