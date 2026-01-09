@@ -27,7 +27,7 @@ const illustrationAspectRatio =
   illustrationMeta && illustrationMeta.width && illustrationMeta.height
     ? illustrationMeta.width / illustrationMeta.height
     : 1;
-const ILLUSTRATION_WIDTH = 260;
+const ILLUSTRATION_WIDTH = 300;
 const illustrationSize = {
   width: ILLUSTRATION_WIDTH,
   height: ILLUSTRATION_WIDTH / illustrationAspectRatio,
@@ -210,7 +210,7 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
                 />
               ) : null}
               <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                <Ionicons name="close" size={22} color="#7b7b7b" />
+                <Ionicons name="close" size={24} color="#6f5b00" />
               </TouchableOpacity>
 
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -222,13 +222,12 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
                 {isLoginView ? (
                   <>
                     <View style={styles.header}>
-                      <Text style={styles.title}>Masuk</Text>
-                      <Text style={styles.subtitle}>
-                        Gunakan NIK dan password yang terdaftar.
-                      </Text>
                     </View>
                     <IconTextInput
                       iconName="card-outline"
+                      iconSize={26}
+                      containerStyle={styles.authInput}
+                      inputStyle={styles.authInputText}
                       placeholder="NIK"
                       value={nik}
                       onChangeText={setNik}
@@ -237,6 +236,9 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
                     <View style={styles.passwordContainer}>
                       <IconTextInput
                         iconName="lock-closed-outline"
+                        iconSize={26}
+                        containerStyle={styles.authInput}
+                        inputStyle={styles.authInputText}
                         placeholder="Password"
                         value={password}
                         onChangeText={setPassword}
@@ -312,6 +314,9 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
                     </View>
                     <IconTextInput
                       iconName="card-outline"
+                      iconSize={26}
+                      containerStyle={styles.authInput}
+                      inputStyle={styles.authInputText}
                       placeholder="NIK"
                       value={nik}
                       onChangeText={setNik}
@@ -319,6 +324,9 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
                     />
                     <IconTextInput
                       iconName="lock-closed-outline"
+                      iconSize={26}
+                      containerStyle={styles.authInput}
+                      inputStyle={styles.authInputText}
                       placeholder="Password lama"
                       value={currentPassword}
                       onChangeText={setCurrentPassword}
@@ -327,6 +335,9 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
                     />
                     <IconTextInput
                       iconName="lock-closed-outline"
+                      iconSize={26}
+                      containerStyle={styles.authInput}
+                      inputStyle={styles.authInputText}
                       placeholder="Password baru"
                       value={newPassword}
                       onChangeText={setNewPassword}
@@ -335,6 +346,9 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
                     />
                     <IconTextInput
                       iconName="shield-checkmark-outline"
+                      iconSize={26}
+                      containerStyle={styles.authInput}
+                      inputStyle={styles.authInputText}
                       placeholder="Konfirmasi password baru"
                       value={confirmPassword}
                       onChangeText={setConfirmPassword}
@@ -399,10 +413,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.96)",
     padding: SIZES.large,
     paddingTop: SIZES.extraLarge * 1.6,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     overflow: "visible",
     shadowColor: "#0a3e7a",
     shadowOpacity: 0.32,
@@ -417,10 +431,16 @@ const styles = StyleSheet.create({
     top: SIZES.medium,
     right: SIZES.medium,
     zIndex: 2,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,222,106,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   modalIllustration: {
     position: "absolute",
-    top: -180,
+    top: -270,
     resizeMode: "contain",
     alignSelf: "center",
     zIndex: 1,
@@ -480,6 +500,7 @@ const styles = StyleSheet.create({
     height: 52,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 14,
   },
   ctaText: {
     color: "#ffffff",
@@ -488,7 +509,7 @@ const styles = StyleSheet.create({
   },
   biometricButton: {
     marginTop: SIZES.base,
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: "rgba(122,92,0,0.2)",
     backgroundColor: "rgba(255,255,255,0.9)",
@@ -512,6 +533,15 @@ const styles = StyleSheet.create({
     color: "#7b5a00",
     fontFamily: FONTS.medium,
     fontSize: 13,
+  },
+  authInput: {
+    borderRadius: 18,
+    height: 56,
+    backgroundColor: "rgba(255,255,255,0.98)",
+    borderColor: "rgba(122,92,0,0.18)",
+  },
+  authInputText: {
+    fontSize: 15,
   },
 });
 

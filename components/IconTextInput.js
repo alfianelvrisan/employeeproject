@@ -4,12 +4,21 @@ import { View, TextInput, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SIZES } from "../constants/theme";
 
-const IconTextInput = ({ iconName, placeholder, value, onChangeText, ...props }) => {
+const IconTextInput = ({
+  iconName,
+  iconSize = 22,
+  placeholder,
+  value,
+  onChangeText,
+  containerStyle,
+  inputStyle,
+  ...props
+}) => {
   return (
-    <View style={styles.inputContainer}>
-      <Ionicons name={iconName} size={22} color={COLORS.primary} style={styles.icon} />
+    <View style={[styles.inputContainer, containerStyle]}>
+      <Ionicons name={iconName} size={iconSize} color={COLORS.primary} style={styles.icon} />
       <TextInput
-        style={styles.input}
+        style={[styles.input, inputStyle]}
         placeholder={placeholder}
         placeholderTextColor={COLORS.gray}
         value={value}

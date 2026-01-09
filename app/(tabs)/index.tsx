@@ -1,480 +1,173 @@
+import React from "react";
 import {
-  StyleSheet,
-  Text,
   View,
-  FlatList,
+  Text,
+  StyleSheet,
   TouchableOpacity,
-  TextInput,
-  Platform,
   Image,
-  Dimensions,
+  ScrollView,
 } from "react-native";
-import Produk from "../produk/produk";
-import { HelloWave } from "../../components/HelloWave";
-import Cardhome from "../cardHome/cardhome";
-import Location from "../location/location";
-import React, { useEffect, useRef, useState } from "react";
-import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
-import { useAuth } from "../../context/AuthContext";
-import useScrollHeader from "../../hooks/useScrollHeader";
-import { Animated, Alert } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
-import * as Notifications from "expo-notifications";
-import * as Device from "expo-device";
-import Constants from "expo-constants";
-import { FONTS } from "../../constants/theme";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { FONTS, SIZES } from "../../constants/theme";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+const quickChips = [
+  { label: "Absensi Hari Ini" },
+  { label: "Riwayat" },
+  { label: "Pengajuan Izin" },
+];
 
-import useLocationData from "../../services/useLocationData";
-
-export default function Index() {
-  const [selectedLocation, setSelectedLocation] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const { userToken, fetchProfile } = useAuth();
-
-  // Initialize location data once here to share between components
-  const locationInstance = useLocationData(setSelectedLocation, userToken || "");
-
-  const [profil, setProfile] = React.useState<{
-    nama: string;
-    saving: number;
-    poin: number;
-    ranking: number;
-    total: number;
-    greeting: string;
-  } | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [produkKey, setProdukKey] = useState(0); // Key to force re-render Produk
-  const { headerStyle, handleScroll } = useScrollHeader();
-  // Default 1 agar badge merah muncul untuk notifikasi contoh
-  const [, setUnreadCount] = useState(1);
-  const notificationListener = useRef<Notifications.Subscription | null>(null);
-  const responseListener = useRef<Notifications.Subscription | null>(null);
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      if (userToken) {
-        const profile = await fetchProfile();
-        if (profile) {
-          setProfile(profile);
-        } else {
-          setProfile(null);
-        }
-        setProdukKey((prevKey) => prevKey + 1); // Update Produk key to refresh it
-      }
-    } catch (error) {
-      console.warn((error as Error).message);
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    if (userToken) {
-      fetchProfile()
-        .then((profile) => {
-          if (profile) {
-            setProfile(profile);
-          }
-        })
-        .catch((error) => {
-          console.warn(error.message);
-        });
-    }
-  }, [userToken]);
-
-  useEffect(() => {
-    const registerForPushNotificationsAsync = async () => {
-      if (!Device.isDevice) {
-        Alert.alert("Notifikasi", "Push notifikasi memerlukan perangkat fisik.");
-        return;
-      }
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-      if (existingStatus !== "granted") {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-      if (finalStatus !== "granted") {
-        Alert.alert("Notifikasi", "Izin notifikasi ditolak.");
-        return;
-      }
-      try {
-        const projectId =
-          Constants.expoConfig?.extra?.eas?.projectId ??
-          Constants.easConfig?.projectId;
-        if (!projectId) {
-          console.warn("Project ID untuk push token tidak ditemukan.");
-          return;
-        }
-        await Notifications.getExpoPushTokenAsync({ projectId });
-      } catch (e) {
-        console.warn("Gagal mengambil push token:", e);
-      }
-    };
-
-    registerForPushNotificationsAsync();
-
-    if (Platform.OS === "android") {
-      Notifications.setNotificationChannelAsync("default", {
-        name: "Default",
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#FFBB00",
-        sound: "default",
-        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-      }).catch((error) =>
-        console.warn("Gagal membuat channel notifikasi Android:", error)
-      );
-    }
-
-    notificationListener.current =
-      Notifications.addNotificationReceivedListener(() => {
-        setUnreadCount((prev) => prev + 1);
-      });
-
-    responseListener.current =
-      Notifications.addNotificationResponseReceivedListener(() => {
-        setUnreadCount(0);
-        router.push("/notification/notification");
-      });
-
-    return () => {
-      notificationListener.current?.remove();
-      responseListener.current?.remove();
-    };
-  }, []);
-
+export default function HomeScreen() {
   return (
-    <SafeAreaProvider>
-      <LinearGradient
-        colors={[PRIMARY_YELLOW, "#ffffff", "#ffffff"]} // Kuning di atas, putih di bawah
-        locations={[0, 0.4, 1]} // Transisi selesai di 40% layar
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={styles.gradientBg}
-      >
-        <SafeAreaView style={styles.container}>
-          <Animated.View style={[styles.floatingHeader, headerStyle]}>
-            <View
-              style={[styles.headerGradientOverlay, styles.headerGradientSolid]}
-            />
-            <View style={styles.headerSearchRow}>
-              <View style={styles.headerSearchWrapper}>
-                <TouchableOpacity
-                  activeOpacity={0.9}
-                  onPress={() => router.push(`/search/search?idStore=${selectedLocation}`)}
-                  style={styles.neonShell}
-                >
-                  <View style={styles.neonSearch}>
-                    <Ionicons
-                      name="search-outline"
-                      size={16}
-                      color={PRIMARY_TEXT_DARK}
-                      style={styles.neonIcon}
-                    />
-                    <Text style={[styles.neonInput, { color: PRIMARY_TEXT_MUTED }]}>
-                      Cari produk favoritmu
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
-              <Image
-                source={require("../../assets/images/employeicon.png")}
-                style={styles.headerLogo}
-                resizeMode="contain"
-              />
-            </View>
-          </Animated.View>
-          <FlatList
-            data={[]}
-            keyExtractor={() => `${userToken}`}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => null}
-            scrollEventThrottle={16}
-            onScroll={handleScroll}
-            ListHeaderComponent={
-              <>
-                <View style={styles.headerSpacer} />
-                <View style={styles.heroBg}>
-                  <View style={styles.heroRow}>
-                    <View style={styles.heroGreeting}>
-                      <Text style={styles.greetingTitle}>
-                        {profil?.greeting || "Good morning"},
-                      </Text>
-                      <View style={styles.greetingRow}>
-                        <Text style={styles.greetingName}>
-                          {profil?.nama || "Sobat Laskar Buah"}
-                        </Text>
-                        <HelloWave />
-                      </View>
-                      <Text style={styles.greetingSubtitle}>
-                        Semoga harimu menyenangkan dan penuh energi.
-                      </Text>
-                    </View>
-                    <View style={styles.heroLocation}>
-                      <Location
-                        onSelectStore={setSelectedLocation}
-                        displayMode="location"
-                        style={styles.heroLocationCard}
-                        locationInstance={locationInstance}
-                      />
-                    </View>
-                  </View>
-                </View>
-
-                <View style={styles.utilityCard}>
-                  <View style={styles.utilityTopRow}>
-                    <View style={styles.utilityCardHome}>
-                      <Cardhome />
-                    </View>
-                    <View style={styles.utilityStore}>
-                      <Location
-                        onSelectStore={setSelectedLocation}
-                        displayMode="store"
-                        style={styles.storeCardCompact}
-                        locationInstance={locationInstance}
-                      />
-                    </View>
-                  </View>
-                  <Image
-                    source={require("../../assets/images/update_bglogin3.jpg")}
-                    style={styles.sectionDivider}
-                    resizeMode="cover"
-                    accessible
-                    accessibilityLabel="Pemisah antara lokasi dan daftar toko"
-                  />
-                  <Produk
-                    idStore={selectedLocation}
-                    key={produkKey}
-                    showSearchBar={false}
-                  />
-                </View>
-              </>
-            }
-            onRefresh={handleRefresh}
-            refreshing={refreshing}
+    <SafeAreaView style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <Image
+            source={require("../../assets/images/employee1.png")}
+            style={styles.avatar}
           />
-          <View pointerEvents="none" style={styles.bottomFill} />
-        </SafeAreaView>
-      </LinearGradient>
-    </SafeAreaProvider>
+          <View style={styles.headerText}>
+            <Text style={styles.greeting}>Selamat datang</Text>
+            <Text style={styles.name}>Jonathan Troot</Text>
+          </View>
+          <TouchableOpacity style={styles.iconButton}>
+            <Ionicons name="notifications-outline" size={20} color="#2b2308" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.hero}>
+          <Text style={styles.heroTitle}>Need anything?</Text>
+          <Text style={styles.heroSubtitle}>
+            Pusat absensi membantu kamu check in, izin, dan lihat riwayat.
+          </Text>
+        </View>
+
+        <View style={styles.searchCard}>
+          <Ionicons name="search" size={18} color="#6f5b00" />
+          <Text style={styles.searchPlaceholder}>Ask anything...</Text>
+          <TouchableOpacity style={styles.micButton}>
+            <Ionicons name="mic" size={16} color="#1a1606" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.chipRow}>
+          {quickChips.map((chip) => (
+            <View key={chip.label} style={styles.chip}>
+              <Text style={styles.chipText}>{chip.label}</Text>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const DIVIDER_RATIO = 2953 / 314;
-const PRIMARY_YELLOW = "#FFF247";
-const PRIMARY_YELLOW_LIGHT = "#fff27c";
-const PRIMARY_YELLOW_SOFT = "#fff7cf";
-const PRIMARY_TEXT_DARK = "#3a2f00";
-const PRIMARY_TEXT_MUTED = "#de0866";
-const PRIMARY_SHADOW = "rgba(255, 199, 0, 0.4)";
-
 const styles = StyleSheet.create({
-  greetingTitle: {
-    fontSize: 16,
-    color: "#ff0000ff",
-    marginTop: 0,
+  screen: {
+    flex: 1,
+    backgroundColor: "#FFF9E6",
+  },
+  content: {
+    paddingHorizontal: SIZES.large,
+    paddingBottom: 120,
+    gap: 26,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#ffffff",
+  },
+  headerText: {
+    flex: 1,
+  },
+  greeting: {
+    fontSize: 12,
+    color: "rgba(43,35,8,0.6)",
+    fontFamily: FONTS.medium,
+  },
+  name: {
+    fontSize: 18,
+    color: "#2b2308",
     fontFamily: FONTS.bold,
   },
-  greetingRow: {
-    flexDirection: "row",
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(43,35,8,0.08)",
+  },
+  hero: {
     alignItems: "center",
     gap: 8,
-    marginTop: 2,
+    paddingHorizontal: 12,
   },
-  greetingName: {
-    fontSize: 20,
-    color: "#000000ff",
+  heroTitle: {
+    fontSize: 22,
+    color: "#2b2308",
     fontFamily: FONTS.bold,
   },
-  greetingSubtitle: {
-    marginTop: 2,
+  heroSubtitle: {
     fontSize: 13,
-    color: "#de0866",
-    marginBottom: 6,
+    color: "rgba(43,35,8,0.55)",
+    textAlign: "center",
+    fontFamily: FONTS.regular,
   },
-  container: {
-    flex: 1,
-    backgroundColor: PRIMARY_YELLOW,
-  },
-  gradientBg: {
-    flex: 1,
-  },
-  heroBg: {
-    width: "100%",
-    paddingTop: 18,
-    paddingHorizontal: 13,
-    paddingBottom: 10,
-    backgroundColor: PRIMARY_YELLOW, // kartu ucapan kuning solid
-    borderRadius: 14,
-    marginHorizontal: 8,
-    shadowColor: "rgba(255, 255, 255, 0.12)",
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
+  searchCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#ffffff",
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "rgba(43,35,8,0.08)",
+    shadowColor: "#2b2308",
+    shadowOpacity: 0.08,
     shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
     elevation: 6,
   },
-  heroRow: {
-    flexDirection: "row",
-    gap: 12,
-    alignItems: "stretch",
-    flexWrap: "wrap",
-  },
-  heroGreeting: {
+  searchPlaceholder: {
     flex: 1,
+    fontSize: 13,
+    color: "rgba(43,35,8,0.5)",
+    fontFamily: FONTS.regular,
   },
-  heroLocation: {
-    flex: 1,
-    justifyContent: "flex-start",
-  },
-  heroLocationCard: {
-    marginHorizontal: 0,
-    marginTop: 0,
-  },
-
-  // card home
-  utilityCard: {
-    width: "100%",
-    marginHorizontal: 0,
-    marginTop: 10,
-    paddingVertical: 5,
-    paddingHorizontal: 0,
-    borderRadius: 20,
-    backgroundColor: "#ffffffff",
-  },
-
-  // Card home dan lokasi
-  utilityTopRow: {
-    flexDirection: "row",
-    gap: 5,
-    paddingHorizontal: 8,
-    alignItems: "stretch",
-    flexWrap: "wrap",
-  },
-  utilityCardHome: {
-    flex: 2,
-  },
-  utilityStore: {
-    flex: 1,
-  },
-  storeCardCompact: {
-    marginHorizontal: 0,
-    marginTop: 0, // Removed top margin to align with Cardhome (internal margin handles it)
-  },
-  section: {
-    paddingHorizontal: 0,
-    marginBottom: 0,
-  },
-  floatingHeader: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    minHeight: 100,
-    justifyContent: "flex-end",
-    alignItems: "center",
-    zIndex: 10,
-    elevation: 0,
-    shadowColor: "transparent",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    paddingTop: 50,
-    paddingBottom: 0,
-    paddingHorizontal: 7,
-    flexDirection: "row",
-    borderBottomWidth: 0,
-    borderBottomColor: "transparent",
-  },
-  headerGradientOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  headerGradientSolid: {
-    backgroundColor: PRIMARY_YELLOW,
-  },
-  headerSearchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    width: "100%",
-    gap: 12,
-    paddingHorizontal: 8,
-  },
-  headerSearchWrapper: {
-    flex: 1,
-    alignSelf: "center",
-  },
-  headerLogo: {
-    width: 44,
-    height: 44,
-  },
-  neonShell: {
-    borderRadius: 30,
-    padding: 2,
-    backgroundColor: "transparent",
-    shadowColor: "transparent",
-    shadowOpacity: 0,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 0, // Removed shadow/elevation
-  },
-  neonSearch: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 22,
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: PRIMARY_YELLOW_LIGHT,
-    minHeight: 34,
-  },
-  neonIcon: {
-    marginRight: 8,
-  },
-  neonInput: {
-    flex: 1,
-    color: "#1f1f1f",
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  neonAction: {
-    width: 32,
-    height: 26,
-    borderRadius: 13,
+  micButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#FFDE6A",
     alignItems: "center",
     justifyContent: "center",
   },
-  headerSpacer: {
-    height: 70,
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
   },
-  bottomFill: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 50,
-    backgroundColor: "#ffffffff",
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderWidth: 1,
+    borderColor: "rgba(43,35,8,0.08)",
   },
-  sectionDivider: {
-    width: SCREEN_WIDTH - 0,
-    height: (SCREEN_WIDTH - 32) / DIVIDER_RATIO,
-    alignSelf: "center",
-    marginTop: 10,
+  chipText: {
+    fontSize: 12,
+    color: "#3a2f00",
+    fontFamily: FONTS.medium,
   },
 });

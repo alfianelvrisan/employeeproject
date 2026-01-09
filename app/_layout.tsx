@@ -42,12 +42,6 @@ export default function RootLayout() {
         <AuthProvider>
           <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
             <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="gift/Gift" options={{ headerShown: false }} />
-              <Stack.Screen name="cart/cart" options={{ headerShown: false }} />
-              <Stack.Screen name="search/search" options={{ headerShown: false }} />
-              <Stack.Screen name="topup/TopupSavings" />
-              <Stack.Screen name="topup/TopupHistory" />
               <Stack.Screen name="+not-found" />
             </Stack>
             <StatusBar style="auto" />

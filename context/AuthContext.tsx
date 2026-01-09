@@ -25,8 +25,6 @@ type AuthContextType = {
   login: (nik: string, password: string) => Promise<void>;
   refreshSession: () => Promise<void>;
   logout: () => void;
-  cekode: (kode: string) => Promise<number>;
-  cekwhastapp: (whatsapp:string)=>Promise<number>;
   register: (whatsapp: string, pin: string,kode:string,option:string) => Promise<void>;
   fetchProfile: () => Promise<any | null>;
   changePassword: (nik: string, currentPassword: string, newPassword: string) => Promise<void>;
@@ -211,26 +209,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const fetchProfile = async () => {
-    const response = await fetchWithAuth(
-      "https://api.laskarbuah.com/api/Profil",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
-      }
-    );
+    const response = await fetchWithAuth(buildApiUrl("/profile"), {
+      method: "GET",
+    });
 
     if (!response.ok) {
       throw new Error("Profile request failed.");
     }
 
-    const json = await response.json();
-    if (json?.success && json?.data) {
-      return normalizeProfile(json.data);
-    }
-    return null;
+    const json = await response.json().catch(() => ({}));
+    const payload = json?.data ?? json;
+    if (!payload) return null;
+    return normalizeProfile(payload);
   };
 
   async function loginWithCredentials(nik: string, password: string) {
@@ -242,14 +232,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
+          username: nik,
           nik,
           password,
         })
       });
   
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.log("[auth] loginWithCredentials: response not ok", errorData);
+        const errorText = await response.text().catch(() => "");
+        let errorData: any = {};
+        try {
+          errorData = errorText ? JSON.parse(errorText) : {};
+        } catch {
+          errorData = { raw: errorText };
+        }
+        console.log("[auth] loginWithCredentials: response not ok", {
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+        });
         throw new Error(getErrorMessage(errorData, "Login gagal dari server."));
       }
   
@@ -339,7 +340,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const refreshToken = await getStoredRefreshToken();
       if (refreshToken) {
-        await fetch("https://api.laskarbuah.com/api/LoginValidations/logout", {
+        await fetch(buildApiUrl("/auth/logout"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -353,51 +354,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await clearTokens();
       setUserToken(null);
       router.replace("/screens/LoginScreen");
-    }
-  };
-
-  const cekode = async (kode: string) => {
-    try {
-      const response = await fetch(
-        "https://api.laskarbuah.com/api/RegistrasiMem/cek-kode",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ v_token: kode }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Cekode request failed.");
-      }
-
-      const result = await response.json();
-      console.log("Cekode result:", result);
-      return result[0].corp_sp_cek_trx_add_new_member_new;
-    } catch (error) {
-      throw new Error("Cekode error: " + (error as Error).message);
-    }
-  };
-
-  const cekwhastapp = async (whatsapp: string) => {
-    try{
-      const response = await fetch("https://api.laskarbuah.com/api/cekWhatsapp", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ v_whatsapp: "0"+whatsapp }),
-      });
-      if (!response.ok) {
-        throw new Error("Cekwhatsapp request failed.");
-      }
-      const result = await response.json();
-      console.log("Cekwhatsapp result:", result);
-      return result[0].corp_api_cek_no_member;
-    }catch (error) {
-      throw new Error("Cekwhatsapp error: " + (error as Error).message);
     }
   };
 
@@ -465,8 +421,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login,
         refreshSession,
         logout,
-        cekode,
-        cekwhastapp,
         register,
         fetchProfile,
         changePassword,

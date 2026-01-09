@@ -1,286 +1,80 @@
 import React from "react";
-import {
-  Alert,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-  Image,
-  Text,
-  Button,
-  Dimensions,
-} from "react-native";
-import { CurvedBottomBarExpo } from "react-native-curved-bottom-bar";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import Index from "./index";
-import Explore from "./explore";
-import Profile from "../profile/profile";
-import Carts from "../cart/cart";
-import { router, Stack, useRouter } from "expo-router";
-import { MaterialIcons } from "@expo/vector-icons";
-import Gift from "../gift/Gift";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Tabs } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import ProtectedRoute from "../../components/ProtectedRoute";
 
-
-const Home = () => {
-  return <Index />;
-};
-
-const giftcard = () => {
+export default function TabsLayout() {
   return (
-    <View style={styles.screen2}>
-      <Gift />
-    </View>
-  );
-};
-const Profiles = () => {
-  return (
-    <Profile />
-  );
-};
-const Cart = () => {
-  return (
-    <View>
-      <Carts />
-    </View>
-  );
-};
-const HeaderRightComponent = () => {
-  return (
-    <TouchableOpacity
-      onPress={() => router.push("/notification/notification")}
-      style={{ marginRight: 15 }}
-    >
-      <View style={{ position: "relative" }}>
-        <Ionicons name="notifications-outline" size={24} color="white" />
-        <View style={styles.notifBadge}>
-          <Text style={styles.notifText}>13</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-};
-export default function App() {
-  const _renderIcon = (routeName: any, selectedTab: any) => {
-    let icon = "";
-
-    switch (routeName) {
-      case "Home":
-        icon = routeName === selectedTab ? "home" : "home-outline";
-        break;
-      case "Settings":
-        icon = routeName === selectedTab ? "play-circle" : "play-circle-outline";
-        break;
-      case "Profiles":
-        icon = routeName === selectedTab ? "person" : "person-outline";
-        break;
-      case "Notifi":
-        icon = routeName === selectedTab ? "notifications" : "notifications-outline";
-        break;
-      case "Barcode":
-        icon = "qr-code"; // Tidak ada "qr-code-outline" di Ionicons
-        break;
-      case "Cart":
-        icon = routeName === selectedTab ? "cart" : "cart-outline";
-        break;
-    }
-
-    return (
-      <Ionicons
-        name={icon as keyof typeof Ionicons.glyphMap}
-        size={25}
-        color={routeName === selectedTab ? "#de0866" : "gray"}
-      />
-    );
-  };
-  const renderTabBar = ({ routeName, selectedTab, navigate }) => {
-    const handlePress = () => {
-      if (routeName === "Settings") {
-        router.push("/gift/Gift");
-      } else {
-        navigate(routeName);
-      }
-    };
-    return (
-      <TouchableOpacity
-        onPress={handlePress}
-        style={styles.tabbarItem}
+    <ProtectedRoute>
+      <Tabs
+        initialRouteName="index"
+        screenOptions={{
+          headerShown: false,
+          tabBarShowLabel: true,
+          tabBarActiveTintColor: "#1a1606",
+          tabBarInactiveTintColor: "rgba(26,22,6,0.5)",
+          tabBarStyle: {
+            backgroundColor: "#ffffff",
+            borderTopWidth: 0,
+            height: 68,
+            paddingBottom: 10,
+            paddingTop: 8,
+            marginHorizontal: 18,
+            marginBottom: 16,
+            borderRadius: 24,
+            position: "absolute",
+          },
+          tabBarLabelStyle: {
+            fontSize: 11,
+          },
+        }}
       >
-        {_renderIcon(routeName, selectedTab)}
-      </TouchableOpacity>
-    );
-  };
-  const insets = useSafeAreaInsets();
-
-
-  return (
-    <>
-      <CurvedBottomBarExpo.Navigator
-        type="DOWN"
-        style={[styles.bottomBar, { paddingBottom: insets.bottom }]}
-        shadowStyle={styles.shadow}
-        height={55}
-        circleWidth={50}
-        bgColor="white"
-        initialRouteName="Home"
-        id="mainNavigator" // Unique ID for the navigator
-        screenOptions={{ headerShown: false }} // Example screen options
-        borderColor="transparent" // Example border color
-        borderWidth={0} // Example border width
-        width={Dimensions.get("window").width}
-        circlePosition="CENTER"
-        borderTopLeftRight={true}
-        screenListeners={{}}
-        defaultScreenOptions={{}}
-        backBehavior="history"
-        renderCircle={({ }) => (
-          <View style={styles.btnCircleUp}>
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() => router.push("/scan/scanqrcode")}
-            >
-              <MaterialIcons name={"qr-code-scanner"} color="#000000ff" size={25} />
-            </TouchableOpacity>
-          </View>
-        )}
-        tabBar={renderTabBar}
-      >
-        <CurvedBottomBarExpo.Screen
-          name="Home"
-          position="LEFT"
-          component={Index}
+        <Tabs.Screen
+          name="index"
           options={{
-            headerShown: false,
+            title: "Home",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="home-outline" size={size} color={color} />
+            ),
           }}
         />
-        <CurvedBottomBarExpo.Screen
-          name="Settings"
-          position="RIGHT"
-          component={() => <Gift />}
+        <Tabs.Screen
+          name="absensi"
           options={{
-            headerShown: true,
-            headerTitle: "GiftLbi",
-            headerTitleAlign: "center",
-            headerStyle: {
-              elevation: 0,
-              shadowOpacity: 0,
-            },
-            headerTintColor: "#115f9f",
+            title: "Absensi",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="finger-print" size={size} color={color} />
+            ),
           }}
         />
-        <CurvedBottomBarExpo.Screen
-          name="Cart"
-          position="LEFT"
-          component={() => <Carts />}
+        <Tabs.Screen
+          name="quran"
           options={{
-            headerShown: true,
-            headerTitle: "Pesanan",
-            headerTitleAlign: "center",
-            headerStyle: {
-              elevation: 0,
-              shadowOpacity: 0,
-            },
-            headerTintColor: "#115f9f",
+            title: "Qur'an",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="book-outline" size={size} color={color} />
+            ),
           }}
         />
-        <CurvedBottomBarExpo.Screen
-          name="Profiles"
-          position="RIGHT"
-          component={() => <Profiles />}
+        <Tabs.Screen
+          name="mail"
           options={{
-            headerShown: false,
-            headerStyle: {
-              backgroundColor: "#fff", // Latar belakang putih
-            },
+            title: "Mail",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="mail-outline" size={size} color={color} />
+            ),
           }}
-
         />
-
-      </CurvedBottomBarExpo.Navigator>
-    </>
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: "Profile",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="person-outline" size={size} color={color} />
+            ),
+          }}
+        />
+      </Tabs>
+    </ProtectedRoute>
   );
 }
-
-
-
-
-
-export const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-  },
-  shadow: {
-    shadowColor: "transparent",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    elevation: 0,
-  },
-  button: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  bottomBar: {
-    bottom: 0,
-    elevation: 0,
-  },
-  btnCircleUp: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#fff247",
-    bottom: 30,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 1,
-  },
-  imgCircle: {
-    width: 30,
-    height: 30,
-    tintColor: "gray",
-  },
-  tabbarItem: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  img: {
-    width: 30,
-    height: 30,
-  },
-  screen1: {
-    flex: 1,
-    backgroundColor: "#000000ff",
-  },
-  screen2: {
-    flex: 1,
-    backgroundColor: "#FFEBCD",
-  },
-  notifBadge: {
-    position: "absolute",
-    top: -5,
-    right: -10,
-    backgroundColor: "red",
-    borderRadius: 10,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    minWidth: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  notifText: {
-    color: "white",
-    fontSize: 10,
-    fontWeight: "bold",
-  },
-  textnotif: {
-    color: "#115f9f",
-    fontSize: 18,
-    fontWeight: "medium",
-    marginRight: 20,
-  }
-});
