@@ -160,8 +160,8 @@ export default function OtpLogin() {
     if (enteredOtp === generatedOtp) {
       setOtp(["", "", "", "", "", ""]);
       router.push({
-        pathname: "/screens/pinLogin",
-        params: { whatsapp: whatsapp, kode: kode,option:option },
+        pathname: "/(auth)/pin",
+        params: { whatsapp: whatsapp, kode: kode, option: option },
       });
     } else {
       Alert.alert("Gagal", "OTP yang Anda masukkan salah.");

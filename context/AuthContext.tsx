@@ -22,6 +22,7 @@ const getErrorMessage = (data: any, fallback: string) =>
 
 type AuthContextType = {
   userToken: string | null;
+  isAuthReady: boolean;
   login: (nik: string, password: string) => Promise<void>;
   refreshSession: () => Promise<void>;
   logout: () => void;
@@ -39,6 +40,7 @@ export const AuthContext = createContext<AuthContextType | undefined>(
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userToken, setUserToken] = useState<string | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const [ipt, setIp] = useState("");
 
   const getStoredAccessToken = async () => {
@@ -107,34 +109,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    let isActive = true;
     const loadToken = async () => {
       try {
         const token = await getStoredAccessToken();
         console.log("[auth] loadToken: accessToken exists?", Boolean(token));
         if (token) {
-          setUserToken(token);
-          router.replace("/"); // langsung arahkan ke home bila token masih ada
-        } else {
-          const refreshToken = await getStoredRefreshToken();
-          console.log("[auth] loadToken: refreshToken exists?", Boolean(refreshToken));
-          if (refreshToken) {
-            try {
-              await refreshAccessToken();
-              router.replace("/");
-              return;
-            } catch {
-              console.log("[auth] loadToken: refresh failed, clearing tokens");
-              await clearTokens();
-            }
+          if (isActive) setUserToken(token);
+          return;
+        }
+
+        const refreshToken = await getStoredRefreshToken();
+        console.log("[auth] loadToken: refreshToken exists?", Boolean(refreshToken));
+        if (refreshToken) {
+          try {
+            await refreshAccessToken();
+            return;
+          } catch {
+            console.log("[auth] loadToken: refresh failed, clearing tokens");
+            await clearTokens();
           }
-          router.replace("/screens/LoginScreen");
         }
       } catch (e) {
         console.log("[auth] loadToken: error", e);
-        router.replace("/screens/LoginScreen");
+      } finally {
+        if (isActive) setIsAuthReady(true);
       }
     };
     loadToken();
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   const getIpAddress = async () => {
@@ -180,7 +185,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch {
         await clearTokens();
         setUserToken(null);
-        router.replace("/screens/LoginScreen");
         throw new Error("Sesi telah berakhir. Silakan login kembali.");
       }
     }
@@ -285,8 +289,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       await saveTokens(accessToken, refreshToken);
       setUserToken(accessToken);
-      console.log("[auth] login: success, navigating home");
-      router.replace("/");
+      console.log("[auth] login: success");
     } catch (error) {
       console.log("[auth] login: error", error);
       throw error;
@@ -300,7 +303,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!accessToken) {
         throw new Error("Token baru tidak ditemukan.");
       }
-      router.replace("/");
     } catch (error) {
       console.log("[auth] refreshSession: error", error);
       throw error;
@@ -353,7 +355,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       await clearTokens();
       setUserToken(null);
-      router.replace("/screens/LoginScreen");
     }
   };
 
@@ -404,7 +405,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const result = await handleRegister(whatsapp, pin, kode, option);
       if (result?.success) {
-        router.replace("/screens/LoginScreen");
+        router.replace("/(auth)/login");
         return;
       }
       throw new Error("Registrasi gagal dari server.");
@@ -418,6 +419,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider
       value={{
         userToken,
+        isAuthReady,
         login,
         refreshSession,
         logout,
