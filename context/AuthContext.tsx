@@ -4,13 +4,14 @@ import React, {
   useEffect,
   useContext,
   ReactNode,
+  useRef,
 } from "react";
 import * as SecureStore from 'expo-secure-store';
 import { router } from "expo-router";
 import * as Network from "expo-network";
 import * as Location from "expo-location";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_BASE_URL ?? "";
+const API_BASE_URL = (process.env.EXPO_PUBLIC_BASE_URL ?? "").trim();
 const buildApiUrl = (path: string) => {
   if (!API_BASE_URL) {
     throw new Error("EXPO_PUBLIC_BASE_URL belum diset.");
@@ -19,6 +20,65 @@ const buildApiUrl = (path: string) => {
 };
 const getErrorMessage = (data: any, fallback: string) =>
   data?.message || data?.error || data?.msg || fallback;
+const normalizeTokenValue = (token: string) => {
+  let trimmed = token.trim();
+  const wrapped =
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"));
+  if (wrapped) {
+    trimmed = trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+};
+const stripBearerPrefix = (token: string) =>
+  token.replace(/^bearer\s+/i, "").trim();
+const buildAuthHeaderValue = (token: string) => {
+  const normalized = stripBearerPrefix(normalizeTokenValue(token));
+  return `Bearer ${normalized}`;
+};
+const readResponseBody = async (response: Response) => {
+  const text = await response.text().catch(() => "");
+  if (!text) return { text: "", json: null };
+  try {
+    return { text, json: JSON.parse(text) };
+  } catch {
+    return { text, json: null };
+  }
+};
+const previewToken = (value: string) => {
+  const clean = stripBearerPrefix(normalizeTokenValue(value));
+  if (clean.length <= 10) return clean;
+  return `${clean.slice(0, 6)}...${clean.slice(-4)}`;
+};
+const logTokenValue = (label: string, token?: string) => {
+  if (!token) {
+    console.log("[auth] token", { label, value: "-", length: 0 });
+    return;
+  }
+  const normalized = normalizeTokenValue(token);
+  console.log("[auth] token", {
+    label,
+    value: normalized,
+    length: normalized.length,
+    full: true,
+  });
+};
+const PROFILE_CACHE_TTL_MS = 2 * 60 * 1000;
+const NAVIGATION_CACHE_TTL_MS = 5 * 60 * 1000;
+const isAuthErrorPayload = (value: any) => {
+  if (!value || typeof value !== "object") return false;
+  if (value.success === false || value.status === false) return true;
+  const message = String(value.message ?? value.error ?? value.msg ?? "")
+    .toLowerCase()
+    .trim();
+  if (!message) return false;
+  return (
+    message.includes("unauthor") ||
+    message.includes("expired") ||
+    message.includes("token") ||
+    message.includes("login")
+  );
+};
 
 type AuthContextType = {
   userToken: string | null;
@@ -27,7 +87,12 @@ type AuthContextType = {
   refreshSession: () => Promise<void>;
   logout: () => void;
   register: (whatsapp: string, pin: string,kode:string,option:string) => Promise<void>;
-  fetchProfile: () => Promise<any | null>;
+  fetchProfile: (options?: { force?: boolean }) => Promise<any | null>;
+  fetchAbsensiJadwal: () => Promise<any | null>;
+  fetchNavigation: (options?: {
+    force?: boolean;
+    aplikasiId?: number;
+  }) => Promise<any[] | null>;
   changePassword: (nik: string, currentPassword: string, newPassword: string) => Promise<void>;
 };
 
@@ -42,6 +107,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userToken, setUserToken] = useState<string | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [ipt, setIp] = useState("");
+  const refreshPromiseRef = useRef<Promise<string> | null>(null);
+  const profileCacheRef = useRef<{ data: any; ts: number } | null>(null);
+  const navigationCacheRef = useRef<{
+    key: string;
+    data: any[];
+    ts: number;
+  } | null>(null);
 
   const getStoredAccessToken = async () => {
     return await SecureStore.getItemAsync("authToken");
@@ -52,11 +124,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const saveTokens = async (accessToken: string, refreshToken?: string) => {
-    console.log("[auth] saveTokens: accessToken?", Boolean(accessToken), "refreshToken?", Boolean(refreshToken));
+    console.log(
+      "[auth] saveTokens: accessToken?",
+      Boolean(accessToken),
+      "refreshToken?",
+      Boolean(refreshToken),
+      "accessLen",
+      accessToken?.length ?? 0,
+      "refreshLen",
+      refreshToken?.length ?? 0
+    );
     await SecureStore.setItemAsync("authToken", accessToken);
     if (refreshToken) {
       await SecureStore.setItemAsync("refreshToken", refreshToken);
     }
+  };
+
+  const clearProfileCache = () => {
+    profileCacheRef.current = null;
+  };
+
+  const clearNavigationCache = () => {
+    navigationCacheRef.current = null;
   };
 
   const clearTokens = async () => {
@@ -66,7 +155,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const refreshAccessToken = async () => {
     console.log("[auth] refreshAccessToken: start");
-    const refreshToken = await getStoredRefreshToken();
+    const storedRefreshToken = await getStoredRefreshToken();
+    const refreshToken = storedRefreshToken
+      ? stripBearerPrefix(normalizeTokenValue(storedRefreshToken))
+      : null;
     if (!refreshToken) {
       console.log("[auth] refreshAccessToken: missing refresh token");
       throw new Error("Refresh token tidak ditemukan.");
@@ -94,6 +186,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const result = await response.json().catch(() => ({}));
     const payload = result?.data ?? result;
+    console.log("[auth] refreshAccessToken: payload keys", Object.keys(payload ?? {}));
     const accessToken =
       payload?.access_token || payload?.token || payload?.accessToken;
     const newRefreshToken =
@@ -102,10 +195,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log("[auth] refreshAccessToken: no access token in response", result);
       throw new Error("Access token tidak ditemukan dari refresh.");
     }
-    console.log("[auth] refreshAccessToken: success");
+    console.log("[auth] refreshAccessToken: success", {
+      accessTokenPreview: accessToken ? previewToken(accessToken) : "-",
+      refreshTokenPreview: newRefreshToken ? previewToken(newRefreshToken) : "-",
+    });
+    logTokenValue("access(refresh)", accessToken);
+    logTokenValue("refresh(refresh)", newRefreshToken);
     await saveTokens(accessToken, newRefreshToken);
     setUserToken(accessToken);
     return accessToken;
+  };
+
+  const refreshAccessTokenOnce = async () => {
+    if (!refreshPromiseRef.current) {
+      refreshPromiseRef.current = refreshAccessToken().finally(() => {
+        refreshPromiseRef.current = null;
+      });
+    }
+    return refreshPromiseRef.current;
   };
 
   useEffect(() => {
@@ -123,7 +230,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log("[auth] loadToken: refreshToken exists?", Boolean(refreshToken));
         if (refreshToken) {
           try {
-            await refreshAccessToken();
+            await refreshAccessTokenOnce();
             return;
           } catch {
             console.log("[auth] loadToken: refresh failed, clearing tokens");
@@ -161,27 +268,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const fetchWithAuth = async (url: string, options: any = {}) => {
-    const token = await getStoredAccessToken();
+    const storedToken = await getStoredAccessToken();
+    const stateToken = userToken;
+    const token = storedToken || stateToken;
   
     if (!token) {
       throw new Error("Token tidak ditemukan. Silakan login kembali.");
     }
   
+    const method = options?.method ?? "GET";
+    const shouldLogProfile = url.toLowerCase().includes("/profile");
+    if (shouldLogProfile) {
+      console.log("[auth] profile request start", {
+        url,
+        method,
+        tokenPreview: previewToken(token),
+        tokenLength: normalizeTokenValue(token).length,
+        storedTokenPreview: storedToken ? previewToken(storedToken) : "-",
+        storedTokenLength: storedToken ? normalizeTokenValue(storedToken).length : 0,
+        stateTokenPreview: stateToken ? previewToken(stateToken) : "-",
+        stateTokenLength: stateToken ? normalizeTokenValue(stateToken).length : 0,
+      });
+    }
+    const authToken = buildAuthHeaderValue(token);
     const headers = {
+      Accept: "application/json",
       ...options.headers,
-      Authorization: `Bearer ${token}`,
+      Authorization: authToken,
     };
   
     const response = await fetch(url, { ...options, headers });
+    if (shouldLogProfile) {
+      console.log("[auth] profile request response", {
+        url,
+        method,
+        status: response.status,
+      });
+    }
   
-    if (response.status === 401) {
+    if (response.status === 401 || response.status === 403 || response.status === 419) {
       try {
-        const newToken = await refreshAccessToken();
+        const newToken = await refreshAccessTokenOnce();
         const retryHeaders = {
           ...options.headers,
-          Authorization: `Bearer ${newToken}`,
+          Authorization: buildAuthHeaderValue(newToken),
         };
-        return fetch(url, { ...options, headers: retryHeaders });
+        const retryResponse = await fetch(url, { ...options, headers: retryHeaders });
+        if (shouldLogProfile) {
+          console.log("[auth] profile request retry", {
+            url,
+            method,
+            status: retryResponse.status,
+          });
+        }
+        return retryResponse;
       } catch {
         await clearTokens();
         setUserToken(null);
@@ -192,9 +332,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return response;
   };
 
+  const unwrapProfilePayload = (value: any): any => {
+    if (!value) return value;
+    if (Array.isArray(value)) return value.length > 0 ? value[0] : value;
+    if (Array.isArray(value.Table))
+      return value.Table.length > 0 ? value.Table[0] : value;
+    if (value.data && typeof value.data === "object" && value.data !== value) {
+      return unwrapProfilePayload(value.data);
+    }
+    if (
+      value.result &&
+      typeof value.result === "object" &&
+      value.result !== value
+    ) {
+      return unwrapProfilePayload(value.result);
+    }
+    return value;
+  };
+
   const normalizeProfile = (data: any) => {
-    const row =
-      Array.isArray(data?.Table) && data.Table.length > 0 ? data.Table[0] : data;
+    const row = unwrapProfilePayload(data);
     const totalPoin = Number(
       String(row?.total_poin ?? row?.poin ?? "0").replace(",", ".")
     );
@@ -212,19 +369,111 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   };
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (options?: { force?: boolean }) => {
+    const force = options?.force ?? false;
+    const cached = profileCacheRef.current;
+    if (!force && cached && Date.now() - cached.ts < PROFILE_CACHE_TTL_MS) {
+      return cached.data;
+    }
     const response = await fetchWithAuth(buildApiUrl("/profile"), {
       method: "GET",
     });
 
     if (!response.ok) {
-      throw new Error("Profile request failed.");
+      const errorPayload = await readResponseBody(response);
+      console.log("[auth] profile request failed", {
+        path: "/profile",
+        method: "GET",
+        status: response.status,
+        body: errorPayload.text?.slice(0, 200),
+      });
+      throw new Error(
+        getErrorMessage(
+          errorPayload.json,
+          `Profile request failed (${response.status}).`
+        )
+      );
+    }
+
+    const json = await response.json().catch(() => ({}));
+    if (isAuthErrorPayload(json)) {
+      throw new Error("Sesi telah berakhir. Silakan login kembali.");
+    }
+    const payload = json?.data ?? json;
+    if (!payload) return null;
+    const normalized = normalizeProfile(payload);
+    profileCacheRef.current = { data: normalized, ts: Date.now() };
+    return normalized;
+  };
+
+  const fetchAbsensiJadwal = async () => {
+    const response = await fetchWithAuth(buildApiUrl("/absensi/jadwal"), {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      const errorPayload = await readResponseBody(response);
+      console.log("[auth] absensi jadwal request failed", {
+        path: "/absensi/jadwal",
+        method: "GET",
+        status: response.status,
+        body: errorPayload.text?.slice(0, 200),
+      });
+      throw new Error(
+        getErrorMessage(
+          errorPayload.json,
+          `Absensi request failed (${response.status}).`
+        )
+      );
     }
 
     const json = await response.json().catch(() => ({}));
     const payload = json?.data ?? json;
-    if (!payload) return null;
-    return normalizeProfile(payload);
+    return payload ?? null;
+  };
+
+  const fetchNavigation = async (options?: {
+    force?: boolean;
+    aplikasiId?: number;
+  }) => {
+    const aplikasiId = options?.aplikasiId ?? 5;
+    const cacheKey = String(aplikasiId);
+    const cached = navigationCacheRef.current;
+    if (
+      !options?.force &&
+      cached &&
+      cached.key === cacheKey &&
+      Date.now() - cached.ts < NAVIGATION_CACHE_TTL_MS
+    ) {
+      return cached.data;
+    }
+
+    const response = await fetchWithAuth(
+      buildApiUrl(`/navigation?aplikasi_id=${encodeURIComponent(cacheKey)}`),
+      { method: "GET" }
+    );
+
+    if (!response.ok) {
+      const errorPayload = await readResponseBody(response);
+      console.log("[auth] navigation request failed", {
+        path: "/navigation",
+        method: "GET",
+        status: response.status,
+        body: errorPayload.text?.slice(0, 200),
+      });
+      throw new Error(
+        getErrorMessage(
+          errorPayload.json,
+          `Navigation request failed (${response.status}).`
+        )
+      );
+    }
+
+    const json = await response.json().catch(() => ({}));
+    const payload = json?.data ?? json;
+    const list = Array.isArray(payload) ? payload : [];
+    navigationCacheRef.current = { key: cacheKey, data: list, ts: Date.now() };
+    return list;
   };
 
   async function loginWithCredentials(nik: string, password: string) {
@@ -237,8 +486,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         },
         body: JSON.stringify({
           username: nik,
-          nik,
           password,
+          ip: ipt || "127.0.0.1",
+          aplikasi_id: 5,
         })
       });
   
@@ -264,6 +514,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         hasAccessToken: Boolean(payload?.access_token || payload?.token || payload?.accessToken),
         hasRefreshToken: Boolean(payload?.refresh_token || payload?.refreshToken),
       });
+      console.log("[auth] loginWithCredentials: payload keys", Object.keys(payload ?? {}));
+      const previewAccess =
+        payload?.access_token || payload?.token || payload?.accessToken;
+      const previewRefresh =
+        payload?.refresh_token || payload?.refreshToken;
+      console.log("[auth] loginWithCredentials: token preview", {
+        accessTokenPreview: previewAccess ? previewToken(previewAccess) : "-",
+        refreshTokenPreview: previewRefresh ? previewToken(previewRefresh) : "-",
+      });
+      logTokenValue("access(login)", previewAccess);
+      logTokenValue("refresh(login)", previewRefresh);
       return {
         accessToken:
           payload?.access_token || payload?.token || payload?.accessToken,
@@ -288,6 +549,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Token login tidak ditemukan.");
       }
       await saveTokens(accessToken, refreshToken);
+      clearProfileCache();
+      clearNavigationCache();
       setUserToken(accessToken);
       console.log("[auth] login: success");
     } catch (error) {
@@ -354,6 +617,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log("[auth] logout: server call failed", error);
     } finally {
       await clearTokens();
+      clearProfileCache();
+      clearNavigationCache();
       setUserToken(null);
     }
   };
@@ -425,6 +690,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         logout,
         register,
         fetchProfile,
+        fetchAbsensiJadwal,
+        fetchNavigation,
         changePassword,
       }}
     >

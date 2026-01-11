@@ -1,7 +1,40 @@
 import React from "react";
 import { Tabs } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Image } from "react-native";
 import ProtectedRoute from "../../components/ProtectedRoute";
+
+const tabIcons = {
+  home: {
+    active:
+      "https://laskarbuah-marketing.s3.ap-southeast-3.amazonaws.com/Employee+Project/icon_employee/Homeact.png",
+    inactive:
+      "https://laskarbuah-marketing.s3.ap-southeast-3.amazonaws.com/Employee+Project/icon_employee/Homehide.png",
+  },
+  absensi: {
+    active:
+      "https://laskarbuah-marketing.s3.ap-southeast-3.amazonaws.com/Employee+Project/icon_employee/Absenact.png",
+    inactive:
+      "https://laskarbuah-marketing.s3.ap-southeast-3.amazonaws.com/Employee+Project/icon_employee/Absenhide.png",
+  },
+  quran: {
+    active:
+      "https://laskarbuah-marketing.s3.ap-southeast-3.amazonaws.com/Employee+Project/icon_employee/Quranact.png",
+    inactive:
+      "https://laskarbuah-marketing.s3.ap-southeast-3.amazonaws.com/Employee+Project/icon_employee/Quranhide.png",
+  },
+  mail: {
+    active:
+      "https://laskarbuah-marketing.s3.ap-southeast-3.amazonaws.com/Employee+Project/icon_employee/Payrollact.png",
+    inactive:
+      "https://laskarbuah-marketing.s3.ap-southeast-3.amazonaws.com/Employee+Project/icon_employee/Payrollhide.png",
+  },
+  profile: {
+    active:
+      "https://laskarbuah-marketing.s3.ap-southeast-3.amazonaws.com/Employee+Project/icon_employee/Profilact.png",
+    inactive:
+      "https://laskarbuah-marketing.s3.ap-southeast-3.amazonaws.com/Employee+Project/icon_employee/Profilhide.png",
+  },
+} as const;
 
 export default function TabsLayout() {
   return (
@@ -10,22 +43,30 @@ export default function TabsLayout() {
         initialRouteName="index"
         screenOptions={{
           headerShown: false,
-          tabBarShowLabel: true,
+          tabBarShowLabel: false,
           tabBarActiveTintColor: "#1a1606",
           tabBarInactiveTintColor: "rgba(26,22,6,0.5)",
           tabBarStyle: {
             backgroundColor: "#ffffff",
             borderTopWidth: 0,
-            height: 68,
-            paddingBottom: 10,
-            paddingTop: 8,
+            height: 72,
+            paddingVertical: 0,
             marginHorizontal: 18,
             marginBottom: 16,
-            borderRadius: 24,
+            borderRadius: 30,         
             position: "absolute",
+          },
+          tabBarItemStyle: {
+            justifyContent: "center",
+            alignItems: "center",
+          },
+          tabBarIconStyle: {
+            marginTop: 16,
           },
           tabBarLabelStyle: {
             fontSize: 11,
+            fontWeight: "700",
+            marginTop: 8,
           },
         }}
       >
@@ -33,8 +74,14 @@ export default function TabsLayout() {
           name="index"
           options={{
             title: "Home",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="home-outline" size={size} color={color} />
+            tabBarIcon: ({ focused, size }) => (
+              <Image
+                source={{
+                  uri: focused ? tabIcons.home.active : tabIcons.home.inactive,
+                }}
+                style={{ width: size + 12, height: size + 12 }}
+                resizeMode="contain"
+              />
             ),
           }}
         />
@@ -42,8 +89,31 @@ export default function TabsLayout() {
           name="absensi"
           options={{
             title: "Absensi",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="finger-print" size={size} color={color} />
+            tabBarIcon: ({ focused, size }) => (
+              <Image
+                source={{
+                  uri: focused
+                    ? tabIcons.absensi.active
+                    : tabIcons.absensi.inactive,
+                }}
+                style={{ width: size + 12, height: size + 12 }}
+                resizeMode="contain"
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="mail"
+          options={{
+            title: "Payroll",
+            tabBarIcon: ({ focused, size }) => (
+              <Image
+                source={{
+                  uri: focused ? tabIcons.mail.active : tabIcons.mail.inactive,
+                }}
+                style={{ width: size + 12, height: size + 12 }}
+                resizeMode="contain"
+              />
             ),
           }}
         />
@@ -51,17 +121,14 @@ export default function TabsLayout() {
           name="quran"
           options={{
             title: "Qur'an",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="book-outline" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="mail"
-          options={{
-            title: "Mail",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="mail-outline" size={size} color={color} />
+            tabBarIcon: ({ focused, size }) => (
+              <Image
+                source={{
+                  uri: focused ? tabIcons.quran.active : tabIcons.quran.inactive,
+                }}
+                style={{ width: size + 12, height: size + 12 }}
+                resizeMode="contain"
+              />
             ),
           }}
         />
@@ -69,8 +136,16 @@ export default function TabsLayout() {
           name="profile"
           options={{
             title: "Profile",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="person-outline" size={size} color={color} />
+            tabBarIcon: ({ focused, size }) => (
+              <Image
+                source={{
+                  uri: focused
+                    ? tabIcons.profile.active
+                    : tabIcons.profile.inactive,
+                }}
+                style={{ width: size + 12, height: size + 12 }}
+                resizeMode="contain"
+              />
             ),
           }}
         />

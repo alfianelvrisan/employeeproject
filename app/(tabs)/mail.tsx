@@ -7,8 +7,8 @@ export default function MailScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.center}>
-        <Text style={styles.title}>Mail</Text>
-        <Text style={styles.subtitle}>Halaman mail akan dibuat di sini.</Text>
+        <Text style={styles.title}>Payroll</Text>
+        <Text style={styles.subtitle}>Halaman payroll akan dibuat di sini.</Text>
       </View>
     </SafeAreaView>
   );

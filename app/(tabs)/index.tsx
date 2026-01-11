@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { FONTS, SIZES } from "../../constants/theme";
+import { useAuth } from "../../context/AuthContext";
 
 const quickChips = [
   { label: "Absensi Hari Ini" },
@@ -17,7 +18,60 @@ const quickChips = [
   { label: "Pengajuan Izin" },
 ];
 
+type NavigationItem = {
+  id_menu?: number;
+  is_chd?: boolean;
+  is_coll?: boolean;
+  mn_nm?: string;
+  mn_pth?: string;
+  rk_pstn?: number;
+};
+
+const ACCENT = "#FFDE6A";
+const TEXT_PRIMARY = "#2b2308";
+const TEXT_MUTED = "rgba(43,35,8,0.55)";
+
+const getMenuInitials = (value?: string) => {
+  if (!value) return "M";
+  const parts = value
+    .split(" ")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const letters = parts.slice(0, 2).map((item) => item[0]).join("");
+  return letters ? letters.toUpperCase() : "M";
+};
+
 export default function HomeScreen() {
+  const { fetchNavigation } = useAuth();
+  const [menuItems, setMenuItems] = useState<NavigationItem[]>([]);
+  const [menuLoading, setMenuLoading] = useState(true);
+  const [menuError, setMenuError] = useState("");
+  const fetchNavigationRef = useRef(fetchNavigation);
+
+  useEffect(() => {
+    fetchNavigationRef.current = fetchNavigation;
+  }, [fetchNavigation]);
+
+  const loadNavigation = useCallback(async (force = false) => {
+    setMenuLoading(true);
+    setMenuError("");
+    try {
+      const data = await fetchNavigationRef.current({
+        force,
+        aplikasiId: 5,
+      });
+      setMenuItems(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setMenuError(err instanceof Error ? err.message : "Gagal memuat menu.");
+    } finally {
+      setMenuLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadNavigation();
+  }, [loadNavigation]);
+
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -28,7 +82,7 @@ export default function HomeScreen() {
           />
           <View style={styles.headerText}>
             <Text style={styles.greeting}>Selamat datang</Text>
-            <Text style={styles.name}>Jonathan Troot</Text>
+            <Text style={styles.name}>Gondri Palkon</Text>
           </View>
           <TouchableOpacity style={styles.iconButton}>
             <Ionicons name="notifications-outline" size={20} color="#2b2308" />
@@ -36,9 +90,9 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.hero}>
-          <Text style={styles.heroTitle}>Need anything?</Text>
+          <Text style={styles.heroTitle}>Taukah kamu Palkon?</Text>
           <Text style={styles.heroSubtitle}>
-            Pusat absensi membantu kamu check in, izin, dan lihat riwayat.
+            ya betul sekali Riksi adalah palkon.
           </Text>
         </View>
 
@@ -57,6 +111,54 @@ export default function HomeScreen() {
             </View>
           ))}
         </View>
+
+        <View style={styles.menuHeader}>
+          <Text style={styles.menuTitle}>Menu</Text>
+          <TouchableOpacity
+            style={styles.menuRefresh}
+            onPress={() => loadNavigation(true)}
+          >
+            <Ionicons name="refresh" size={16} color={TEXT_PRIMARY} />
+          </TouchableOpacity>
+        </View>
+
+        {menuError ? (
+          <View style={styles.noticeCard}>
+            <Text style={styles.errorText}>{menuError}</Text>
+          </View>
+        ) : null}
+
+        {menuLoading ? (
+          <Text style={styles.helperText}>Memuat menu...</Text>
+        ) : (
+          <View style={styles.menuGrid}>
+            {menuItems.length ? (
+              menuItems.map((item, index) => {
+                const label = item.mn_nm || "Menu";
+                const key = item.id_menu ?? item.mn_pth ?? label ?? index;
+                return (
+                  <TouchableOpacity key={String(key)} style={styles.menuCard}>
+                    <View style={styles.menuIcon}>
+                      <Text style={styles.menuIconText}>
+                        {getMenuInitials(label)}
+                      </Text>
+                    </View>
+                    <Text style={styles.menuLabel} numberOfLines={2}>
+                      {label}
+                    </Text>
+                    {item.mn_pth ? (
+                      <Text style={styles.menuPath} numberOfLines={1}>
+                        {item.mn_pth}
+                      </Text>
+                    ) : null}
+                  </TouchableOpacity>
+                );
+              })
+            ) : (
+              <Text style={styles.helperText}>Menu belum tersedia.</Text>
+            )}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -65,7 +167,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#FFF9E6",
+    backgroundColor: "#ffffff",
   },
   content: {
     paddingHorizontal: SIZES.large,
@@ -169,5 +271,85 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#3a2f00",
     fontFamily: FONTS.medium,
+  },
+  menuHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  menuTitle: {
+    fontSize: 16,
+    fontFamily: FONTS.bold,
+    color: TEXT_PRIMARY,
+  },
+  menuRefresh: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "rgba(43,35,8,0.08)",
+  },
+  noticeCard: {
+    backgroundColor: "#FFF4F1",
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "rgba(194,72,61,0.2)",
+  },
+  errorText: {
+    fontSize: 12,
+    fontFamily: FONTS.medium,
+    color: "#c2483d",
+  },
+  helperText: {
+    fontSize: 12,
+    fontFamily: FONTS.regular,
+    color: TEXT_MUTED,
+  },
+  menuGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  menuCard: {
+    flexBasis: "48%",
+    backgroundColor: "#ffffff",
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "rgba(43,35,8,0.08)",
+    shadowColor: "#000000",
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  menuIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: ACCENT,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  menuIconText: {
+    fontSize: 14,
+    fontFamily: FONTS.bold,
+    color: TEXT_PRIMARY,
+  },
+  menuLabel: {
+    fontSize: 13,
+    fontFamily: FONTS.bold,
+    color: TEXT_PRIMARY,
+  },
+  menuPath: {
+    marginTop: 4,
+    fontSize: 11,
+    fontFamily: FONTS.regular,
+    color: "rgba(43,35,8,0.45)",
   },
 });
