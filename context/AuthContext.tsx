@@ -89,6 +89,20 @@ type AuthContextType = {
   register: (whatsapp: string, pin: string,kode:string,option:string) => Promise<void>;
   fetchProfile: (options?: { force?: boolean }) => Promise<any | null>;
   fetchAbsensiJadwal: () => Promise<any | null>;
+  fetchPayrollSlip: (options?: {
+    period?: string;
+    varWhere?: string;
+    pageNumber?: number;
+    rowPage?: number;
+  }) => Promise<any[] | null>;
+  fetchQuran: () => Promise<{ surah?: any[]; ayat?: any[] } | null>;
+  startQuranSession: (options?: { sesion?: number }) => Promise<any | null>;
+  saveQuranAttendance: (payload: {
+    surahayat: string;
+    filename: string;
+    strat_time: string;
+  }[]) => Promise<any | null>;
+  clearQuranAttendance: () => Promise<any | null>;
   fetchNavigation: (options?: {
     force?: boolean;
     aplikasiId?: number;
@@ -432,6 +446,192 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return payload ?? null;
   };
 
+  const fetchPayrollSlip = async (options?: {
+    period?: string;
+    varWhere?: string;
+    pageNumber?: number;
+    rowPage?: number;
+  }) => {
+    const now = new Date();
+    const defaultPeriod = `${now.getFullYear()}-${String(
+      now.getMonth() + 1
+    ).padStart(2, "0")}`;
+    const period = options?.period ?? defaultPeriod;
+    const varWhere = options?.varWhere ?? "";
+    const pageNumber = options?.pageNumber ?? 1;
+    const rowPage = options?.rowPage ?? 20;
+    const query = `periode=${encodeURIComponent(
+      period
+    )}&var_where=${encodeURIComponent(varWhere)}&page_number=${encodeURIComponent(
+      String(pageNumber)
+    )}&row_page=${encodeURIComponent(String(rowPage))}`;
+
+    const response = await fetchWithAuth(
+      buildApiUrl(`/profile/slip-gaji?${query}`),
+      { method: "GET" }
+    );
+
+    if (!response.ok) {
+      const errorPayload = await readResponseBody(response);
+      console.log("[auth] slip gaji request failed", {
+        path: "/profile/slip-gaji",
+        method: "GET",
+        status: response.status,
+        body: errorPayload.text?.slice(0, 200),
+      });
+      throw new Error(
+        getErrorMessage(
+          errorPayload.json,
+          `Slip gaji request failed (${response.status}).`
+        )
+      );
+    }
+
+    const json = await response.json().catch(() => ({}));
+    if (isAuthErrorPayload(json)) {
+      throw new Error("Sesi telah berakhir. Silakan login kembali.");
+    }
+    const payload = json?.data ?? json;
+    const list = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : [];
+    return list;
+  };
+
+  const fetchQuran = async () => {
+    const response = await fetchWithAuth(buildApiUrl("/quran"), {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      const errorPayload = await readResponseBody(response);
+      console.log("[auth] quran request failed", {
+        path: "/quran",
+        method: "GET",
+        status: response.status,
+        body: errorPayload.text?.slice(0, 200),
+      });
+      throw new Error(
+        getErrorMessage(
+          errorPayload.json,
+          `Quran request failed (${response.status}).`
+        )
+      );
+    }
+
+    const json = await response.json().catch(() => ({}));
+    if (isAuthErrorPayload(json)) {
+      throw new Error("Sesi telah berakhir. Silakan login kembali.");
+    }
+    const payload = json?.data ?? json;
+    if (!payload || typeof payload !== "object") return null;
+    return payload;
+  };
+
+  const startQuranSession = async (options?: { sesion?: number }) => {
+    const sesion = options?.sesion ?? 1;
+    const response = await fetchWithAuth(buildApiUrl("/quran/subuh/sesion"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ sesion }),
+    });
+
+    if (!response.ok) {
+      const errorPayload = await readResponseBody(response);
+      console.log("[auth] quran session request failed", {
+        path: "/quran/subuh/sesion",
+        method: "POST",
+        status: response.status,
+        body: errorPayload.text?.slice(0, 200),
+      });
+      throw new Error(
+        getErrorMessage(
+          errorPayload.json,
+          `Session request failed (${response.status}).`
+        )
+      );
+    }
+
+    const json = await response.json().catch(() => ({}));
+    if (isAuthErrorPayload(json)) {
+      throw new Error("Sesi telah berakhir. Silakan login kembali.");
+    }
+    return json ?? null;
+  };
+
+  const saveQuranAttendance = async (
+    payload: { surahayat: string; filename: string; strat_time: string }[]
+  ) => {
+    if (!Array.isArray(payload) || payload.length === 0) {
+      throw new Error("Payload absensi tidak boleh kosong.");
+    }
+    const response = await fetchWithAuth(buildApiUrl("/quran/subuh/save"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorPayload = await readResponseBody(response);
+      console.log("[auth] quran save request failed", {
+        path: "/quran/subuh/save",
+        method: "POST",
+        status: response.status,
+        body: errorPayload.text?.slice(0, 200),
+      });
+      throw new Error(
+        getErrorMessage(
+          errorPayload.json,
+          `Save request failed (${response.status}).`
+        )
+      );
+    }
+
+    const json = await response.json().catch(() => ({}));
+    if (isAuthErrorPayload(json)) {
+      throw new Error("Sesi telah berakhir. Silakan login kembali.");
+    }
+    return json ?? null;
+  };
+
+  const clearQuranAttendance = async () => {
+    const response = await fetchWithAuth(buildApiUrl("/quran/subuh/clear"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!response.ok) {
+      const errorPayload = await readResponseBody(response);
+      console.log("[auth] quran clear request failed", {
+        path: "/quran/subuh/clear",
+        method: "POST",
+        status: response.status,
+        body: errorPayload.text?.slice(0, 200),
+      });
+      throw new Error(
+        getErrorMessage(
+          errorPayload.json,
+          `Clear request failed (${response.status}).`
+        )
+      );
+    }
+
+    const json = await response.json().catch(() => ({}));
+    if (isAuthErrorPayload(json)) {
+      throw new Error("Sesi telah berakhir. Silakan login kembali.");
+    }
+    return json ?? null;
+  };
+
   const fetchNavigation = async (options?: {
     force?: boolean;
     aplikasiId?: number;
@@ -691,6 +891,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         register,
         fetchProfile,
         fetchAbsensiJadwal,
+        fetchPayrollSlip,
+        fetchQuran,
+        startQuranSession,
+        saveQuranAttendance,
+        clearQuranAttendance,
         fetchNavigation,
         changePassword,
       }}

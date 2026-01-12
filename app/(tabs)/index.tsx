@@ -86,6 +86,10 @@ export default function HomeScreen() {
     loadProfile();
   }, [loadNavigation, loadProfile]);
 
+  const profileName =
+    profile?.nama_lengkap || profile?.nama || profile?.name || "User";
+  const profileDepartment =
+    profile?.nama_department || profile?.department || "-";
   const photoBaseUrl = "https://laskarbuah-hrd.s3.ap-southeast-3.amazonaws.com/foto_karyawan/";
   const photoUrl = profile?.foto ? `${photoBaseUrl}${profile.foto}` : null;
 
@@ -101,7 +105,8 @@ export default function HomeScreen() {
           />
           <View style={styles.headerText}>
             <Text style={styles.greeting}>Selamat datang</Text>
-            <Text style={styles.name}>Gondri Palkon</Text>
+            <Text style={styles.name}>{profileName}</Text>
+            <Text style={styles.department}>{profileDepartment}</Text>
           </View>
           <TouchableOpacity style={styles.iconButton}>
             <Ionicons name="notifications-outline" size={20} color="#2b2308" />
@@ -220,6 +225,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#2b2308",
     fontFamily: FONTS.bold,
+  },
+  department: {
+    fontSize: 12,
+    color: "rgba(43,35,8,0.5)",
+    fontFamily: FONTS.regular,
+    marginTop: 2,
   },
   iconButton: {
     width: 36,
@@ -376,3 +387,4 @@ const styles = StyleSheet.create({
     color: "rgba(43,35,8,0.45)",
   },
 });
+
