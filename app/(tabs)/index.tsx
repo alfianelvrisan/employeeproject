@@ -4,13 +4,16 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { FONTS, SIZES } from "../../constants/theme";
 import { useAuth } from "../../context/AuthContext";
+
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 const quickChips = [
   { label: "Absensi Hari Ini" },
@@ -42,8 +45,9 @@ const getMenuInitials = (value?: string) => {
 };
 
 export default function HomeScreen() {
-  const { fetchNavigation } = useAuth();
+  const { fetchNavigation, fetchProfile } = useAuth();
   const [menuItems, setMenuItems] = useState<NavigationItem[]>([]);
+  const [profile, setProfile] = useState<any>(null);
   const [menuLoading, setMenuLoading] = useState(true);
   const [menuError, setMenuError] = useState("");
   const fetchNavigationRef = useRef(fetchNavigation);
@@ -51,6 +55,15 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchNavigationRef.current = fetchNavigation;
   }, [fetchNavigation]);
+
+  const loadProfile = useCallback(async () => {
+    try {
+      const data = await fetchProfile();
+      setProfile(data);
+    } catch (err) {
+      console.log("Failed to load profile", err);
+    }
+  }, [fetchProfile]);
 
   const loadNavigation = useCallback(async (force = false) => {
     setMenuLoading(true);
@@ -70,15 +83,21 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadNavigation();
-  }, [loadNavigation]);
+    loadProfile();
+  }, [loadNavigation, loadProfile]);
+
+  const photoBaseUrl = "https://laskarbuah-hrd.s3.ap-southeast-3.amazonaws.com/foto_karyawan/";
+  const photoUrl = profile?.foto ? `${photoBaseUrl}${profile.foto}` : null;
 
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Image
-            source={require("../../assets/images/employee1.png")}
+            source={photoUrl ? { uri: photoUrl } : require("../../assets/images/employee1.png")}
             style={styles.avatar}
+            contentFit="cover"
+            transition={500}
           />
           <View style={styles.headerText}>
             <Text style={styles.greeting}>Selamat datang</Text>
@@ -137,7 +156,11 @@ export default function HomeScreen() {
                 const label = item.mn_nm || "Menu";
                 const key = item.id_menu ?? item.mn_pth ?? label ?? index;
                 return (
-                  <TouchableOpacity key={String(key)} style={styles.menuCard}>
+                  <AnimatedTouchableOpacity
+                    key={String(key)}
+                    style={styles.menuCard}
+                    entering={FadeInDown.delay(index * 50).springify().damping(12)}
+                  >
                     <View style={styles.menuIcon}>
                       <Text style={styles.menuIconText}>
                         {getMenuInitials(label)}
@@ -151,7 +174,7 @@ export default function HomeScreen() {
                         {item.mn_pth}
                       </Text>
                     ) : null}
-                  </TouchableOpacity>
+                  </AnimatedTouchableOpacity>
                 );
               })
             ) : (

@@ -143,8 +143,13 @@ export default function ProfileScreen() {
   const statusText = statusRaw ? (isActive ? "Aktif" : "Nonaktif") : "-";
 
   const photoValue = profile?.foto;
+  const photoBaseUrl = "https://laskarbuah-hrd.s3.ap-southeast-3.amazonaws.com/foto_karyawan/";
   const photoUrl =
-    photoValue && photoValue.startsWith("http") ? photoValue : undefined;
+    photoValue && !photoValue.startsWith("http")
+      ? `${photoBaseUrl}${photoValue}`
+      : photoValue && photoValue.startsWith("http")
+        ? photoValue
+        : undefined;
   const initials = getInitials(profileName);
 
   return (
@@ -159,10 +164,10 @@ export default function ProfileScreen() {
             <Text style={styles.title}>Profil</Text>
             <Text style={styles.subtitle}>Ringkasan data karyawan.</Text>
           </View>
-        <TouchableOpacity
-          style={styles.refreshButton}
-          onPress={() => loadProfile(true)}
-        >
+          <TouchableOpacity
+            style={styles.refreshButton}
+            onPress={() => loadProfile(true)}
+          >
             <Ionicons name="refresh" size={18} color={TEXT_PRIMARY} />
           </TouchableOpacity>
         </View>
