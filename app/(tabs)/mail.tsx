@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  RefreshControl,
   TouchableOpacity,
   Modal,
   Pressable,
@@ -177,6 +178,7 @@ export default function PayrollScreen() {
   const [slip, setSlip] = useState<PayrollSlip | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [exportError, setExportError] = useState("");
   const [exporting, setExporting] = useState(false);
@@ -192,8 +194,12 @@ export default function PayrollScreen() {
   const rowPage = 20;
   const varWhere = "";
 
-  const loadSlip = useCallback(async () => {
-    setLoading(true);
+  const loadSlip = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     setError("");
     try {
       const data = await fetchPayrollSlip({
@@ -206,7 +212,11 @@ export default function PayrollScreen() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal memuat slip gaji.");
     } finally {
-      setLoading(false);
+      if (isRefresh) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   }, [fetchPayrollSlip, pageNumber, rowPage, selectedPeriod, varWhere]);
 
@@ -226,6 +236,10 @@ export default function PayrollScreen() {
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  const handleRefresh = useCallback(() => {
+    loadSlip(true);
+  }, [loadSlip]);
 
   const openPeriodPicker = () => {
     const parsed = parsePeriod(selectedPeriod);
@@ -336,21 +350,15 @@ export default function PayrollScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[INK]}
+            tintColor={INK}
+          />
+        }
       >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Payroll</Text>
-            <Text style={styles.subtitle}>Slip gaji digital karyawan.</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.refreshButton}
-            onPress={loadSlip}
-            disabled={loading}
-          >
-            <Ionicons name="refresh" size={18} color={INK} />
-          </TouchableOpacity>
-        </View>
-
         <View style={styles.toolbar}>
           <TouchableOpacity style={styles.periodChip} onPress={openPeriodPicker}>
             <Ionicons name="calendar" size={14} color={INK} />
@@ -638,40 +646,9 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: SIZES.large,
+    paddingTop: SIZES.small,
     paddingBottom: 120,
     gap: 16,
-  },
-  header: {
-    marginTop: SIZES.small,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  title: {
-    fontSize: 22,
-    fontFamily: FONTS.bold,
-    color: INK,
-  },
-  subtitle: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: TEXT_MUTED,
-    marginTop: 4,
-  },
-  refreshButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#ffffff",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: BORDER,
-    shadowColor: "#000000",
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 4,
   },
   toolbar: {
     flexDirection: "row",

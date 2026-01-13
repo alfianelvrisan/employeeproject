@@ -10,6 +10,7 @@ import * as SecureStore from 'expo-secure-store';
 import { router } from "expo-router";
 import * as Network from "expo-network";
 import * as Location from "expo-location";
+import * as FileSystem from "expo-file-system/legacy";
 
 const API_BASE_URL = (process.env.EXPO_PUBLIC_BASE_URL ?? "").trim();
 const buildApiUrl = (path: string) => {
@@ -89,6 +90,8 @@ type AuthContextType = {
   register: (whatsapp: string, pin: string,kode:string,option:string) => Promise<void>;
   fetchProfile: (options?: { force?: boolean }) => Promise<any | null>;
   fetchAbsensiJadwal: () => Promise<any | null>;
+  saveAbsensi: (photoUri: string, scheduleId: number | string) => Promise<any | null>;
+  fetchProfileJadwal: () => Promise<any | null>;
   fetchPayrollSlip: (options?: {
     period?: string;
     varWhere?: string;
@@ -442,6 +445,95 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const json = await response.json().catch(() => ({}));
+    const payload = json?.data ?? json;
+    return payload ?? null;
+  };
+
+  const saveAbsensi = async (photoUri: string, scheduleId: number | string) => {
+    if (!photoUri) {
+      throw new Error("Foto absensi belum tersedia.");
+    }
+    if (scheduleId === null || scheduleId === undefined || scheduleId === "") {
+      throw new Error("Jadwal absensi belum tersedia.");
+    }
+
+    const isPng = photoUri.toLowerCase().includes(".png");
+    const mimeType = isPng ? "image/png" : "image/jpeg";
+    const fileName = isPng ? "absensi.png" : "absensi.jpg";
+    const base64 = photoUri.startsWith("data:")
+      ? photoUri.split(",")[1] ?? ""
+      : await FileSystem.readAsStringAsync(photoUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+    if (!base64) {
+      throw new Error("Gagal membaca foto absensi.");
+    }
+
+    const requestBody = {
+      id: scheduleId,
+      file: base64,
+      file_name: fileName,
+      mime_type: mimeType,
+    };
+
+    const response = await fetchWithAuth(buildApiUrl("/absensi"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorPayload = await readResponseBody(response);
+      console.log("[auth] absensi save request failed", {
+        path: "/absensi",
+        method: "POST",
+        status: response.status,
+        body: errorPayload.text?.slice(0, 200),
+      });
+      throw new Error(
+        getErrorMessage(
+          errorPayload.json,
+          `Absensi request failed (${response.status}).`
+        )
+      );
+    }
+
+    const json = await response.json().catch(() => ({}));
+    if (isAuthErrorPayload(json)) {
+      throw new Error("Sesi telah berakhir. Silakan login kembali.");
+    }
+    const payload = json?.data ?? json;
+    return payload ?? null;
+  };
+
+  const fetchProfileJadwal = async () => {
+    const response = await fetchWithAuth(buildApiUrl("/profile/jadwal"), {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      const errorPayload = await readResponseBody(response);
+      console.log("[auth] profile jadwal request failed", {
+        path: "/profile/jadwal",
+        method: "GET",
+        status: response.status,
+        body: errorPayload.text?.slice(0, 200),
+      });
+      throw new Error(
+        getErrorMessage(
+          errorPayload.json,
+          `Profile jadwal request failed (${response.status}).`
+        )
+      );
+    }
+
+    const json = await response.json().catch(() => ({}));
+    if (isAuthErrorPayload(json)) {
+      throw new Error("Sesi telah berakhir. Silakan login kembali.");
+    }
     const payload = json?.data ?? json;
     return payload ?? null;
   };
@@ -891,6 +983,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         register,
         fetchProfile,
         fetchAbsensiJadwal,
+        saveAbsensi,
+        fetchProfileJadwal,
         fetchPayrollSlip,
         fetchQuran,
         startQuranSession,

@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   Image,
+  RefreshControl,
   TouchableOpacity,
   ScrollView,
 } from "react-native";
@@ -90,6 +91,7 @@ export default function ProfileScreen() {
   const { fetchProfile, logout } = useAuth();
   const [profile, setProfile] = useState<ProfileState | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const fetchProfileRef = useRef(fetchProfile);
 
@@ -97,8 +99,12 @@ export default function ProfileScreen() {
     fetchProfileRef.current = fetchProfile;
   }, [fetchProfile]);
 
-  const loadProfile = useCallback(async (force = false) => {
-    setLoading(true);
+  const loadProfile = useCallback(async (force = false, isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     setError("");
     try {
       const data = await fetchProfileRef.current({ force });
@@ -106,12 +112,20 @@ export default function ProfileScreen() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal memuat profil.");
     } finally {
-      setLoading(false);
+      if (isRefresh) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     loadProfile();
+  }, [loadProfile]);
+
+  const handleRefresh = useCallback(() => {
+    loadProfile(true, true);
   }, [loadProfile]);
 
   const profileName =
@@ -128,9 +142,6 @@ export default function ProfileScreen() {
   const profileAddress = profile?.alamat || "-";
   const profileAccount = profile?.rekening || "-";
   const profileGender = profile?.kelamin || "-";
-  const joinDate = formatDate(
-    profile?.tgl_masuk || profile?.join_date || profile?.tanggal_gabung
-  );
   const birthDate = formatDate(profile?.tgl_lahir);
 
   const assets = Array.isArray(profile?.asset_pinjam)
@@ -158,20 +169,15 @@ export default function ProfileScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[TEXT_PRIMARY]}
+            tintColor={TEXT_PRIMARY}
+          />
+        }
       >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Profil</Text>
-            <Text style={styles.subtitle}>Ringkasan data karyawan.</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.refreshButton}
-            onPress={() => loadProfile(true)}
-          >
-            <Ionicons name="refresh" size={18} color={TEXT_PRIMARY} />
-          </TouchableOpacity>
-        </View>
-
         {error ? (
           <View style={styles.noticeCard}>
             <Text style={styles.errorText}>{error}</Text>
@@ -190,8 +196,8 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{profileName}</Text>
+            <Text style={styles.profileMeta}>NIK: {profileNik}</Text>
             <Text style={styles.profileRole}>{profileRole}</Text>
-            <Text style={styles.profileDept}>{profileDepartment}</Text>
           </View>
           <View
             style={[
@@ -205,22 +211,12 @@ export default function ProfileScreen() {
 
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Text style={styles.statLabel}>NIK</Text>
-            <Text style={styles.statValue}>{profileNik}</Text>
-          </View>
-          <View style={styles.statCard}>
             <Text style={styles.statLabel}>Divisi</Text>
             <Text style={styles.statValue}>{profileDivision}</Text>
           </View>
-        </View>
-        <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Departemen</Text>
             <Text style={styles.statValue}>{profileDepartment}</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Bergabung</Text>
-            <Text style={styles.statValue}>{joinDate}</Text>
           </View>
         </View>
 
@@ -346,40 +342,9 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: SIZES.large,
+    paddingTop: SIZES.small,
     paddingBottom: 28,
     gap: SIZES.large,
-  },
-  header: {
-    marginTop: SIZES.small,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  title: {
-    fontSize: 22,
-    fontFamily: FONTS.bold,
-    color: TEXT_PRIMARY,
-  },
-  subtitle: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: TEXT_MUTED,
-    marginTop: 4,
-  },
-  refreshButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#ffffff",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: BORDER,
-    shadowColor: "#000000",
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 4,
   },
   noticeCard: {
     backgroundColor: "#FFF4F1",
@@ -450,7 +415,7 @@ const styles = StyleSheet.create({
     color: TEXT_MUTED,
     marginTop: 4,
   },
-  profileDept: {
+  profileMeta: {
     fontSize: 12,
     fontFamily: FONTS.regular,
     color: "rgba(43,35,8,0.5)",
