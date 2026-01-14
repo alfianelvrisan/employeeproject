@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -98,9 +99,10 @@ export default function AbsensiScreen() {
   const [reportItems, setReportItems] = useState<JadwalReportItem[]>([]);
   const [reportLoading, setReportLoading] = useState(true);
   const [reportError, setReportError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
 
-  const loadJadwal = useCallback(async () => {
-    setLoading(true);
+  const loadJadwal = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     setError("");
     try {
       const payload = await fetchAbsensiJadwal();
@@ -113,12 +115,12 @@ export default function AbsensiScreen() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal memuat jadwal.");
     } finally {
-      setLoading(false);
+      if (!isRefresh) setLoading(false);
     }
   }, [fetchAbsensiJadwal]);
 
-  const loadReport = useCallback(async () => {
-    setReportLoading(true);
+  const loadReport = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setReportLoading(true);
     setReportError("");
     try {
       const payload = await fetchProfileJadwal();
@@ -133,7 +135,7 @@ export default function AbsensiScreen() {
         err instanceof Error ? err.message : "Gagal memuat report jadwal."
       );
     } finally {
-      setReportLoading(false);
+      if (!isRefresh) setReportLoading(false);
     }
   }, [fetchProfileJadwal]);
 
@@ -178,6 +180,12 @@ export default function AbsensiScreen() {
       })
       .map(({ item }) => item);
   }, [jadwal]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([loadJadwal(true), loadReport(true)]);
+    setRefreshing(false);
+  }, [loadJadwal, loadReport]);
 
   const handleToggleFacing = useCallback(() => {
     setCameraFacing((prev) => (prev === "front" ? "back" : "front"));
@@ -247,22 +255,15 @@ export default function AbsensiScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[TEXT_PRIMARY]}
+            tintColor={TEXT_PRIMARY}
+          />
+        }
       >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Absensi</Text>
-            <Text style={styles.subtitle}>Jadwal dan status absensi.</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.refreshButton}
-            onPress={() => {
-              loadJadwal();
-              loadReport();
-            }}
-          >
-            <Ionicons name="refresh" size={18} color={TEXT_PRIMARY} />
-          </TouchableOpacity>
-        </View>
 
         <View style={styles.cameraCard}>
           <View style={styles.cameraHeader}>
@@ -461,7 +462,7 @@ export default function AbsensiScreen() {
             <Text style={styles.reportTitle}>Report Absensi</Text>
             <TouchableOpacity
               style={styles.reportRefresh}
-              onPress={loadReport}
+              onPress={() => loadReport()}
               disabled={reportLoading}
             >
               <Ionicons name="refresh" size={16} color={TEXT_PRIMARY} />

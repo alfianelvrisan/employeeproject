@@ -87,7 +87,7 @@ type AuthContextType = {
   login: (nik: string, password: string) => Promise<void>;
   refreshSession: () => Promise<void>;
   logout: () => void;
-  register: (whatsapp: string, pin: string,kode:string,option:string) => Promise<void>;
+  register: (whatsapp: string, pin: string, kode: string, option: string) => Promise<void>;
   fetchProfile: (options?: { force?: boolean }) => Promise<any | null>;
   fetchAbsensiJadwal: () => Promise<any | null>;
   saveAbsensi: (photoUri: string, scheduleId: number | string) => Promise<any | null>;
@@ -105,7 +105,7 @@ type AuthContextType = {
     filename: string;
     strat_time: string;
   }[]) => Promise<any | null>;
-  clearQuranAttendance: () => Promise<any | null>;
+  clearQuranAttendance: (level?: number) => Promise<any | null>;
   fetchNavigation: (options?: {
     force?: boolean;
     aplikasiId?: number;
@@ -280,7 +280,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const fetchIp = async () => {
       const ip = await getIpAddress();
     };
-  
+
     fetchIp();
   }, []);
 
@@ -288,11 +288,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const storedToken = await getStoredAccessToken();
     const stateToken = userToken;
     const token = storedToken || stateToken;
-  
+
     if (!token) {
       throw new Error("Token tidak ditemukan. Silakan login kembali.");
     }
-  
+
     const method = options?.method ?? "GET";
     const shouldLogProfile = url.toLowerCase().includes("/profile");
     if (shouldLogProfile) {
@@ -313,7 +313,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       ...options.headers,
       Authorization: authToken,
     };
-  
+
     const response = await fetch(url, { ...options, headers });
     if (shouldLogProfile) {
       console.log("[auth] profile request response", {
@@ -322,7 +322,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         status: response.status,
       });
     }
-  
+
     if (response.status === 401 || response.status === 403 || response.status === 419) {
       try {
         const newToken = await refreshAccessTokenOnce();
@@ -345,7 +345,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Sesi telah berakhir. Silakan login kembali.");
       }
     }
-  
+
     return response;
   };
 
@@ -463,8 +463,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const base64 = photoUri.startsWith("data:")
       ? photoUri.split(",")[1] ?? ""
       : await FileSystem.readAsStringAsync(photoUri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
+        encoding: FileSystem.EncodingType.Base64,
+      });
 
     if (!base64) {
       throw new Error("Gagal membaca foto absensi.");
@@ -617,7 +617,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (isAuthErrorPayload(json)) {
       throw new Error("Sesi telah berakhir. Silakan login kembali.");
     }
+    // API returns direct structure { surah: [], ayat: [] }
+    // but helper logic might try to extract 'data'.
+    // If 'data' exists use it, otherwise use full json.
     const payload = json?.data ?? json;
+
+    // Explicit debug
+    console.log("[auth] fetchQuran payload keys:", Object.keys(payload || {}));
+
     if (!payload || typeof payload !== "object") return null;
     return payload;
   };
@@ -656,49 +663,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const saveQuranAttendance = async (
-    payload: { surahayat: string; filename: string; strat_time: string }[]
+    rawData: { surahayat: string; filename: string; strat_time: string }[]
   ) => {
-    if (!Array.isArray(payload) || payload.length === 0) {
-      throw new Error("Payload absensi tidak boleh kosong.");
-    }
-    const response = await fetchWithAuth(buildApiUrl("/quran/subuh/save"), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    // The user requires sending Start and End data (2 requests).
+    // The server expects ONE struct/tuple [id, file, time] per request.
+    // So we iterate and send sequentially.
 
-    if (!response.ok) {
-      const errorPayload = await readResponseBody(response);
-      console.log("[auth] quran save request failed", {
-        path: "/quran/subuh/save",
+    if (rawData.length === 0) return;
+
+    for (const item of rawData) {
+      const payload = [item.surahayat, item.filename, item.strat_time];
+      console.log("[auth] saveQuranAttendance sending item:", JSON.stringify(payload));
+
+      const response = await fetchWithAuth(buildApiUrl("/quran/subuh/save"), {
         method: "POST",
-        status: response.status,
-        body: errorPayload.text?.slice(0, 200),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
-      throw new Error(
-        getErrorMessage(
-          errorPayload.json,
-          `Save request failed (${response.status}).`
-        )
-      );
+
+      if (!response.ok) {
+        const errorPayload = await readResponseBody(response);
+        console.log("[auth] quran save failed for item", {
+          item: item.surahayat,
+          status: response.status,
+          body: errorPayload.json || errorPayload.text,
+        });
+        // We continue trying sending the next one even if one fails? 
+        // Or throw? User expects success. Let's throw to alert.
+        throw new Error("Gagal kirim data: " + item.surahayat);
+      }
     }
 
-    const json = await response.json().catch(() => ({}));
-    if (isAuthErrorPayload(json)) {
-      throw new Error("Sesi telah berakhir. Silakan login kembali.");
-    }
-    return json ?? null;
+    return true;
   };
 
-  const clearQuranAttendance = async () => {
+  const clearQuranAttendance = async (level: number = 1) => {
     const response = await fetchWithAuth(buildApiUrl("/quran/subuh/clear"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ action: level }),
     });
 
     if (!response.ok) {
@@ -771,19 +778,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   async function loginWithCredentials(nik: string, password: string) {
     try {
       console.log("[auth] loginWithCredentials: start", { nik });
+      const requestPayload = {
+        username: nik,
+        password,
+        ip: ipt || "127.0.0.1",
+        aplikasi_id: 5,
+      };
+      console.log("[auth] loginWithCredentials: payload", { ...requestPayload, password: "***" });
+
       const response = await fetch(buildApiUrl("/auth/loginone"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          username: nik,
-          password,
-          ip: ipt || "127.0.0.1",
-          aplikasi_id: 5,
-        })
+        body: JSON.stringify(requestPayload)
       });
-  
+
       if (!response.ok) {
         const errorText = await response.text().catch(() => "");
         let errorData: any = {};
@@ -799,7 +809,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
         throw new Error(getErrorMessage(errorData, "Login gagal dari server."));
       }
-  
+
       const result = await response.json().catch(() => ({}));
       const payload = result?.data ?? result;
       console.log("[auth] loginWithCredentials: response ok", {
@@ -929,7 +939,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const location = await Location.getCurrentPositionAsync({});
       const { latitude, longitude } = location.coords;
-  
+
       console.log(option)
       const response = await fetch("https://api.laskarbuah.com/api/RegistrasiMem", {
         method: "POST",
@@ -939,7 +949,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: JSON.stringify({
           v_tlp: "0" + whatsapp,
           v_pin: Number(pin),
-          v_ip : ipt,
+          v_ip: ipt,
           v_lat: latitude.toString(),
           v_long: longitude.toString(),
           v_kode: Number(kode),
@@ -957,8 +967,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  const register = async (whatsapp: string, pin: string,kode:string,option:string) => {
-    console.log("Registering with:", { whatsapp, pin, kode,option });
+  const register = async (whatsapp: string, pin: string, kode: string, option: string) => {
+    console.log("Registering with:", { whatsapp, pin, kode, option });
     try {
       const result = await handleRegister(whatsapp, pin, kode, option);
       if (result?.success) {

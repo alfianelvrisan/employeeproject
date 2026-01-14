@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -6,13 +6,30 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
+  Alert,
+  Dimensions,
+  Image,
+  ImageBackground,
+  Animated,
+  Easing,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import * as Sharing from "expo-sharing";
+import Modal from "react-native-modal";
+import ViewShot, { captureRef } from "react-native-view-shot";
 import { FONTS, SIZES } from "../../constants/theme";
 import { useAuth } from "../../context/AuthContext";
+
+// Constants & Types
+const { width } = Dimensions.get("window");
+const EMERALD = "#044D29"; // Deep Islamic Green
+const GOLD = "#C5A059";     // Muted Gold
+const CREAM = "#FDFBF7";    // Warm Paper
+const TEXT_DARK = "#1E293B";
+const TEXT_MUTED = "#64748B";
 
 type Surah = {
   id?: number;
@@ -36,34 +53,13 @@ type PlaybackState = {
   isPlaying: boolean;
 };
 
-const EMERALD = "#0F3D2E";
-const EMERALD_SOFT = "#E6F2EC";
-const GOLD = "#D7B566";
-const SAND = "#FBF7EF";
-const INK = "#1F2B24";
-const TEXT_MUTED = "rgba(31,43,36,0.62)";
-const BORDER = "rgba(15,61,46,0.12)";
-
-const getAyatKey = (item: Ayat, index: number) =>
-  String(item.id ?? item.verseid ?? index);
-
-const getAyatMeta = (item: Ayat) => {
-  const parts = [];
-  if (item.suraid) parts.push(`Surah ${item.suraid}`);
-  if (item.verseid) parts.push(`Ayat ${item.verseid}`);
-  if (item.baris) parts.push(`Baris ${item.baris}`);
-  return parts.join(" | ") || "-";
-};
-
 const pad2 = (value: number) => String(value).padStart(2, "0");
-
 const formatTime = (valueMs: number) => {
   const totalSeconds = Math.max(0, Math.floor(valueMs / 1000));
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  return `${minutes}:${pad2(seconds)}`;
+  return `${pad2(minutes)}:${pad2(seconds)}`;
 };
-
 const formatTimestamp = (date: Date) => {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
@@ -73,12 +69,57 @@ const formatTimestamp = (date: Date) => {
   )}:${pad2(date.getSeconds())}`;
 };
 
-const buildFilename = (sessionLabel: string, date: Date) => {
-  const normalized = sessionLabel.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  const stamp = `${pad2(date.getDate())}${pad2(date.getMonth() + 1)}${date.getFullYear()}${pad2(
+const buildFilename = (prefix: string, date: Date) => {
+  const stamp = `${pad2(date.getMonth() + 1)}${pad2(date.getDate())}${date.getFullYear()}${pad2(
     date.getHours()
   )}${pad2(date.getMinutes())}${pad2(date.getSeconds())}`;
-  return `ABS${normalized}${stamp}`;
+  return `${prefix}${stamp}`;
+};
+
+// --- Visualizer Component ---
+const Bar = ({ level }: { level: number }) => {
+  const heightAnim = useRef(new Animated.Value(10)).current;
+
+  useEffect(() => {
+    // Map level (0..1) to height range (10..50)
+    // Add randomness so bars look different
+    const randomFactor = 0.5 + Math.random(); // 0.5 - 1.5 multiplier
+    const targetHeight = 10 + (level * 40 * randomFactor);
+
+    Animated.timing(heightAnim, {
+      toValue: targetHeight,
+      duration: 50, // Fast update matches metering interval
+      useNativeDriver: false,
+      easing: Easing.linear,
+    }).start();
+  }, [level]);
+
+  return (
+    <Animated.View
+      style={{
+        width: 4,
+        height: heightAnim,
+        backgroundColor: GOLD,
+        borderRadius: 2,
+        marginHorizontal: 2,
+      }}
+    />
+  );
+};
+
+const AudioVisualizer = ({ metering }: { metering: number }) => {
+  // Normalize metering (-60dB to 0dB) -> 0 to 1
+  const level = Math.max(0, (metering + 60) / 60);
+
+  const bars = Array.from({ length: 25 }).map((_, i) => (
+    <Bar key={i} level={level} />
+  ));
+
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", height: 60 }}>
+      {bars}
+    </View>
+  );
 };
 
 export default function QuranScreen() {
@@ -87,1171 +128,808 @@ export default function QuranScreen() {
     startQuranSession,
     saveQuranAttendance,
     clearQuranAttendance,
+    fetchProfile,
   } = useAuth();
+
+  const insets = useSafeAreaInsets();
+
+  // Refs
   const recordingRef = useRef<Audio.Recording | null>(null);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // State
+  const [gender, setGender] = useState<string>("Male");
+  const [userName, setUserName] = useState<string>("");
+  const [surah, setSurah] = useState<Surah | null>(null);
+  const [ayatList, setAyatList] = useState<Ayat[]>([]);
+
+  // Recording
+  const [recordingState, setRecordingState] = useState<"idle" | "recording" | "paused" | "stopped">("idle");
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [playbackStatus, setPlaybackStatus] = useState<PlaybackState>({
     positionMillis: 0,
     durationMillis: 0,
     isPlaying: false,
   });
-  const [recordingState, setRecordingState] = useState<
-    "idle" | "recording" | "paused" | "stopped"
-  >("idle");
-  const [recordingDuration, setRecordingDuration] = useState(0);
-  const [recordingUri, setRecordingUri] = useState<string | null>(null);
-  const [recordingError, setRecordingError] = useState("");
-  const [surah, setSurah] = useState<Surah | null>(null);
-  const [ayatList, setAyatList] = useState<Ayat[]>([]);
-  const [selectedAyatKey, setSelectedAyatKey] = useState<string | null>(null);
-  const [sessionStarted, setSessionStarted] = useState(false);
+  const [metering, setMetering] = useState(-160); // dB value
+
+  // Flow State
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [actionMessage, setActionMessage] = useState("");
-  const [actionError, setActionError] = useState("");
-  const [sessionLoading, setSessionLoading] = useState(false);
-  const [saveLoading, setSaveLoading] = useState(false);
-  const [clearLoading, setClearLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [lastSubmissionData, setLastSubmissionData] = useState<{ uri: string | null } | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const viewShotRef = useRef<ViewShot>(null);
 
-  const sessionNumber = 1;
-  const sessionLabel = "Subuh";
-
-  useEffect(() => {
-    return () => {
-      if (sound) {
-        sound.unloadAsync().catch(() => undefined);
-      }
-      if (recordingRef.current) {
-        recordingRef.current.stopAndUnloadAsync().catch(() => undefined);
-      }
-    };
-  }, [sound]);
-
-  const loadQuran = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const handleShareImage = async () => {
     try {
-      const payload = await fetchQuran();
-      const surahData = Array.isArray(payload?.surah) ? payload?.surah : [];
-      const ayatData = Array.isArray(payload?.ayat) ? payload?.ayat : [];
-      setSurah(surahData.length ? surahData[0] : null);
-      setAyatList(ayatData);
-      setSelectedAyatKey(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal memuat data Quran.");
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchQuran]);
-
-  useEffect(() => {
-    loadQuran();
-  }, [loadQuran]);
-
-  const onPlaybackStatusUpdate = useCallback((status: any) => {
-    if (!status.isLoaded) return;
-    setPlaybackStatus({
-      positionMillis: status.positionMillis ?? 0,
-      durationMillis: status.durationMillis ?? 0,
-      isPlaying: Boolean(status.isPlaying),
-    });
-  }, []);
-
-  const resetRecording = useCallback(async () => {
-    if (recordingRef.current) {
-      try {
-        await recordingRef.current.stopAndUnloadAsync();
-      } catch {
-        // ignore cleanup errors
-      }
-      recordingRef.current = null;
-    }
-    if (sound) {
-      await sound.unloadAsync().catch(() => undefined);
-      setSound(null);
-    }
-    setRecordingState("idle");
-    setRecordingDuration(0);
-    setRecordingUri(null);
-    setPlaybackStatus({ positionMillis: 0, durationMillis: 0, isPlaying: false });
-    setRecordingError("");
-  }, [sound]);
-
-  const startRecording = useCallback(async () => {
-    setRecordingError("");
-    if (!sessionStarted) {
-      setActionError("Mulai sesi terlebih dahulu.");
-      return;
-    }
-    if (recordingState === "recording") return;
-    try {
-      const permission = await Audio.requestPermissionsAsync();
-      if (permission.status !== "granted") {
-        setRecordingError("Izin mikrofon ditolak.");
+      if (!viewShotRef.current) return;
+      const uri = await viewShotRef.current.capture();
+      if (!(await Sharing.isAvailableAsync())) {
+        Alert.alert("Info", "Sharing belum tersedia di perangkat ini.");
         return;
       }
+      await Sharing.shareAsync(uri, {
+        mimeType: 'image/png',
+        dialogTitle: 'Bagikan Bukti Tilawah',
+        UTI: 'public.image'
+      });
+    } catch (e) {
+      Alert.alert("Gagal", "Gagal memproses gambar.");
+    }
+  };
+
+  // --- Initialization ---
+  const initPage = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
+    // DO NOT reset isSubmitted if we prefer to keep showing result.
+    // However, if it's a fresh load (e.g. tab switch), we reset.
+    // If it's an auto-refresh after submission, we might want to keep the success card but load new ayats?
+    // User requirement: "Directly refresh but keep showing result".
+    // So we need separate states for "View Data" and "User Session State".
+
+    // Logic: 
+    // If isRefresh is true, we simply fetch new ayat data into `ayatList`.
+    // We DON'T scrub the `recordingUri` or `isSubmitted` state immediately.
+
+    if (!isRefresh) {
+      setIsSubmitted(false);
+      setRecordingState("idle");
+      setRecordingUri(null);
+      setRecordingDuration(0);
+      setLastSubmissionData(null);
+    }
+
+    try {
+      if (!isRefresh) await clearQuranAttendance(1);
+
+      const profile = await fetchProfile();
+      if (profile) {
+        setGender(profile.kelamin || profile.gender || "Male");
+        setUserName(profile.nama_lengkap || profile.nama || profile.name || "User");
+      }
+
+      const quranData = await fetchQuran();
+
+      let sData = [];
+      let aData = [];
+      if (quranData) {
+        const raw = quranData as any;
+        sData = Array.isArray(raw.surah) ? raw.surah
+          : Array.isArray(raw.Surah) ? raw.Surah
+            : [];
+        aData = Array.isArray(raw.ayat) ? raw.ayat
+          : Array.isArray(raw.Ayat) ? raw.Ayat
+            : [];
+      }
+
+      setSurah(sData.length ? sData[0] : null);
+      setAyatList(aData);
+
+    } catch (err) {
+      console.log("Init Error:", err);
+    } finally {
+      if (!isRefresh) setLoading(false);
+    }
+  }, [clearQuranAttendance, fetchProfile, fetchQuran]);
+
+  useEffect(() => {
+    initPage();
+    return () => {
+      if (recordingRef.current) recordingRef.current.stopAndUnloadAsync().catch(() => { });
+      if (soundRef.current) soundRef.current.unloadAsync().catch(() => { });
+    };
+  }, [initPage]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await initPage(true);
+    setRefreshing(false);
+  }, [initPage]);
+
+  // --- Audio Logic ---
+  const startRecording = async () => {
+    try {
+      if (recordingState === "recording") return;
+      if (soundRef.current) {
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+      }
+
+      // Reset for new recording session
+      setRecordingUri(null);
+      setRecordingDuration(0);
+      setIsSubmitted(false);
+
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status !== "granted") {
+        Alert.alert("Izin Ditolak", "Butuh izin mikrofon.");
+        return;
+      }
+
+      // SEND START SIGNAL (Ayat Pertama)
+      // We do this concurrently with starting recording to not delay UI
+      sendStartSignal();
+
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
+        staysActiveInBackground: true,
       });
-      if (sound) {
-        await sound.unloadAsync().catch(() => undefined);
-        setSound(null);
-      }
-      if (recordingState !== "paused") {
-        setRecordingDuration(0);
-        setRecordingUri(null);
-        setPlaybackStatus({
-          positionMillis: 0,
-          durationMillis: 0,
-          isPlaying: false,
-        });
-      }
-      if (!recordingRef.current) {
-        const recording = new Audio.Recording();
-        await recording.prepareToRecordAsync(
-          Audio.RecordingOptionsPresets.HIGH_QUALITY
-        );
-        recording.setOnRecordingStatusUpdate((status) => {
-          if (status.isRecording && typeof status.durationMillis === "number") {
-            setRecordingDuration(status.durationMillis);
+
+      const recording = new Audio.Recording();
+      await recording.prepareToRecordAsync({
+        ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
+        isMeteringEnabled: true,
+      });
+      recording.setProgressUpdateInterval(50);
+      recording.setOnRecordingStatusUpdate((status) => {
+        if (status.isRecording) {
+          setRecordingDuration(status.durationMillis);
+          if (status.metering !== undefined) {
+            setMetering(status.metering);
           }
-        });
-        recordingRef.current = recording;
-      }
-      await recordingRef.current.startAsync();
-      setRecordingState("recording");
-      setSelectedAyatKey(null);
-      setActionMessage("");
-      setActionError("");
-    } catch (err) {
-      setRecordingError(
-        err instanceof Error ? err.message : "Gagal memulai rekaman."
-      );
-    }
-  }, [recordingState, sessionStarted, sound]);
-
-  const pauseRecording = useCallback(async () => {
-    if (recordingState !== "recording") return;
-    try {
-      await recordingRef.current?.pauseAsync();
-      setRecordingState("paused");
-    } catch (err) {
-      setRecordingError(
-        err instanceof Error ? err.message : "Gagal menjeda rekaman."
-      );
-    }
-  }, [recordingState]);
-
-  const stopRecording = useCallback(async () => {
-    if (recordingState === "idle") return;
-    const recording = recordingRef.current;
-    if (!recording) return;
-    try {
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-      recordingRef.current = null;
-      setRecordingUri(uri ?? null);
-      setRecordingState("stopped");
-      if (uri) {
-        if (sound) {
-          await sound.unloadAsync().catch(() => undefined);
         }
-        const { sound: nextSound, status } = await Audio.Sound.createAsync(
+      });
+
+      await recording.startAsync();
+      recordingRef.current = recording;
+      setRecordingState("recording");
+
+    } catch (err) {
+      Alert.alert("Error", "Gagal memulai rekaman.");
+    }
+  };
+
+  const sendStartSignal = async () => {
+    if (ayatList.length === 0) return;
+    try {
+      const startAyat = ayatList[0];
+      const now = new Date();
+      const fname = buildFilename("ABSSUBUH", now);
+      const nowStr = formatTimestamp(now);
+
+      const payload = [{
+        surahayat: String(startAyat.id || startAyat.verseid || 0),
+        filename: fname,
+        strat_time: nowStr,
+      }];
+
+      console.log("Sending Start Signal...");
+      // We trigger save but don't await blocking UI? Or better await to ensure connection?
+      // Making it non-blocking for better UX start.
+      saveQuranAttendance(payload).catch(err => console.log("Start Signal Failed", err));
+    } catch (e) {
+      console.log("Error prep start signal", e);
+    }
+  };
+
+  const pauseRecording = async () => {
+    if (!recordingRef.current) return;
+    try {
+      if (recordingState === "recording") {
+        await recordingRef.current.pauseAsync();
+        setRecordingState("paused");
+      } else {
+        await recordingRef.current.startAsync();
+        setRecordingState("recording");
+      }
+    } catch (err) { }
+  };
+
+  const stopRecording = async () => {
+    if (!recordingRef.current) return;
+    setProcessing(true);
+    try {
+      await recordingRef.current.stopAndUnloadAsync();
+      const uri = recordingRef.current.getURI();
+      recordingRef.current = null;
+      setRecordingUri(uri);
+      setRecordingState("stopped");
+
+      if (uri) {
+        const { sound } = await Audio.Sound.createAsync(
           { uri },
           { shouldPlay: false },
-          onPlaybackStatusUpdate
+          (status) => {
+            if (status.isLoaded) {
+              setPlaybackStatus({
+                positionMillis: status.positionMillis,
+                durationMillis: status.durationMillis || 0,
+                isPlaying: status.isPlaying,
+              });
+            }
+          }
         );
-        setSound(nextSound);
-        if (status.isLoaded) {
-          setPlaybackStatus({
-            positionMillis: status.positionMillis ?? 0,
-            durationMillis: status.durationMillis ?? 0,
-            isPlaying: Boolean(status.isPlaying),
-          });
+        soundRef.current = sound;
+
+        // SEND END SIGNAL (Ayat Terakhir)
+        if (ayatList.length > 0) {
+          const endAyat = ayatList[ayatList.length - 1]; // Last
+          const now = new Date();
+          const fname = buildFilename("ABSSUBUH", now);
+          const nowStr = formatTimestamp(now);
+
+          const payload = [{
+            surahayat: String(endAyat.id || endAyat.verseid || 0),
+            filename: fname,
+            strat_time: nowStr,
+          }];
+
+          await saveQuranAttendance(payload);
+
+          // SUCCESS FLOW:
+          // 1. Mark submitted
+          // 2. Refresh page to get NEXT ayat (load new data)
+          // 3. BUT keep `lastSubmissionData` to show the player/result of what we JUST did.
+
+          setLastSubmissionData({ uri }); // Store current record to keep showing it
+          setIsSubmitted(true);
+          setShowSuccessModal(true);
+
+          // Fetch next day/ayat immediately
+          await initPage(true);
+
+        } else {
+          Alert.alert("Gagal", "Data ayat kosong.");
         }
       }
     } catch (err) {
-      setRecordingError(
-        err instanceof Error ? err.message : "Gagal menghentikan rekaman."
-      );
+      Alert.alert("Gagal", "Gagal menyimpan absensi: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setProcessing(false);
     }
-  }, [onPlaybackStatusUpdate, recordingState, sound]);
+  };
 
-  const togglePlayback = useCallback(async () => {
-    if (!sound) return;
-    const status = await sound.getStatusAsync();
+  const togglePlayback = async () => {
+    if (!soundRef.current) return;
+    const status = await soundRef.current.getStatusAsync();
     if (!status.isLoaded) return;
     if (status.isPlaying) {
-      await sound.pauseAsync();
+      await soundRef.current.pauseAsync();
     } else {
-      await sound.playAsync();
+      await soundRef.current.playAsync();
     }
-  }, [sound]);
+  };
 
-  const handleSaveRecording = useCallback(async () => {
-    if (!recordingUri) return;
-    setRecordingError("");
+  // Logic: When refreshing, if we have a recording, we want to play THAT recording, not null.
+  // Actually, `recordingUri` is cleared in initPage(false). 
+  // initPage(true) KEEPS `recordingUri` if we don't clear it.
+  // I modified `initPage` to NOT clear states if isRefresh is true. 
+  // However, I clearing it manually in `saveQuranAttendance` flow above might be better if I want "fresh slate for recording" but "keep playback".
+  // Actually, sticking to `recordingUri` state is fine as long as `initPage(true)` doesn't wipe it.
+  // Modified initPage logic above to respect isRefresh.
+
+  const downloadRecording = async () => {
+    // If submitted, use lastSubmissionData or current recordingUri
+    const targetUri = lastSubmissionData?.uri || recordingUri;
+
+    if (!targetUri) return;
     try {
-      const available = await Sharing.isAvailableAsync();
-      if (!available) {
-        setRecordingError("Fitur download tidak tersedia di perangkat ini.");
+      if (!(await Sharing.isAvailableAsync())) {
+        Alert.alert("Info", "Fitur berbagi tidak tersedia.");
         return;
       }
-      await Sharing.shareAsync(recordingUri, {
-        dialogTitle: "Simpan rekaman",
-        mimeType: "audio/m4a",
+      await Sharing.shareAsync(targetUri, {
+        mimeType: 'audio/x-m4a',
+        dialogTitle: 'Simpan Rekaman Tilawah',
+        UTI: 'public.audio'
       });
     } catch (err) {
-      setRecordingError(
-        err instanceof Error ? err.message : "Gagal menyimpan rekaman."
-      );
+      Alert.alert("Error", "Gagal mengunduh rekaman.");
     }
-  }, [recordingUri]);
+  };
 
-  const handleSession = useCallback(async () => {
-    setActionMessage("");
-    setActionError("");
-    if (sessionStarted) return;
-    setSessionLoading(true);
+  const handleNextAyat = async () => {
+    // If user clicks "Lanjut", we basically just reset the Success card state
+    // The data is already refreshed from the auto-refresh in stopRecording.
+    setIsSubmitted(false);
+    setLastSubmissionData(null);
+    setRecordingUri(null); // Clear previous recording
+    setRecordingState("idle");
+  };
+
+  const handleClear = () => {
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+      performClear(2);
+    } else {
+      clickTimeoutRef.current = setTimeout(() => {
+        performClear(1);
+        clickTimeoutRef.current = null;
+      }, 300);
+    }
+  };
+
+  const performClear = async (level: number) => {
+    setProcessing(true);
     try {
-      const result = await startQuranSession({ sesion: sessionNumber });
-      setSessionStarted(true);
-      setSelectedAyatKey(null);
-      setActionMessage(result?.message || "Sesi dimulai. Silakan rekam.");
-    } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : "Gagal memulai sesi."
-      );
+      await clearQuranAttendance(level);
+      Alert.alert("Sukses", "Sesi berhasil direset (Level " + level + ").", [{ text: "OK", onPress: () => initPage(true) }]);
+    } catch {
+      Alert.alert("Gagal", "Gagal reset sesi.");
     } finally {
-      setSessionLoading(false);
+      setProcessing(false);
     }
-  }, [sessionNumber, sessionStarted, startQuranSession]);
+  };
 
-  const handleSave = useCallback(async () => {
-    setActionMessage("");
-    setActionError("");
-    if (!sessionStarted) {
-      setActionError("Mulai sesi terlebih dahulu.");
-      return;
-    }
-    if (recordingState !== "stopped") {
-      setActionError("Selesaikan rekaman terlebih dahulu.");
-      return;
-    }
-    const ayat = selectedAyatKey
-      ? ayatList.find(
-          (item, index) => getAyatKey(item, index) === selectedAyatKey
-        )
-      : null;
-    if (!ayat) {
-      setActionError("Pilih satu ayat terlebih dahulu.");
-      return;
-    }
-    setSaveLoading(true);
+  const handleHalangan = async () => {
+    setProcessing(true);
     try {
-      const now = new Date();
-      const payload = [
-        {
-          surahayat: String(ayat.verseid ?? ayat.id ?? ""),
-          filename: buildFilename(sessionLabel, now),
-          strat_time: formatTimestamp(now),
-        },
-      ];
-      const result = await saveQuranAttendance(payload);
-      setActionMessage(result?.message || "Absensi tersimpan.");
-    } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : "Gagal menyimpan absensi."
-      );
-    } finally {
-      setSaveLoading(false);
-    }
-  }, [ayatList, recordingState, saveQuranAttendance, selectedAyatKey, sessionLabel, sessionStarted]);
-
-  const handleClear = useCallback(async () => {
-    setActionMessage("");
-    setActionError("");
-    setClearLoading(true);
-    try {
-      const result = await clearQuranAttendance();
-      setActionMessage(result?.message || "Absensi dibersihkan.");
-      setSessionStarted(false);
-      setSelectedAyatKey(null);
-      await resetRecording();
-    } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : "Gagal menghapus absensi."
-      );
-    } finally {
-      setClearLoading(false);
-    }
-  }, [clearQuranAttendance, resetRecording]);
-
-  const handleSelectAyat = useCallback(
-    (item: Ayat, index: number) => {
-      if (!sessionStarted) {
-        setActionError("Mulai sesi terlebih dahulu.");
-        return;
+      const res = await startQuranSession({ sesion: 1 });
+      if (res == '1' || res?.status === true || res?.success === true) {
+        Alert.alert("Berhasil", "Halangan tercatat.");
+      } else {
+        Alert.alert("Info", "Sudah tercatat hari ini.");
       }
-      if (recordingState === "idle") {
-        setActionError("Klik rekam terlebih dahulu.");
-        return;
-      }
-      setActionError("");
-      setActionMessage("");
-      setSelectedAyatKey(getAyatKey(item, index));
-    },
-    [recordingState, sessionStarted]
+    } catch {
+      Alert.alert("Gagal", "Gagal mencatat halangan.");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const isFemale =
+    gender.toLowerCase().includes("female") ||
+    gender.toLowerCase().includes("perempuan") ||
+    gender.toLowerCase().includes("wanita");
+
+  // --- Components ---
+  const renderHeader = () => (
+    <View style={[styles.headerContainer, { paddingTop: insets.top, height: 120 + insets.top }]}>
+      <View style={styles.headerOverlay} />
+      <View style={styles.headerContent}>
+        <Text style={styles.headerTitle}>Jihad Subuh</Text>
+        <View style={styles.badgeLine}>
+          <Ionicons name="book" size={12} color={GOLD} />
+          <Text style={styles.headerSub}>One Day One Ayat</Text>
+        </View>
+      </View>
+      <Image
+        source={{ uri: "file:///C:/Users/BINA/.gemini/antigravity/brain/78a55ef5-4904-4c22-bfde-01d79b19a0a3/islamic_header_pattern_1768359293587.png" }}
+        style={styles.headerBg}
+      />
+    </View>
   );
 
-  const surahTitle =
-    surah?.transliteration || surah?.translation || "Surah";
-  const selectedAyat = useMemo(() => {
-    if (!selectedAyatKey) return null;
+  // Recorder Section Component
+  const renderRecorder = () => {
+    if (recordingState === "idle") {
+      return (
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          {/* Main Record Button */}
+          <TouchableOpacity style={[styles.topRecBtn, { flex: 1 }]} onPress={startRecording}>
+            <View style={styles.topRecIcon}>
+              <Ionicons name="mic" size={24} color="#FFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.topRecTitle}>Mulai Tilawah</Text>
+              <Text style={styles.topRecSub}>Tekan untuk merekam</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Side Buttons Column */}
+          <View style={{ gap: 8 }}>
+            <TouchableOpacity
+              style={[styles.sideRefreshBtn, !isFemale && { flex: 1 }]}
+              onPress={handleClear}
+              disabled={processing}
+            >
+              <Ionicons name="refresh" size={22} color={EMERALD} />
+              <Text style={styles.sideRefreshText}>Refres</Text>
+            </TouchableOpacity>
+
+            {isFemale && (
+              <TouchableOpacity style={styles.sideHalanganBtn} onPress={handleHalangan} disabled={processing}>
+                <Ionicons name="hand-left" size={22} color="#EF4444" />
+                <Text style={styles.sideHalanganText}>Haid</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      );
+    }
+
+    // Active Recording / Paused
     return (
-      ayatList.find(
-        (item, index) => getAyatKey(item, index) === selectedAyatKey
-      ) ?? null
+      <View style={styles.topRecActive}>
+        <View style={styles.topRecHeader}>
+          <View style={styles.recordingDot} />
+          <Text style={styles.recordingLabel}>{recordingState === "recording" ? "Merekam..." : "Terjeda"}</Text>
+          <Text style={styles.timerLarge}>{formatTime(recordingDuration)}</Text>
+        </View>
+
+        {/* VISUALIZER */}
+        <AudioVisualizer metering={recordingState === "recording" ? metering : -160} />
+
+        {/* Controls */}
+        <View style={styles.topRecControls}>
+          <TouchableOpacity style={styles.miniControl} onPress={pauseRecording}>
+            <Ionicons name={recordingState === "recording" ? "pause" : "play"} size={20} color={EMERALD} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.stopControl} onPress={stopRecording}>
+            <View style={styles.stopSquare} />
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.hintText}>Tekan kotak merah untuk selesai & kirim (Absen akhir)</Text>
+      </View>
     );
-  }, [ayatList, selectedAyatKey]);
-
-  const selectionHint = !sessionStarted
-    ? "Mulai sesi terlebih dahulu."
-    : recordingState === "idle"
-      ? "Klik Rekam, lalu pilih satu ayat."
-      : !selectedAyatKey
-        ? "Pilih satu ayat untuk absensi."
-        : recordingState !== "stopped"
-          ? "Klik Selesai untuk mengakhiri rekaman."
-          : `Ayat terpilih: Ayat ${selectedAyat?.verseid ?? "-"}.`;
-
-  const metricItems = useMemo(
-    () => [
-      { label: "Sesi", value: String(sessionNumber) },
-      { label: "Waktu", value: sessionLabel },
-      { label: "Target", value: "1 ayat" },
-    ],
-    [sessionLabel, sessionNumber]
-  );
-
-  const canSelectAyat = sessionStarted && recordingState !== "idle";
-  const canSave =
-    sessionStarted &&
-    recordingState === "stopped" &&
-    Boolean(selectedAyatKey) &&
-    !saveLoading;
-  const recordButtonLabel = recordingState === "paused" ? "Lanjut" : "Rekam";
-  const recordStatus =
-    recordingState === "recording"
-      ? "Sedang merekam"
-      : recordingState === "paused"
-        ? "Terjeda"
-        : recordingState === "stopped"
-          ? "Selesai"
-          : "Belum merekam";
-  const playbackProgress = useMemo(() => {
-    if (!playbackStatus.durationMillis) return 0;
-    return Math.min(1, playbackStatus.positionMillis / playbackStatus.durationMillis);
-  }, [playbackStatus]);
+  };
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <View style={styles.haloTop} />
-      <View style={styles.haloBottom} />
+    <SafeAreaView style={styles.screen} edges={['left', 'right']}>
+      {renderHeader()}
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={EMERALD} colors={[EMERALD]} />
+        }
       >
-        <View style={styles.header}>
+
+
+
+        {loading && !isSubmitted ? (
+          <View style={styles.centerBox}>
+            <ActivityIndicator size="large" color={EMERALD} />
+            <Text style={styles.loadText}>Menyiapkan Ayat...</Text>
+          </View>
+        ) : !isSubmitted && ayatList.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Ionicons name="moon" size={48} color={GOLD} />
+            <Text style={styles.emptyTitle}>Selesai untuk Hari Ini</Text>
+            <Text style={styles.emptySub}>Semoga Allah menerima amal ibadah kita.</Text>
+          </View>
+        ) : (
           <View>
-            <Text style={styles.title}>Qur'an</Text>
-            <Text style={styles.subtitle}>Absensi 1 ayat setiap hari.</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.refreshButton}
-            onPress={loadQuran}
-            disabled={loading}
-          >
-            <Ionicons name="refresh" size={18} color={EMERALD} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.heroCard}>
-          <View style={styles.heroGlow} />
-          <View style={styles.heroOrnament} />
-          <Text style={styles.heroEyebrow}>Assalamu alaikum</Text>
-          <Text style={styles.heroTitle}>Absensi Quran</Text>
-          <Text style={styles.heroDesc}>
-            Rekam bacaan, pilih ayat, lalu simpan absensi.
-          </Text>
-          <View style={styles.metricRow}>
-            {metricItems.map((item) => (
-              <View key={item.label} style={styles.metricChip}>
-                <Text style={styles.metricLabel}>{item.label}</Text>
-                <Text style={styles.metricValue}>{item.value}</Text>
+            {/* 1. RECORDER UI (Top) - Only show if NOT successful yet */}
+            {!isSubmitted && (
+              <View style={styles.topRecorderContainer}>
+                {renderRecorder()}
               </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.recordCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Rekaman</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{recordStatus}</Text>
-            </View>
-          </View>
-          <Text style={styles.recordHint}>
-            Klik Rekam -> Pilih 1 Ayat -> Baca Ayatnya -> Klik Selesai
-          </Text>
-          <View style={styles.recordControls}>
-            <TouchableOpacity
-              style={[
-                styles.recordButton,
-                styles.recordPrimary,
-                (!sessionStarted || recordingState === "recording") &&
-                  styles.recordDisabled,
-              ]}
-              onPress={startRecording}
-              disabled={!sessionStarted || recordingState === "recording"}
-            >
-              <Ionicons name="radio-button-on" size={16} color={EMERALD} />
-              <Text style={styles.recordPrimaryText}>{recordButtonLabel}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.recordButton,
-                styles.recordGhost,
-                recordingState !== "recording" && styles.recordDisabled,
-              ]}
-              onPress={pauseRecording}
-              disabled={recordingState !== "recording"}
-            >
-              <Ionicons name="pause" size={16} color={EMERALD} />
-              <Text style={styles.recordGhostText}>Pause</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.recordButton,
-                styles.recordSecondary,
-                (recordingState === "idle" || recordingState === "stopped") &&
-                  styles.recordDisabled,
-              ]}
-              onPress={stopRecording}
-              disabled={recordingState === "idle" || recordingState === "stopped"}
-            >
-              <Ionicons name="stop" size={16} color={EMERALD} />
-              <Text style={styles.recordSecondaryText}>Selesai</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.recordButton,
-                styles.recordGhost,
-                recordingState === "idle" && !recordingUri && styles.recordDisabled,
-              ]}
-              onPress={resetRecording}
-              disabled={recordingState === "idle" && !recordingUri}
-            >
-              <Ionicons name="refresh" size={16} color={EMERALD} />
-              <Text style={styles.recordGhostText}>Ulangi</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.recordStatusRow}>
-            <Text style={styles.recordTime}>{formatTime(recordingDuration)}</Text>
-            <Text style={styles.recordMeta}>
-              {sessionStarted ? "Sesi aktif" : "Sesi belum dimulai"}
-            </Text>
-          </View>
-
-          {recordingUri ? (
-            <View style={styles.playerCard}>
-              <TouchableOpacity style={styles.playButton} onPress={togglePlayback}>
-                <Ionicons
-                  name={playbackStatus.isPlaying ? "pause" : "play"}
-                  size={18}
-                  color={EMERALD}
-                />
-              </TouchableOpacity>
-              <View style={styles.progressBlock}>
-                <View style={styles.progressTrack}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      { width: `${playbackProgress * 100}%` },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.progressText}>
-                  {formatTime(playbackStatus.positionMillis)} /{" "}
-                  {formatTime(playbackStatus.durationMillis)}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.saveLink}
-                onPress={handleSaveRecording}
-              >
-                <Text style={styles.saveLinkText}>Save to disk</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <Text style={styles.helperText}>Belum ada rekaman.</Text>
-          )}
-
-          {recordingError ? (
-            <View style={styles.noticeCard}>
-              <Text style={styles.errorText}>{recordingError}</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {loading ? (
-          <View style={styles.loadingRow}>
-            <ActivityIndicator size="small" color={EMERALD} />
-            <Text style={styles.loadingText}>Memuat ayat hari ini...</Text>
-          </View>
-        ) : null}
-
-        {error ? (
-          <View style={styles.noticeCard}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
-
-        {!loading && (surah || ayatList.length) ? (
-          <View style={styles.scriptureCard}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Surah dan Ayat</Text>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {surah?.id ? `#${surah.id}` : "-"}
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.surahArabic}>{surah?.name || "-"}</Text>
-            <Text style={styles.surahLatin}>{surahTitle}</Text>
-            <Text style={styles.surahTranslation}>
-              {surah?.translation || "-"}
-            </Text>
-
-            <View style={styles.divider} />
-            <Text style={styles.ayatHeading}>Pilih Ayat</Text>
-
-            <View style={styles.ayatList}>
-              {ayatList.length ? (
-                ayatList.map((item, index) => {
-                  const key = getAyatKey(item, index);
-                  const isSelected = key === selectedAyatKey;
-                  return (
-                    <TouchableOpacity
-                      key={key}
-                      style={[
-                        styles.ayatItem,
-                        isSelected && styles.ayatItemActive,
-                        !canSelectAyat && styles.ayatItemDisabled,
-                      ]}
-                      onPress={() => handleSelectAyat(item, index)}
-                      disabled={!canSelectAyat}
-                    >
-                      <View style={styles.ayatHeader}>
-                        <View>
-                          <Text style={styles.ayatTitle}>
-                            Ayat {item?.verseid ?? "-"}
-                          </Text>
-                          <Text style={styles.ayatMeta}>{getAyatMeta(item)}</Text>
-                        </View>
-                        <Ionicons
-                          name={isSelected ? "checkmark-circle" : "ellipse-outline"}
-                          size={20}
-                          color={isSelected ? EMERALD : TEXT_MUTED}
-                        />
-                      </View>
-                      <Text style={styles.ayatArabic}>{item?.ayahtext || "-"}</Text>
-                      <Text style={styles.ayatTranslation}>
-                        {item?.indotext || "-"}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })
-              ) : (
-                <Text style={styles.helperText}>Ayat belum tersedia.</Text>
-              )}
-            </View>
-          </View>
-        ) : null}
-
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Absensi</Text>
-            <Text style={styles.sectionMeta}>Sesi {sessionLabel}</Text>
-          </View>
-          <Text style={styles.sectionDesc}>{selectionHint}</Text>
-
-          <View style={styles.actionRow}>
-            <TouchableOpacity
-              style={[
-                styles.actionButton,
-                styles.actionPrimary,
-                (sessionLoading || sessionStarted) && styles.actionDisabled,
-              ]}
-              onPress={handleSession}
-              disabled={sessionLoading || sessionStarted}
-            >
-              {sessionLoading ? (
-                <ActivityIndicator size="small" color={EMERALD} />
-              ) : (
-                <Ionicons name="moon-outline" size={16} color={EMERALD} />
-              )}
-              <Text style={styles.actionPrimaryText}>Mulai Sesi</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.actionButton,
-                styles.actionSecondary,
-                !canSave && styles.actionDisabled,
-              ]}
-              onPress={handleSave}
-              disabled={!canSave}
-            >
-              {saveLoading ? (
-                <ActivityIndicator size="small" color={EMERALD} />
-              ) : (
-                <Ionicons
-                  name="checkmark-circle-outline"
-                  size={16}
-                  color={EMERALD}
-                />
-              )}
-              <Text style={styles.actionSecondaryText}>Simpan</Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity
-            style={[
-              styles.actionGhost,
-              clearLoading && styles.actionDisabled,
-            ]}
-            onPress={handleClear}
-            disabled={clearLoading}
-          >
-            {clearLoading ? (
-              <ActivityIndicator size="small" color={EMERALD} />
-            ) : (
-              <Ionicons name="trash-outline" size={16} color={EMERALD} />
             )}
-            <Text style={styles.actionGhostText}>Clear</Text>
-          </TouchableOpacity>
 
-          {actionMessage ? (
-            <View style={styles.successCard}>
-              <Ionicons name="checkmark-circle" size={16} color={EMERALD} />
-              <Text style={styles.successText}>{actionMessage}</Text>
-            </View>
-          ) : null}
+            {/* 2. SUCCESS UI (Top - if submitted) */}
+            {isSubmitted && (
+              <View style={styles.successCard}>
+                <View style={styles.successIconHeader}>
+                  <Ionicons name="checkmark-circle" size={48} color={EMERALD} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.successTitle}>Alhamdulillah</Text>
+                    <Text style={styles.successSub}>Rekaman Tersimpan. Ayat berikutnya telah dimuat di bawah.</Text>
+                  </View>
+                </View>
 
-          {actionError ? (
-            <View style={styles.noticeCard}>
-              <Text style={styles.errorText}>{actionError}</Text>
+                <View style={styles.resultActions}>
+                  <TouchableOpacity style={styles.playResultBtn} onPress={togglePlayback}>
+                    <Ionicons name={playbackStatus.isPlaying ? "pause" : "play"} size={20} color={EMERALD} />
+                    <Text style={styles.playResultText}>{playbackStatus.isPlaying ? "Jeda" : "Putar Hasil Rekaman"}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.downloadResultBtn} onPress={downloadRecording}>
+                    <Ionicons name="download-outline" size={20} color={TEXT_DARK} />
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity style={styles.nextBtn} onPress={handleNextAyat}>
+                  <Text style={styles.nextBtnText}>Tutup & Lanjut Baca Ayat Baru</Text>
+                  <Ionicons name="close-circle" size={18} color="#FFF" />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* 3. SURAH BANNER */}
+            {surah && (
+              <View style={styles.surahBanner}>
+                <ImageBackground
+                  source={{ uri: "file:///C:/Users/BINA/.gemini/antigravity/brain/78a55ef5-4904-4c22-bfde-01d79b19a0a3/islamic_header_pattern_1768359293587.png" }}
+                  imageStyle={{ opacity: 0.1, borderRadius: 20 }}
+                  style={styles.surahBannerInner}
+                >
+                  <View style={styles.surahFrame}>
+                    <Text style={styles.surahArabic}>{surah.name}</Text>
+                    <Text style={styles.surahTitle}>{surah.transliteration}</Text>
+                    <Text style={styles.surahMeaning}>"{surah.translation}"</Text>
+                    <View style={styles.dividerDecor} />
+                  </View>
+                </ImageBackground>
+              </View>
+            )}
+
+            {/* 4. AYAT LIST */}
+            {/* 4. AYAT LIST REPLACE */}
+            <View style={styles.ayatContainer}>
+              {ayatList.slice().reverse().map((ayat, index) => {
+                // Since we reversed, the "end" ayat is now at index 0
+                // Logic based on original list: The styling was applied to the last item of the ORIGINAL list.
+                // The user says "ayat terakhir ... di taruh di atas".
+                // So visually the list is inverted.
+                // We should check if this specific ayat IS the last one from original data?
+                // Or just style the top one?
+                // Typically "ayat terakhir" means the high numbered one. 
+                // If we reverse, high numbered one comes first (top).
+
+                // My previous logic for styling: const isEnd = index === ayatList.length - 1;
+                // If I reverse the array:
+                // [Ayat 10, Ayat 9, ...]
+                // index 0 is Ayat 10 (Last one).
+                // So we want to style the FIRST item in this reversed list if we want to highlight the "last" ayat.
+
+                const isFirstInList = index === 0;
+                return (
+                  <View key={index} style={[styles.ayatCard, isFirstInList ? styles.ayatCardEnd : { opacity: 0.6 }]}>
+                    <View style={styles.numberColumn}>
+                      <View style={styles.ayatNumberBadge}>
+                        <Text style={styles.ayatNumberText}>{ayat.verseid}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.textColumn}>
+                      <Text style={styles.ayatArabic}>{ayat.ayahtext}</Text>
+                      <Text style={styles.ayatIndo}>{ayat.indotext}</Text>
+                    </View>
+                  </View>
+                );
+              })}
             </View>
-          ) : null}
-        </View>
+
+          </View>
+        )}
+
+        <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Success Modal */}
+      <Modal
+        isVisible={!!showSuccessModal}
+        backdropOpacity={0.5}
+        animationIn="zoomIn"
+        animationOut="zoomOut"
+        onBackdropPress={() => setShowSuccessModal(false)}
+      >
+        <View style={styles.modalCenter}>
+          <ViewShot ref={viewShotRef} options={{ format: "png", quality: 1 }}>
+            <View style={styles.shareCard}>
+              <View style={styles.shareHeader}>
+                <Image
+                  source={{ uri: "https://laskarbuah-sales.s3.ap-southeast-3.amazonaws.com/foto_produk/3e657f34-c3f5-4551-80f6-e30509a7617d.png" }}
+                  style={{ width: 120, height: 120, marginBottom: 4 }}
+                  resizeMode="contain"
+                />
+                <Text style={[styles.shareTitle, { textAlign: "center" }]}>{userName || "User"}</Text>
+                <Text style={styles.shareSub}>Terimakasih Untuk 1 Ayat hari ini</Text>
+              </View>
+
+              <View style={styles.shareContent}>
+                <Text style={styles.shareSurah}>{surah?.name}</Text>
+                <Text style={styles.shareAyatDetail}>
+                  {surah?.transliteration} • Ayat {ayatList[0]?.verseid} - {ayatList[ayatList.length - 1]?.verseid}
+                </Text>
+                <Text style={styles.shareDate}>{formatTimestamp(new Date())}</Text>
+              </View>
+
+              <View style={styles.shareFooter}>
+                <Text style={styles.shareFooterText}>Jihad Subuh - One Day One Ayat</Text>
+              </View>
+            </View>
+          </ViewShot>
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity style={styles.shareBtn} onPress={handleShareImage}>
+              <Ionicons name="share-social" size={20} color="#FFF" />
+              <Text style={styles.shareBtnText}>Share ke WhatsApp</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.closeModalBtn} onPress={() => setShowSuccessModal(false)}>
+              <Text style={styles.closeModalText}>Tutup</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Processing Overlay */}
+      {processing && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#FFF" />
+          <Text style={styles.loadingOverlayText}>Memproses...</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: SAND,
-  },
-  haloTop: {
-    position: "absolute",
-    top: -160,
-    right: -120,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: GOLD,
-    opacity: 0.16,
-  },
-  haloBottom: {
-    position: "absolute",
-    bottom: -180,
-    left: -120,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: EMERALD_SOFT,
-    opacity: 0.6,
-  },
-  content: {
-    paddingHorizontal: SIZES.large,
-    paddingBottom: 120,
-    gap: 16,
-  },
-  header: {
-    marginTop: SIZES.small,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  title: {
-    fontSize: 22,
-    fontFamily: FONTS.bold,
-    color: EMERALD,
-  },
-  subtitle: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: TEXT_MUTED,
-    marginTop: 4,
-  },
-  refreshButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#ffffff",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: BORDER,
-    shadowColor: "#000000",
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  heroCard: {
+  screen: { flex: 1, backgroundColor: CREAM },
+  scrollContent: { paddingBottom: 100, paddingTop: 10 },
+
+  headerContainer: {
+    height: 120,
     backgroundColor: EMERALD,
-    borderRadius: 24,
-    padding: SIZES.large,
-    gap: 10,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(215,181,102,0.3)",
-  },
-  heroGlow: {
-    position: "absolute",
-    top: -60,
-    right: -40,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: GOLD,
-    opacity: 0.2,
-  },
-  heroOrnament: {
-    position: "absolute",
-    bottom: -20,
-    right: 30,
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    transform: [{ rotate: "35deg" }],
-  },
-  heroEyebrow: {
-    fontSize: 11,
-    fontFamily: FONTS.medium,
-    color: "rgba(255,255,255,0.7)",
-  },
-  heroTitle: {
-    fontSize: 20,
-    fontFamily: FONTS.bold,
-    color: "#ffffff",
-  },
-  heroDesc: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: "rgba(255,255,255,0.8)",
-  },
-  metricRow: {
-    flexDirection: "row",
-    gap: 8,
-    flexWrap: "wrap",
-  },
-  metricChip: {
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 14,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    minWidth: 86,
-  },
-  metricLabel: {
-    fontSize: 10,
-    fontFamily: FONTS.medium,
-    color: "rgba(255,255,255,0.7)",
-  },
-  metricValue: {
-    fontSize: 12,
-    fontFamily: FONTS.bold,
-    color: "#ffffff",
-    marginTop: 2,
-  },
-  recordCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 22,
-    padding: SIZES.large,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: BORDER,
-    shadowColor: "#000000",
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  recordHint: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: TEXT_MUTED,
-  },
-  recordControls: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  recordButton: {
-    flexDirection: "row",
-    alignItems: "center",
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
     justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  recordPrimary: {
-    backgroundColor: EMERALD_SOFT,
-    borderColor: "rgba(15,61,46,0.2)",
-  },
-  recordPrimaryText: {
-    fontSize: 12,
-    fontFamily: FONTS.bold,
-    color: EMERALD,
-  },
-  recordSecondary: {
-    backgroundColor: GOLD,
-    borderColor: GOLD,
-  },
-  recordSecondaryText: {
-    fontSize: 12,
-    fontFamily: FONTS.bold,
-    color: EMERALD,
-  },
-  recordGhost: {
-    backgroundColor: "#ffffff",
-    borderColor: BORDER,
-  },
-  recordGhostText: {
-    fontSize: 12,
-    fontFamily: FONTS.bold,
-    color: EMERALD,
-  },
-  recordDisabled: {
-    opacity: 0.5,
-  },
-  recordStatusRow: {
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    marginBottom: 0,
+    elevation: 4,
+    overflow: "hidden"
   },
-  recordTime: {
-    fontSize: 16,
-    fontFamily: FONTS.bold,
-    color: INK,
+  headerBg: { position: "absolute", width: "100%", height: "100%", opacity: 0.2 },
+  headerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.1)" },
+  headerContent: { alignItems: "center", zIndex: 10 },
+  headerTitle: { color: GOLD, fontSize: 26, fontFamily: FONTS.bold, marginBottom: 4 },
+  badgeLine: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(0,0,0,0.2)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  headerSub: { color: "#FFF", fontSize: 12, fontFamily: FONTS.medium },
+
+  actionBar: { flexDirection: "row", justifyContent: "flex-end", paddingHorizontal: 20, marginBottom: 10 },
+  clearBtn: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFF", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, gap: 4, borderWidth: 1, borderColor: "#E2E8F0" },
+  clearText: { color: TEXT_DARK, fontFamily: FONTS.medium, fontSize: 11 },
+
+  centerBox: { alignItems: "center", padding: 40 },
+  loadText: { marginTop: 12, color: TEXT_MUTED, fontSize: 14 },
+  emptyCard: { margin: 20, backgroundColor: "#FFF", padding: 30, borderRadius: 20, alignItems: "center", elevation: 2 },
+  emptyTitle: { marginTop: 16, fontFamily: FONTS.bold, color: TEXT_DARK, fontSize: 16 },
+  emptySub: { marginTop: 8, color: TEXT_MUTED, textAlign: "center", fontSize: 12 },
+
+  // --- TOP RECORDER STYLES ---
+  topRecorderContainer: { paddingHorizontal: 16, marginBottom: 16 },
+  topRecBtn: {
+    flexDirection: "row", alignItems: "center", backgroundColor: EMERALD,
+    padding: 16, borderRadius: 20, elevation: 4, gap: 16
   },
-  recordMeta: {
-    fontSize: 11,
-    fontFamily: FONTS.medium,
-    color: TEXT_MUTED,
+  topRecIcon: {
+    width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center", justifyContent: "center"
+  },
+  topRecTitle: { color: "#FFF", fontFamily: FONTS.bold, fontSize: 16 },
+  topRecSub: { color: "rgba(255,255,255,0.8)", fontSize: 12 },
+
+  sideRefreshBtn: {
+    alignItems: "center", justifyContent: "center", backgroundColor: "#FFF",
+    paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20, gap: 4,
+    borderWidth: 1, borderColor: "#E2E8F0", minWidth: 80
+  },
+  sideRefreshText: { color: EMERALD, fontFamily: FONTS.bold, fontSize: 12 },
+
+  sideHalanganBtn: {
+    alignItems: "center", justifyContent: "center", backgroundColor: "#FFF",
+    paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20, gap: 4,
+    borderWidth: 1, borderColor: "#FECACA", minWidth: 80
+  },
+  sideHalanganText: { color: "#EF4444", fontFamily: FONTS.bold, fontSize: 12 },
+
+  halanganRecBtn: {
+    flexDirection: "row", alignItems: "center", backgroundColor: "#EF4444",
+    padding: 16, borderRadius: 20, elevation: 4, gap: 16
+  },
+  halanganRecIcon: {
+    width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center", justifyContent: "center"
+  },
+  halanganRecTitle: { color: "#FFF", fontFamily: FONTS.bold, fontSize: 16 },
+  halanganRecSub: { color: "rgba(255,255,255,0.8)", fontSize: 12 },
+
+  topRecActive: {
+    backgroundColor: "#FFF", borderRadius: 24, padding: 20, elevation: 4,
+    borderWidth: 1, borderColor: "#E2E8F0"
+  },
+  topRecHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+  recordingDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#EF4444", marginRight: 8 },
+  recordingLabel: { color: "#EF4444", fontFamily: FONTS.bold, fontSize: 12, flex: 1 },
+  timerLarge: { fontFamily: FONTS.bold, fontSize: 16, color: TEXT_DARK, fontVariant: ["tabular-nums"] },
+
+  // Visualizer in Top Rec
+  topRecControls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 24, marginTop: 12 },
+  miniControl: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#ECFDF5", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: EMERALD },
+  stopControl: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#EF4444", alignItems: "center", justifyContent: "center", elevation: 4, borderWidth: 4, borderColor: "#FECACA" },
+  stopSquare: { width: 20, height: 20, borderRadius: 4, backgroundColor: "#FFF" }, // Square icon for stop
+
+  // Success State (Moved to Top)
+  successCard: { marginHorizontal: 16, marginBottom: 16, backgroundColor: "#FFF", borderRadius: 24, padding: 20, elevation: 2, borderWidth: 1, borderColor: "#DCFCE7" },
+  successIconHeader: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 16 },
+  successTitle: { fontSize: 18, fontFamily: FONTS.bold, color: EMERALD },
+  successSub: { fontSize: 12, color: TEXT_MUTED, flexWrap: "wrap" },
+  resultActions: { flexDirection: "row", gap: 8, marginBottom: 16 },
+  playResultBtn: { flexDirection: "row", alignItems: "center", backgroundColor: "#ECFDF5", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, gap: 6, flex: 1 },
+  playResultText: { color: EMERALD, fontFamily: FONTS.bold, fontSize: 12 },
+  downloadResultBtn: { width: 40, alignItems: "center", justifyContent: "center", backgroundColor: "#F1F5F9", borderRadius: 12 },
+  nextBtn: { backgroundColor: EMERALD, padding: 14, borderRadius: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, elevation: 2 },
+  nextBtnText: { color: "#FFF", fontFamily: FONTS.bold },
+
+  // Surah Banner
+  surahBanner: { marginHorizontal: 16, marginBottom: 12, elevation: 3 },
+  surahBannerInner: { backgroundColor: "#FFF", borderRadius: 20, overflow: "hidden", borderWidth: 1, borderColor: GOLD },
+  surahFrame: { alignItems: "center", padding: 24, borderWidth: 1, borderColor: GOLD, margin: 4, borderRadius: 16, borderStyle: "dashed" },
+  surahArabic: { fontFamily: "ArabQuran", fontSize: 36, color: EMERALD, marginBottom: 8 },
+  surahTitle: { fontFamily: FONTS.bold, fontSize: 18, color: TEXT_DARK, letterSpacing: 1 },
+  surahMeaning: { fontFamily: FONTS.medium, fontSize: 12, color: TEXT_MUTED, fontStyle: "italic", marginTop: 2 },
+  dividerDecor: { height: 2, width: 40, backgroundColor: GOLD, marginTop: 16 },
+
+  ayatContainer: { gap: 8 },
+  ayatCard: {
+    backgroundColor: "#FFFFFF", marginHorizontal: 16, borderRadius: 20, padding: 16,
+    elevation: 2, shadowColor: "#000", shadowOpacity: 0.05, shadowOffset: { width: 0, height: 2 },
+    borderWidth: 1, borderColor: "rgba(0,0,0,0.02)",
+    flexDirection: "row", alignItems: "flex-start", gap: 12
+  },
+  ayatCardEnd: {
+    borderWidth: 1, borderColor: EMERALD, backgroundColor: "#F0FDF4"
   },
 
-  playerCard: {
-    flexDirection: "row",
+  numberColumn: { width: 36, alignItems: "center", paddingTop: 4 },
+  ayatNumberBadge: {
+    width: 32, height: 32, borderRadius: 10, backgroundColor: EMERALD,
+    alignItems: "center", justifyContent: "center",
+    transform: [{ rotate: "45deg" }]
+  },
+  ayatNumberText: { color: "#FFFFFF", fontFamily: FONTS.bold, fontSize: 11, transform: [{ rotate: "-45deg" }] },
+
+  textColumn: { flex: 1 },
+  ayatArabic: {
+    fontSize: 28,
+    fontFamily: "ArabQuran", color: TEXT_DARK, textAlign: "right", lineHeight: 48, marginBottom: 12
+  },
+  ayatIndo: { fontSize: 13, fontFamily: FONTS.regular, color: TEXT_MUTED, textAlign: "left", lineHeight: 20 },
+
+  bottomArea: { paddingHorizontal: 16, marginTop: 20 },
+  loadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", zIndex: 999 },
+  loadingOverlayText: { color: "#FFF", marginTop: 12, fontFamily: FONTS.bold },
+
+  // Modal Share Styles
+  modalCenter: { justifyContent: "center", alignItems: "center" },
+  shareCard: {
+    backgroundColor: "#FFF",
+    borderRadius: 24,
+    padding: 24,
+    width: width * 0.85,
     alignItems: "center",
-    gap: 12,
-    backgroundColor: SAND,
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: BORDER,
-  },
-  playButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: BORDER,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  progressBlock: {
-    flex: 1,
-    gap: 6,
-  },
-  progressTrack: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "rgba(15,61,46,0.12)",
+    gap: 16,
     overflow: "hidden",
   },
-  progressFill: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: EMERALD,
+  shareHeader: { alignItems: "center", gap: 8 },
+  shareTitle: { fontSize: 24, fontFamily: FONTS.bold, color: EMERALD },
+  shareSub: { fontSize: 14, color: TEXT_MUTED, fontFamily: FONTS.medium },
+  shareContent: { alignItems: "center", width: "100%", paddingVertical: 16, borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#E2E8F0" },
+  shareSurah: { fontSize: 36, fontFamily: "ArabQuran", color: GOLD, marginBottom: 8, textAlign: "center", lineHeight: 50 },
+  shareAyatDetail: { fontSize: 16, color: TEXT_DARK, fontFamily: FONTS.bold },
+  shareDate: { fontSize: 12, color: TEXT_MUTED, marginTop: 8 },
+  shareFooter: { marginTop: 8 },
+  shareFooterText: { fontSize: 12, color: EMERALD, fontFamily: FONTS.medium, opacity: 0.8 },
+
+  modalActions: { marginTop: 20, width: "85%", flexDirection: "row", gap: 12, justifyContent: "center" },
+  shareBtn: {
+    flex: 1, backgroundColor: "#25D366", // WA Color
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, gap: 6, elevation: 1
   },
-  progressText: {
-    fontSize: 10,
-    fontFamily: FONTS.medium,
-    color: TEXT_MUTED,
+  shareBtnText: { color: "#FFF", fontFamily: FONTS.bold, fontSize: 13 },
+  closeModalBtn: {
+    flex: 0.6, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, alignItems: "center", justifyContent: "center",
+    backgroundColor: "#F1F5F9", borderWidth: 1, borderColor: "#E2E8F0"
   },
-  saveLink: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-  },
-  saveLinkText: {
-    fontSize: 11,
-    fontFamily: FONTS.bold,
-    color: EMERALD,
-  },
-  loadingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: "#ffffff",
-    padding: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: BORDER,
-  },
-  loadingText: {
-    fontSize: 12,
-    fontFamily: FONTS.medium,
-    color: TEXT_MUTED,
-  },
-  noticeCard: {
-    backgroundColor: "#FFF4F1",
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "rgba(194,72,61,0.2)",
-  },
-  errorText: {
-    fontSize: 12,
-    fontFamily: FONTS.medium,
-    color: "#c2483d",
-  },
-  scriptureCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 22,
-    padding: SIZES.large,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: "rgba(215,181,102,0.35)",
-    shadowColor: "#000000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 14,
-    elevation: 5,
-  },
-  sectionCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 22,
-    padding: SIZES.large,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: BORDER,
-    shadowColor: "#000000",
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontFamily: FONTS.bold,
-    color: EMERALD,
-  },
-  sectionMeta: {
-    fontSize: 11,
-    fontFamily: FONTS.medium,
-    color: TEXT_MUTED,
-  },
-  sectionDesc: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: TEXT_MUTED,
-  },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: EMERALD_SOFT,
-    borderWidth: 1,
-    borderColor: "rgba(15,61,46,0.15)",
-  },
-  badgeText: {
-    fontSize: 11,
-    fontFamily: FONTS.bold,
-    color: EMERALD,
-  },
-  surahArabic: {
-    fontSize: 26,
-    color: EMERALD,
-    textAlign: "right",
-  },
-  surahLatin: {
-    fontSize: 14,
-    fontFamily: FONTS.bold,
-    color: INK,
-  },
-  surahTranslation: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: TEXT_MUTED,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: BORDER,
-    marginVertical: 4,
-  },
-  ayatHeading: {
-    fontSize: 12,
-    fontFamily: FONTS.bold,
-    color: EMERALD,
-  },
-  ayatList: {
-    gap: 12,
-  },
-  ayatItem: {
-    borderRadius: 18,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: BORDER,
-    backgroundColor: "#ffffff",
-    gap: 8,
-  },
-  ayatItemActive: {
-    borderColor: GOLD,
-    backgroundColor: "#FFFDF3",
-  },
-  ayatItemDisabled: {
-    opacity: 0.6,
-  },
-  ayatHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  ayatTitle: {
-    fontSize: 12,
-    fontFamily: FONTS.bold,
-    color: EMERALD,
-  },
-  ayatMeta: {
-    fontSize: 10,
-    fontFamily: FONTS.medium,
-    color: TEXT_MUTED,
-    marginTop: 2,
-  },
-  ayatArabic: {
-    fontSize: 18,
-    color: EMERALD,
-    textAlign: "right",
-    lineHeight: 30,
-  },
-  ayatTranslation: {
-    fontSize: 12,
-    fontFamily: FONTS.medium,
-    color: INK,
-    lineHeight: 18,
-  },
-  helperText: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: TEXT_MUTED,
-  },
-  actionRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  actionPrimary: {
-    backgroundColor: EMERALD_SOFT,
-    borderColor: "rgba(15,61,46,0.2)",
-  },
-  actionPrimaryText: {
-    fontSize: 12,
-    fontFamily: FONTS.bold,
-    color: EMERALD,
-  },
-  actionSecondary: {
-    backgroundColor: GOLD,
-    borderColor: GOLD,
-  },
-  actionSecondaryText: {
-    fontSize: 12,
-    fontFamily: FONTS.bold,
-    color: EMERALD,
-  },
-  actionGhost: {
-    marginTop: 6,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: BORDER,
-    backgroundColor: "#ffffff",
-  },
-  actionGhostText: {
-    fontSize: 12,
-    fontFamily: FONTS.bold,
-    color: EMERALD,
-  },
-  actionDisabled: {
-    opacity: 0.6,
-  },
-  successCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: EMERALD_SOFT,
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(15,61,46,0.2)",
-  },
-  successText: {
-    fontSize: 12,
-    fontFamily: FONTS.medium,
-    color: EMERALD,
-  },
+  closeModalText: { color: TEXT_MUTED, fontFamily: FONTS.bold, fontSize: 13 },
+  hintText: { textAlign: "center", color: TEXT_MUTED, fontSize: 10, marginTop: 8 }
 });
