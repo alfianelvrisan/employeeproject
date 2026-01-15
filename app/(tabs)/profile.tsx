@@ -8,10 +8,12 @@ import {
   TouchableOpacity,
   ScrollView,
 } from "react-native";
+import { Platform, Switch } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { FONTS, SIZES } from "../../constants/theme";
+import { FONTS, SIZES, SHADOWS } from "../../constants/theme";
 import { useAuth } from "../../context/AuthContext";
+import * as LocalAuthentication from 'expo-local-authentication';
 
 type AssetItem = {
   brand?: string;
@@ -88,12 +90,47 @@ const getInitials = (value?: string) => {
 };
 
 export default function ProfileScreen() {
-  const { fetchProfile, logout } = useAuth();
+  const { fetchProfile, logout, enableBiometric, disableBiometric, isBiometricEnabled } = useAuth();
   const [profile, setProfile] = useState<ProfileState | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const fetchProfileRef = useRef(fetchProfile);
+  const [bioAvailable, setBioAvailable] = useState(false);
+  const [bioLabel, setBioLabel] = useState("Biometrik");
+
+  useEffect(() => {
+    (async () => {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      setBioAvailable(hasHardware && isEnrolled);
+
+      const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
+      if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+        setBioLabel(Platform.OS === 'ios' ? "Face ID" : "Face Unlock");
+      } else if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+        setBioLabel("Fingerprint");
+      }
+    })();
+  }, []);
+
+  const handleToggleBiometric = async () => {
+    if (!isBiometricEnabled) {
+      const success = await enableBiometric();
+      if (success) {
+        alert(`Berhasil mengaktifkan ${bioLabel}`);
+      }
+    } else {
+      // Just a mock toggle off for now, or we need disable function in context
+      // Usually we just clear the flag in SecureStore
+      // For now, let's assume enableBiometric toggles or we add disable logic.
+      // The user request was "enable face id", implied toggle.
+      // Let's assume enableBiometric handles enabling. 
+      // We might need disableBiometric in context if we want full toggle.
+      // But for now, user asked "menu enable face id".
+      // I will just allow enabling if disabled.
+    }
+  };
 
   useEffect(() => {
     fetchProfileRef.current = fetchProfile;
@@ -316,6 +353,34 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {bioAvailable && (
+          <View style={styles.sectionCard}>
+            <View style={styles.rowBetween}>
+              <View style={styles.rowGap}>
+                <Ionicons name="scan-outline" size={20} color={TEXT_PRIMARY} />
+                <Text style={styles.sectionTitle}>{isBiometricEnabled ? "Nonaktifkan" : "Aktifkan"} {bioLabel}</Text>
+              </View>
+              <Switch
+                value={isBiometricEnabled}
+                onValueChange={async (val) => {
+                  if (val) {
+                    const success = await enableBiometric();
+                    if (success) alert(`Berhasil mengaktifkan ${bioLabel}`);
+                  } else {
+                    const success = await disableBiometric();
+                    if (success) alert(`Berhasil menonaktifkan ${bioLabel}`);
+                  }
+                }}
+                trackColor={{ false: "#e0e0e0", true: ACCENT }}
+                thumbColor={"#fff"}
+              />
+            </View>
+            <Text style={styles.helperText}>
+              Gunakan {bioLabel} untuk login lebih cepat.
+            </Text>
+          </View>
+        )}
+
         <TouchableOpacity style={styles.logoutButton} onPress={logout}>
           <Ionicons name="log-out-outline" size={18} color={TEXT_PRIMARY} />
           <Text style={styles.logoutText}>Logout</Text>
@@ -367,11 +432,7 @@ const styles = StyleSheet.create({
     gap: 12,
     borderWidth: 1,
     borderColor: "rgba(255,222,106,0.35)",
-    shadowColor: "#000000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 16,
-    elevation: 6,
+    ...SHADOWS.card,
   },
   avatarRing: {
     width: 68,
@@ -468,11 +529,7 @@ const styles = StyleSheet.create({
     gap: 12,
     borderWidth: 1,
     borderColor: BORDER,
-    shadowColor: "#000000",
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 14,
-    elevation: 4,
+    ...SHADOWS.card,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -568,4 +625,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: FONTS.bold,
   },
+  rowBetween: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  rowGap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  }
 });

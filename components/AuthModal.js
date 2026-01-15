@@ -34,7 +34,7 @@ const illustrationSize = {
 };
 
 const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
-  const { login, refreshSession, changePassword } = useAuth();
+  const { login, refreshSession, changePassword, storedNik, loginWithBiometric, isBiometricEnabled } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isBiometricLoading, setIsBiometricLoading] = useState(false);
   const [error, setError] = useState("");
@@ -59,14 +59,19 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
       setSuccess("");
       setIsLoading(false);
       setIsBiometricLoading(false);
-      setNik("");
+      setIsBiometricLoading(false);
+      // setNik(""); // Don't clear NIK if we want to remember it
+      if (!storedNik) setNik(""); // Only clear if no stored NIK
       setPassword("");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       setIsPasswordVisible(false);
+    } else {
+      // When visible, if storedNik exists, set it
+      if (storedNik) setNik(storedNik);
     }
-  }, [visible]);
+  }, [visible, storedNik]);
 
   useEffect(() => {
     setError("");
@@ -147,38 +152,26 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
   };
 
   const handleBiometricLogin = async () => {
-    if (!biometricAvailable) return;
-    if (!biometricHasToken) {
-      setError("Belum ada sesi tersimpan untuk login biometrik.");
-      return;
-    }
-
+    // Use context function
     setIsBiometricLoading(true);
     setError("");
-
     try {
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: `Masuk dengan ${biometricLabel}`,
-        cancelLabel: "Batal",
-        fallbackLabel: "Gunakan password",
-      });
-
-      if (!result.success) {
-        throw new Error("Autentikasi dibatalkan.");
+      const success = await loginWithBiometric();
+      if (success) {
+        onClose();
+      } else {
+        // Error handling usually done in context or we can show generic
+        // But context has alerts.
       }
-
-      await refreshSession();
-      onClose();
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
+      setError("Gagal login biometrik.");
     } finally {
       setIsBiometricLoading(false);
     }
   };
 
   const biometricButtonVisible =
-    isLoginView && biometricAvailable && biometricHasToken;
+    isLoginView && biometricAvailable && isBiometricEnabled;
 
   return (
     <Modal
@@ -226,12 +219,13 @@ const AuthModal = ({ visible, type, onClose, onSwitchType }) => {
                     <IconTextInput
                       iconName="card-outline"
                       iconSize={26}
-                      containerStyle={styles.authInput}
+                      containerStyle={[styles.authInput, storedNik ? { backgroundColor: '#e0e0e0' } : {}]}
                       inputStyle={styles.authInputText}
                       placeholder="NIK"
                       value={nik}
                       onChangeText={setNik}
                       keyboardType="numeric"
+                      editable={!storedNik} // Disable if storedNik exists
                     />
                     <View style={styles.passwordContainer}>
                       <IconTextInput

@@ -7,17 +7,30 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
+  ActivityIndicator,
+  Platform,
+  Alert,
+  Dimensions,
+  Linking
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { CameraType, CameraView, useCameraPermissions } from "expo-camera";
+import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
 import * as ImageManipulator from "expo-image-manipulator";
-import { FONTS, SIZES } from "../../constants/theme";
+import * as Location from "expo-location";
+import * as Device from "expo-device";
+import { FONTS, SIZES, SHADOWS } from "../../constants/theme";
 import { useAuth } from "../../context/AuthContext";
+import { useFocusEffect } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+
+const { width } = Dimensions.get("window");
+
+// --- Types ---
 
 type JadwalItem = {
-  action?: number;
-  blokabsen?: number;
+  action?: number; // 1 = Normal, else = Lembur
+  blokabsen?: number; // 0 = Disabled
   date_in?: string | null;
   date_out?: string | null;
   end_date?: string | null;
@@ -40,11 +53,7 @@ type JadwalReportItem = {
   work_set?: number;
 };
 
-const ACCENT = "#FFDE6A";
-const ACCENT_SOFT = "#FFF7D2";
-const TEXT_PRIMARY = "#2b2308";
-const TEXT_MUTED = "rgba(43,35,8,0.6)";
-const BORDER = "rgba(43,35,8,0.08)";
+// --- Utils ---
 
 const formatDate = (value?: string | null) => {
   if (!value) return "-";
@@ -54,22 +63,11 @@ const formatDate = (value?: string | null) => {
     weekday: "long",
     day: "2-digit",
     month: "short",
-    year: "numeric",
-  });
-};
-
-const formatDateShort = (value?: string | null) => {
-  if (!value) return "-";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
   });
 };
 
 const formatTime = (value?: string | null) => {
-  if (!value) return "-";
+  if (!value) return "--:--";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
   return parsed.toLocaleTimeString("id-ID", {
@@ -83,868 +81,800 @@ const isSameDay = (left: Date, right: Date) =>
   left.getMonth() === right.getMonth() &&
   left.getDate() === right.getDate();
 
+
+const getFingerprint = () => {
+  const parts = [
+    Device.brand,
+    Device.modelName,
+    Device.osName,
+    Device.osVersion,
+    Platform.OS,
+  ];
+  return parts.filter(Boolean).join("::");
+};
+
+// --- Colors ---
+const COLORS = {
+  primary: "#2563EB",
+  secondary: "#10B981",
+  warning: "#F59E0B",
+  danger: "#EF4444",
+  dark: "#1E293B",
+  muted: "#64748B",
+  light: "#F8FAFC",
+  white: "#FFFFFF",
+  cardBg: "#FFFFFF",
+  border: "#E2E8F0",
+};
+
 export default function AbsensiScreen() {
-  const { fetchAbsensiJadwal, fetchProfileJadwal, saveAbsensi } = useAuth();
-  const cameraRef = useRef<CameraView | null>(null);
-  const [permission, requestPermission] = useCameraPermissions();
-  const [cameraFacing, setCameraFacing] = useState<CameraType>("front");
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
-  const [capturing, setCapturing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState("");
-  const [saveSuccess, setSaveSuccess] = useState("");
+  const { fetchAbsensiJadwal, fetchProfileJadwal, saveAbsensi, saveAbsensiLembur } = useAuth();
+
+  // State
   const [jadwal, setJadwal] = useState<JadwalItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [reportItems, setReportItems] = useState<JadwalReportItem[]>([]);
-  const [reportLoading, setReportLoading] = useState(true);
-  const [reportError, setReportError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadJadwal = useCallback(async (isRefresh = false) => {
-    if (!isRefresh) setLoading(true);
-    setError("");
+  // Camera & Location State
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [cameraFacing, setCameraFacing] = useState<CameraType>("front");
+  const cameraRef = useRef<CameraView>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [processing, setProcessing] = useState(false);
+  const [isActiveCamera, setIsActiveCamera] = useState(false);
+
+  // --- Data Loading ---
+
+  const loadData = useCallback(async () => {
     try {
-      const payload = await fetchAbsensiJadwal();
-      const items = Array.isArray(payload?.data)
-        ? payload.data
-        : Array.isArray(payload)
-          ? payload
-          : [];
-      setJadwal(items);
+      const [jadwalData, reportData] = await Promise.all([
+        fetchAbsensiJadwal(),
+        fetchProfileJadwal()
+      ]);
+
+      const jItems = Array.isArray(jadwalData?.data) ? jadwalData.data : (Array.isArray(jadwalData) ? jadwalData : []);
+      const rItems = Array.isArray(reportData?.data) ? reportData.data : (Array.isArray(reportData) ? reportData : []);
+
+      setJadwal(jItems);
+      setReportItems(rItems);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal memuat jadwal.");
+      console.error("Failed to load absensi data", err);
     } finally {
-      if (!isRefresh) setLoading(false);
+      setLoading(false);
+      setRefreshing(false);
     }
-  }, [fetchAbsensiJadwal]);
+  }, [fetchAbsensiJadwal, fetchProfileJadwal]);
 
-  const loadReport = useCallback(async (isRefresh = false) => {
-    if (!isRefresh) setReportLoading(true);
-    setReportError("");
-    try {
-      const payload = await fetchProfileJadwal();
-      const items = Array.isArray(payload?.data)
-        ? payload.data
-        : Array.isArray(payload)
-          ? payload
-          : [];
-      setReportItems(items);
-    } catch (err) {
-      setReportError(
-        err instanceof Error ? err.message : "Gagal memuat report jadwal."
-      );
-    } finally {
-      if (!isRefresh) setReportLoading(false);
-    }
-  }, [fetchProfileJadwal]);
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+      setIsActiveCamera(true); // Enable camera when screen is focused
+      return () => {
+        setIsActiveCamera(false); // Disable when blur
+      };
+    }, [loadData])
+  );
 
-  useEffect(() => {
-    loadJadwal();
-    loadReport();
-  }, [loadJadwal, loadReport]);
-
-  const todayJadwal = useMemo(() => {
-    if (!jadwal.length) return null;
-    const now = new Date();
-    const match = jadwal.find((item) => {
-      if (!item?.start_date) return false;
-      const date = new Date(item.start_date);
-      if (Number.isNaN(date.getTime())) return false;
-      return isSameDay(date, now);
-    });
-    return match ?? jadwal[0] ?? null;
-  }, [jadwal]);
-
-  const todayJadwalId = todayJadwal?.id;
-
-  const sortedJadwal = useMemo(() => {
-    if (!jadwal.length) return [];
-    const now = new Date();
-    return jadwal
-      .map((item, index) => {
-        let isToday = false;
-        if (item?.start_date) {
-          const date = new Date(item.start_date);
-          if (!Number.isNaN(date.getTime())) {
-            isToday = isSameDay(date, now);
-          }
-        }
-        return { item, index, isToday };
-      })
-      .sort((left, right) => {
-        if (left.isToday === right.isToday) {
-          return left.index - right.index;
-        }
-        return left.isToday ? -1 : 1;
-      })
-      .map(({ item }) => item);
-  }, [jadwal]);
-
-  const onRefresh = useCallback(async () => {
+  const onRefresh = () => {
     setRefreshing(true);
-    await Promise.all([loadJadwal(true), loadReport(true)]);
-    setRefreshing(false);
-  }, [loadJadwal, loadReport]);
+    loadData();
+  };
 
-  const handleToggleFacing = useCallback(() => {
-    setCameraFacing((prev) => (prev === "front" ? "back" : "front"));
-  }, []);
+  // --- Logic for Active Schedule ---
 
-  const handleTakePhoto = useCallback(async () => {
-    if (!permission?.granted || capturing || !cameraRef.current) return;
-    try {
-      setCapturing(true);
-      setSaveError("");
-      setSaveSuccess("");
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
-      if (photo?.uri) {
-        let nextUri = photo.uri;
-        if (cameraFacing === "front") {
-          const result = await ImageManipulator.manipulateAsync(
-            photo.uri,
-            [{ flip: ImageManipulator.FlipType.Horizontal }],
-            { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
-          );
-          nextUri = result.uri;
+  const { activeItem, otherItems } = useMemo(() => {
+    // Sort logic: Active first.
+    // Active means: blokabsen=1 AND (date_in is missing OR date_out is missing)
+    // Actually, based on legacy logs, user might have multiple rows.
+    // The one that needs action is paramount.
+
+    // Sort logic: 
+    // 1. blokabsen == 1 && !date_out
+    // 2. date (today)
+
+    // We want to verify if there is an item that IS active and ALLOWS attendance.
+
+    let active: JadwalItem | null = null;
+    const others: JadwalItem[] = [];
+
+    const now = new Date();
+
+    // First, try to find an actionable item for today that hasn't completed cycle
+    const actionable = jadwal.find(item =>
+      item.blokabsen === 1 &&
+      (item.start_date ? new Date(item.start_date).toDateString() === now.toDateString() : true)
+    );
+
+    if (actionable) {
+      active = actionable;
+      // Filter out this one from others
+      jadwal.forEach(i => {
+        if (i !== actionable) others.push(i);
+      });
+    } else {
+      // If no actionable today, maybe just pick the first one or none
+      others.push(...jadwal);
+    }
+
+    return { activeItem: active, otherItems: others };
+  }, [jadwal]);
+
+  // Init Camera/Location permissions when active item detected
+  useEffect(() => {
+    if (activeItem && isActiveCamera) {
+      (async () => {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          setLocation(loc);
         }
-        setPhotoUri(nextUri);
+        if (!cameraPermission?.granted) {
+          await requestCameraPermission();
+        }
+      })();
+    }
+  }, [activeItem, isActiveCamera, cameraPermission]);
+
+  // --- Handlers ---
+
+  const takePicture = async () => {
+    if (cameraRef.current && !processing) {
+      // Haptic or sound could be good here
+      try {
+        const photo = await cameraRef.current.takePictureAsync({ quality: 0.5, skipProcessing: true });
+        if (photo?.uri) {
+          let finalUri = photo.uri;
+          if (cameraFacing === 'front') {
+            const manip = await ImageManipulator.manipulateAsync(
+              photo.uri,
+              [{ flip: ImageManipulator.FlipType.Horizontal }],
+              { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+            );
+            finalUri = manip.uri;
+          }
+          setCapturedImage(finalUri);
+        }
+      } catch (e) {
+        console.error(e);
       }
-    } catch (err) {
-      console.log("Failed to take photo", err);
-    } finally {
-      setCapturing(false);
     }
-  }, [cameraFacing, capturing, permission?.granted]);
+  };
 
-  const handleRetake = useCallback(() => {
-    setPhotoUri(null);
-    setSaveError("");
-    setSaveSuccess("");
-  }, []);
+  const retakePicture = () => {
+    setCapturedImage(null);
+  };
 
-  const handleSave = useCallback(async () => {
-    if (!photoUri) {
-      setSaveError("Ambil foto dulu.");
+  const submitAbsensi = async () => {
+    if (!capturedImage || !activeItem || !location) {
+      Alert.alert("Error", "Data belum lengkap (Foto/Lokasi).");
       return;
     }
-    if (!todayJadwalId) {
-      setSaveError("Jadwal absensi belum tersedia.");
-      return;
-    }
-    setSaving(true);
-    setSaveError("");
-    setSaveSuccess("");
+
+    setProcessing(true);
     try {
-      await saveAbsensi(photoUri, todayJadwalId);
-      setSaveSuccess("Absensi berhasil disimpan.");
-      setPhotoUri(null);
-      await loadJadwal();
-      await loadReport();
-    } catch (err) {
-      setSaveError(
-        err instanceof Error ? err.message : "Gagal menyimpan absensi."
-      );
+      const mapString = `${location.coords.latitude},${location.coords.longitude}`;
+      const fingerprint = getFingerprint();
+      const alasan = "0";
+
+      const isLembur = activeItem.action !== 1; // 1 = Normal
+
+      if (!isLembur) {
+        await saveAbsensi(capturedImage, activeItem.id!, mapString, alasan, fingerprint);
+        Alert.alert("Sukses", "Absensi Masuk/Pulang Berhasil!", [{
+          text: "OK", onPress: () => {
+            setCapturedImage(null);
+            loadData();
+          }
+        }]);
+      } else {
+        await saveAbsensiLembur(capturedImage, activeItem.id!, mapString, alasan, fingerprint);
+        Alert.alert("Sukses", "Absensi Lembur Berhasil!", [{
+          text: "OK", onPress: () => {
+            setCapturedImage(null);
+            loadData();
+          }
+        }]);
+      }
+    } catch (e: any) {
+      Alert.alert("Gagal", e.message || "Gagal menyimpan absensi.");
     } finally {
-      setSaving(false);
+      setProcessing(false);
     }
-  }, [photoUri, saveAbsensi, todayJadwalId, loadJadwal, loadReport]);
+  };
 
-  return (
-    <SafeAreaView style={styles.screen}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[TEXT_PRIMARY]}
-            tintColor={TEXT_PRIMARY}
-          />
-        }
-      >
+  // --- Render Components ---
 
-        <View style={styles.cameraCard}>
-          <View style={styles.cameraHeader}>
-            <View>
-              <Text style={styles.cameraTitle}>Foto Absensi</Text>
-              <Text style={styles.cameraSubtitle}>
-                Ambil foto sebagai bukti absensi.
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.cameraSwitch}
-              onPress={handleToggleFacing}
-              disabled={!permission?.granted || Boolean(photoUri) || saving}
-            >
-              <Ionicons
-                name="camera-reverse-outline"
-                size={18}
-                color={TEXT_PRIMARY}
-              />
-            </TouchableOpacity>
+  const renderActiveCard = (item: JadwalItem) => {
+    const isMasuk = !!item.date_in;
+    const labelMain = isMasuk ? "Absen Pulang" : "Absen Masuk";
+    const colorMain = isMasuk ? COLORS.warning : COLORS.primary;
+
+    // Check permissions state for UI feedback
+    const waitingForPerms = !cameraPermission?.granted || !location;
+
+    return (
+      <View style={styles.activeCard}>
+        <View style={styles.activeHeader}>
+          <View>
+            <Text style={styles.activeTitle}>{item.shift || labelMain}</Text>
+            <Text style={styles.activeSubtitle}>
+              {formatDate(item.start_date)} • {formatTime(item.start_date)} - {formatTime(item.end_date)}
+            </Text>
           </View>
+          <View style={[styles.statusBadge, { backgroundColor: colorMain }]}>
+            <Text style={styles.statusTextWhite}>{labelMain}</Text>
+          </View>
+        </View>
 
-          {!permission ? (
-            <Text style={styles.helperText}>Memuat izin kamera...</Text>
-          ) : !permission.granted ? (
-            <View style={styles.permissionBox}>
-              <Text style={styles.permissionText}>
-                Izin kamera diperlukan untuk absensi foto.
-              </Text>
-              <TouchableOpacity
-                style={styles.permissionButton}
-                onPress={requestPermission}
-              >
-                <Text style={styles.permissionButtonText}>Izinkan Kamera</Text>
+        {/* Embedded Camera View */}
+        <View style={styles.cameraContainer}>
+          {capturedImage ? (
+            <Image source={{ uri: capturedImage }} style={styles.cameraPreview} />
+          ) : (
+            cameraPermission?.granted ? (
+              isActiveCamera ? (
+                <>
+                  <CameraView
+                    ref={cameraRef}
+                    style={styles.cameraPreview}
+                    facing={cameraFacing}
+                  />
+                  <View style={styles.camOverlayFrame} pointerEvents="none" />
+                </>
+              ) : (
+                <View style={[styles.cameraPreview, { backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }]}>
+                  <Text style={{ color: '#fff' }}>Camera Paused</Text>
+                </View>
+              )
+            ) : (
+              <View style={styles.permissionState}>
+                <Text style={styles.permText}>Izin kamera diperlukan.</Text>
+                <TouchableOpacity onPress={requestCameraPermission} style={styles.permBtn}>
+                  <Text style={styles.permBtnText}>Izinkan Kamera</Text>
+                </TouchableOpacity>
+              </View>
+            )
+          )}
+
+          {!capturedImage && cameraPermission?.granted && (
+            <TouchableOpacity
+              style={styles.floatingSwitch}
+              onPress={() => setCameraFacing(p => p === 'front' ? 'back' : 'front')}
+            >
+              <Ionicons name="camera-reverse" size={20} color="#FFF" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Controls */}
+        <View style={styles.controlsArea}>
+          {capturedImage ? (
+            <View style={styles.rowControls}>
+              <TouchableOpacity style={styles.btnSecondary} onPress={retakePicture} disabled={processing}>
+                <Ionicons name="refresh" size={20} color={COLORS.primary} />
+                <Text style={styles.btnTextSecondary}>Ulangi</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.btnPrimary} onPress={submitAbsensi} disabled={processing}>
+                {processing ? <ActivityIndicator color="#FFF" /> : <Ionicons name="checkmark-circle" size={20} color="#FFF" />}
+                <Text style={styles.btnTextPrimary}>{processing ? "Mengirim..." : `Kirim ${labelMain}`}</Text>
               </TouchableOpacity>
             </View>
           ) : (
-            <>
-              <View style={styles.cameraFrame}>
-                {photoUri ? (
-                  <Image source={{ uri: photoUri }} style={styles.cameraPreview} />
-                ) : (
-                  <CameraView
-                    ref={cameraRef}
-                    style={StyleSheet.absoluteFillObject}
-                    facing={cameraFacing}
-                  />
-                )}
-                {!photoUri ? (
-                  <View style={styles.cameraOverlay}>
-                    <View style={styles.overlayRing} />
-                    <Text style={styles.overlayText}>
-                      Posisikan wajah di tengah
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-              <View style={styles.cameraButtons}>
-                {photoUri ? (
-                  <>
-                    <TouchableOpacity
-                      style={styles.secondaryButton}
-                      onPress={handleRetake}
-                      disabled={saving}
-                    >
-                      <Text style={styles.secondaryButtonText}>Ulangi</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.primaryButton,
-                        saving ? styles.buttonDisabled : null,
-                      ]}
-                      onPress={handleSave}
-                      disabled={saving}
-                    >
-                      <Text style={styles.primaryButtonText}>
-                        {saving ? "Menyimpan..." : "Simpan Foto"}
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <TouchableOpacity
-                    style={[
-                      styles.primaryButton,
-                      capturing || saving ? styles.buttonDisabled : null,
-                    ]}
-                    onPress={handleTakePhoto}
-                    disabled={capturing || saving}
-                  >
-                    <Ionicons name="camera" size={16} color={TEXT_PRIMARY} />
-                    <Text style={styles.primaryButtonText}>
-                      {capturing ? "Mengambil..." : "Ambil Foto"}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-              {saveError ? (
-                <Text style={styles.saveErrorText}>{saveError}</Text>
-              ) : null}
-              {saveSuccess ? (
-                <Text style={styles.saveSuccessText}>{saveSuccess}</Text>
-              ) : null}
-            </>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={takePicture}
+              disabled={waitingForPerms}
+              style={[
+                styles.btnCaptureWrapper,
+                waitingForPerms && styles.btnDisabled
+              ]}
+            >
+              <LinearGradient
+                colors={['#F59E0B', '#FDE68A']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.btnCaptureGradient}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.captureTitle}>{labelMain}</Text>
+                  <Text style={styles.captureSubtitle}>{waitingForPerms ? "Menunggu Lokasi/Izin..." : "Tap untuk ambil foto"}</Text>
+                </View>
+                <View style={styles.outerRing}>
+                  <View style={styles.innerRing} />
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
           )}
         </View>
+      </View>
+    );
+  };
 
-        {error ? (
-          <View style={styles.noticeCard}>
-            <Text style={styles.errorText}>{error}</Text>
+  const renderInactiveCard = (item: JadwalItem, index: number) => {
+    // For blocked or past schedules
+    const isPulang = !!item.date_out;
+    return (
+      <View key={index} style={styles.inactiveCard}>
+        <View style={styles.inactiveLeft}>
+          <Text style={styles.inactiveShift}>{item.shift}</Text>
+          <Text style={styles.inactiveDate}>{formatDate(item.start_date)}</Text>
+        </View>
+        <View style={styles.inactiveRight}>
+          <View style={styles.statusPill}>
+            <Text style={styles.statusPillText}>
+              {isPulang ? "Selesai" : "Jadwal Lain"}
+            </Text>
           </View>
-        ) : null}
+        </View>
+      </View>
+    );
+  };
+
+  const renderHistoryCard = (item: JadwalReportItem, index: number) => {
+    const isTelat = (item.telat ?? 0) > 0;
+    const isAlpa = (item.alpa ?? 0) > 0;
+    const isIzin = (item.izin ?? 0) > 0;
+
+    let statusLabel = "Hadir";
+    let statusColor = COLORS.secondary; // Green
+    let statusBg = "#DCFCE7";
+
+    if (isAlpa) {
+      statusLabel = "Alpa";
+      statusColor = COLORS.danger;
+      statusBg = "#FEE2E2";
+    } else if (isIzin) {
+      statusLabel = "Izin";
+      statusColor = COLORS.warning;
+      statusBg = "#FEF3C7";
+    } else if (isTelat) {
+      statusLabel = "Telat";
+      statusColor = COLORS.warning;
+      statusBg = "#FEF3C7";
+    } else if (!item.date_in && !item.date_out) {
+      // Future or no data yet
+      statusLabel = "-";
+      statusColor = COLORS.muted;
+      statusBg = "#F1F5F9";
+    }
+
+    const dateObj = item.start_date ? new Date(item.start_date) : null;
+    const dayName = dateObj ? dateObj.toLocaleDateString("id-ID", { weekday: "long" }) : "-";
+    const dateStr = dateObj ? dateObj.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }) : "-";
+
+    return (
+      <View key={index} style={styles.historyCard}>
+        <View style={styles.historyCardHeader}>
+          <View>
+            <Text style={styles.historyDay}>{dayName}</Text>
+            <Text style={styles.historyDateFull}>{dateStr}</Text>
+          </View>
+          <View style={[styles.historyStatusBadge, { backgroundColor: statusBg }]}>
+            <Text style={[styles.historyStatusText, { color: statusColor }]}>{statusLabel}</Text>
+          </View>
+        </View>
+
+        <View style={styles.historyDivider} />
+
+        <View style={styles.historyTimeRow}>
+          <View style={styles.historyTimeCol}>
+            <Text style={styles.historyLabel}>Absen Masuk</Text>
+            <View style={styles.historyValueRow}>
+              <Ionicons name="log-in-outline" size={16} color={COLORS.primary} />
+              <Text style={styles.historyValue}>{formatTime(item.date_in)}</Text>
+            </View>
+          </View>
+          <View style={styles.historyVerticalLine} />
+          <View style={styles.historyTimeCol}>
+            <Text style={styles.historyLabel}>Absen Pulang</Text>
+            <View style={styles.historyValueRow}>
+              <Ionicons name="log-out-outline" size={16} color={COLORS.danger} />
+              <Text style={styles.historyValue}>{formatTime(item.date_out)}</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
+        showsVerticalScrollIndicator={false}
+      >
+
 
         {loading ? (
-          <Text style={styles.helperText}>Memuat jadwal...</Text>
-        ) : sortedJadwal.length ? (
-          sortedJadwal.map((item, index) => {
-            const startDate = item?.start_date
-              ? new Date(item.start_date)
-              : null;
-            const isToday =
-              startDate && !Number.isNaN(startDate.getTime())
-                ? isSameDay(startDate, new Date())
-                : false;
-            const absenMasuk = item?.date_in
-              ? formatTime(item.date_in)
-              : "Belum absen";
-            const absenPulang = item?.date_out
-              ? formatTime(item.date_out)
-              : "Belum absen";
-            const statusLabel = isToday
-              ? "Hari Ini"
-              : item?.blokabsen
-                ? "Diblokir"
-                : "Aktif";
-            const statusStyle = isToday
-              ? styles.statusActive
-              : item?.blokabsen
-                ? styles.statusBlocked
-                : styles.statusActive;
-            return (
-              <View
-                key={`${item?.id ?? "jadwal"}-${index}`}
-                style={[styles.card, isToday ? styles.cardToday : null]}
-              >
-                <View style={styles.cardHeader}>
-                  <View style={styles.cardMetaRow}>
-                    <Text style={styles.cardTitle}>
-                      {item?.shift || "Jadwal"}
-                    </Text>
-                    <Text style={styles.cardMetaSeparator}>-</Text>
-                    <Text style={styles.cardDateInline}>
-                      {formatDate(item?.start_date)}
-                    </Text>
-                  </View>
-                  <View style={[styles.statusBadge, statusStyle]}>
-                    <Text style={styles.statusText}>{statusLabel}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.scheduleColumn}>
-                  <View style={styles.scheduleTimeRow}>
-                    <Text style={styles.scheduleTimeValue}>
-                      {formatTime(item?.start_date)}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.scheduleTimeValue,
-                        styles.scheduleTimeValueRight,
-                      ]}
-                    >
-                      {formatTime(item?.end_date)}
-                    </Text>
-                  </View>
-                  <View style={styles.reportAbsenRow}>
-                    <Text
-                      style={[styles.reportAbsenText, styles.reportAbsenLeft]}
-                    >
-                      Absen Masuk: {absenMasuk}
-                    </Text>
-                    <Text
-                      style={[styles.reportAbsenText, styles.reportAbsenRight]}
-                    >
-                      Absen Pulang: {absenPulang}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            );
-          })
+          <ActivityIndicator size="large" color={COLORS.primary} style={{ margin: 20 }} />
         ) : (
-          <Text style={styles.emptyText}>Belum ada jadwal absensi.</Text>
-        )}
+          <>
+            {activeItem ? (
+              <>
 
-        <View style={styles.reportSection}>
-          <View style={styles.reportHeader}>
-            <Text style={styles.reportTitle}>Report Absensi</Text>
-            <TouchableOpacity
-              style={styles.reportRefresh}
-              onPress={() => loadReport()}
-              disabled={reportLoading}
-            >
-              <Ionicons name="refresh" size={16} color={TEXT_PRIMARY} />
-            </TouchableOpacity>
-          </View>
-          {reportError ? (
-            <View style={styles.noticeCard}>
-              <Text style={styles.errorText}>{reportError}</Text>
-            </View>
-          ) : null}
-          {reportLoading ? (
-            <Text style={styles.helperText}>Memuat report...</Text>
-          ) : reportItems.length ? (
-            <View style={styles.reportTable}>
-              <View style={styles.reportTableHeader}>
-                <Text
-                  style={[
-                    styles.reportTableCell,
-                    styles.reportTableHead,
-                    styles.reportTableDateCell,
-                  ]}
-                >
-                  Tanggal
-                </Text>
-                <Text style={[styles.reportTableCell, styles.reportTableHead]}>
-                  Masuk
-                </Text>
-                <Text style={[styles.reportTableCell, styles.reportTableHead]}>
-                  Absen M
-                </Text>
-                <Text style={[styles.reportTableCell, styles.reportTableHead]}>
-                  Pulang
-                </Text>
-                <Text style={[styles.reportTableCell, styles.reportTableHead]}>
-                  Absen P
-                </Text>
+                {renderActiveCard(activeItem)}
+              </>
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="checkmark-done-circle-outline" size={48} color={COLORS.secondary} />
+                <Text style={styles.emptyText}>Semua jadwal hari ini selesai!</Text>
               </View>
-              {reportItems.map((item, index) => {
-                const absenMasuk = item.date_in
-                  ? formatTime(item.date_in)
-                  : "-";
-                const absenPulang = item.date_out
-                  ? formatTime(item.date_out)
-                  : "-";
-                const isLast = index === reportItems.length - 1;
-                const isAlt = index % 2 === 1;
-                return (
-                  <View
-                    key={`report-${index}`}
-                    style={[
-                      styles.reportTableRow,
-                      isAlt ? styles.reportTableRowAlt : null,
-                      isLast ? styles.reportTableRowLast : null,
-                    ]}
-                  >
-                    <Text
-                      style={[styles.reportTableCell, styles.reportTableDateCell]}
-                      numberOfLines={1}
-                    >
-                      {formatDateShort(item.start_date)}
-                    </Text>
-                    <Text style={[styles.reportTableCell, styles.reportTableTime]}>
-                      {formatTime(item.start_date)}
-                    </Text>
-                    <Text style={styles.reportTableCell}>{absenMasuk}</Text>
-                    <Text style={[styles.reportTableCell, styles.reportTableTime]}>
-                      {formatTime(item.end_date)}
-                    </Text>
-                    <Text style={styles.reportTableCell}>{absenPulang}</Text>
-                  </View>
-                );
-              })}
+            )}
+
+
+
+            <View style={styles.historySection}>
+              <Text style={styles.sectionTitle}>Report Absensi</Text>
+              <View style={styles.historyList}>
+                {reportItems
+                  .slice()
+                  .reverse()
+                  .map((item, idx) => renderHistoryCard(item, idx))}
+              </View>
             </View>
-          ) : (
-            <Text style={styles.emptyText}>Report jadwal belum tersedia.</Text>
-          )}
-        </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F8FAFC",
   },
-  content: {
-    paddingHorizontal: SIZES.large,
-    paddingBottom: 24,
-    gap: SIZES.large,
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40
   },
   header: {
-    marginTop: SIZES.small,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20
   },
-  title: {
-    fontSize: 22,
+  headerTitle: {
     fontFamily: FONTS.bold,
-    color: TEXT_PRIMARY,
+    fontSize: 26,
+    color: COLORS.dark
   },
-  subtitle: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: TEXT_MUTED,
-    marginTop: 4,
-  },
-  refreshButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#ffffff",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: BORDER,
-    shadowColor: "#000000",
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  noticeCard: {
-    backgroundColor: "#FFF4F1",
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "rgba(194,72,61,0.2)",
-  },
-  errorText: {
-    fontSize: 12,
+  headerSubtitle: {
     fontFamily: FONTS.medium,
-    color: "#c2483d",
+    fontSize: 14,
+    color: COLORS.muted
   },
-  helperText: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: TEXT_MUTED,
-  },
-  emptyText: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: TEXT_MUTED,
-  },
-  reportSection: {
-    gap: 12,
-  },
-  reportHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  reportTitle: {
-    fontSize: 16,
-    fontFamily: FONTS.bold,
-    color: TEXT_PRIMARY,
-  },
-  reportRefresh: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: ACCENT_SOFT,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,222,106,0.45)",
-  },
-  reportTable: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "rgba(255,222,106,0.35)",
-    overflow: "hidden",
-    shadowColor: "#000000",
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  reportTableHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: "#FFF6D6",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,222,106,0.35)",
-  },
-  reportTableRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(43,35,8,0.06)",
-  },
-  reportTableRowAlt: {
-    backgroundColor: "#FFFCF0",
-  },
-  reportTableRowLast: {
-    borderBottomWidth: 0,
-  },
-  reportTableCell: {
-    flex: 1,
-    fontSize: 11,
-    fontFamily: FONTS.medium,
-    color: TEXT_PRIMARY,
-    textAlign: "center",
-  },
-  reportTableHead: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-    color: TEXT_PRIMARY,
-    textTransform: "uppercase",
-  },
-  reportTableDateCell: {
-    flex: 1.2,
-    textAlign: "left",
-  },
-  reportTableTime: {
-    fontFamily: FONTS.bold,
-  },
-  scheduleColumn: {
-    backgroundColor: "#FFFDF3",
-    borderRadius: 16,
+  headerIconBg: {
+    backgroundColor: "#DBEAFE",
     padding: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255,222,106,0.35)",
-    gap: 8,
+    borderRadius: 50
   },
-  scheduleTimeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  scheduleTimeValue: {
-    flex: 1,
+  sectionTitle: {
+    fontFamily: FONTS.bold,
     fontSize: 16,
-    fontFamily: FONTS.bold,
-    color: TEXT_PRIMARY,
-    textAlign: "left",
+    color: COLORS.dark,
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5
   },
-  scheduleTimeValueRight: {
-    textAlign: "right",
-  },
-  reportColumn: {
-    backgroundColor: "#FFFDF3",
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,222,106,0.35)",
-    gap: 12,
-  },
-  reportAbsenRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  reportAbsenText: {
-    flex: 1,
-    fontSize: 11,
-    fontFamily: FONTS.medium,
-    color: TEXT_PRIMARY,
-  },
-  reportAbsenLeft: {
-    textAlign: "left",
-  },
-  reportAbsenRight: {
-    textAlign: "right",
-  },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: SIZES.large,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: BORDER,
-    shadowColor: "#000000",
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 14,
+
+  // Active Card (The Camera One)
+  activeCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 4,
-  },
-  cardToday: {
-    backgroundColor: "#FFFDF3",
-    borderColor: "rgba(255,222,106,0.6)",
-  },
-  cameraCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: SIZES.large,
-    gap: 12,
     borderWidth: 1,
-    borderColor: BORDER,
-    shadowColor: "#000000",
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 14,
-    elevation: 4,
+    borderColor: COLORS.border
   },
-  cameraHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
+  activeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9"
   },
-  cameraTitle: {
-    fontSize: 15,
+  activeTitle: {
     fontFamily: FONTS.bold,
-    color: TEXT_PRIMARY,
+    fontSize: 16,
+    color: COLORS.dark
   },
-  cameraSubtitle: {
-    marginTop: 4,
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: TEXT_MUTED,
-  },
-  cameraSwitch: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: ACCENT_SOFT,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,222,106,0.5)",
-  },
-  permissionBox: {
-    backgroundColor: ACCENT_SOFT,
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,222,106,0.45)",
-    gap: 8,
-  },
-  permissionText: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: TEXT_MUTED,
-  },
-  permissionButton: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: ACCENT,
-  },
-  permissionButtonText: {
-    fontSize: 12,
-    fontFamily: FONTS.bold,
-    color: TEXT_PRIMARY,
-  },
-  cameraFrame: {
-    width: "100%",
-    aspectRatio: 4 / 3,
-    borderRadius: 16,
-    overflow: "hidden",
-    backgroundColor: "#111111",
-  },
-  cameraPreview: {
-    width: "100%",
-    height: "100%",
-  },
-  cameraOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  overlayRing: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.7)",
-  },
-  overlayText: {
-    marginTop: 10,
-    fontSize: 11,
+  activeSubtitle: {
     fontFamily: FONTS.medium,
-    color: "#FFFFFF",
-    backgroundColor: "rgba(0,0,0,0.4)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  cameraButtons: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-  },
-  primaryButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: ACCENT,
-    borderWidth: 1,
-    borderColor: "rgba(255,222,106,0.7)",
-  },
-  primaryButtonText: {
     fontSize: 12,
-    fontFamily: FONTS.bold,
-    color: TEXT_PRIMARY,
-  },
-  secondaryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: BORDER,
-  },
-  secondaryButtonText: {
-    fontSize: 12,
-    fontFamily: FONTS.bold,
-    color: TEXT_PRIMARY,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  saveErrorText: {
-    fontSize: 11,
-    fontFamily: FONTS.medium,
-    color: "#c2483d",
-    textAlign: "center",
-  },
-  saveSuccessText: {
-    fontSize: 11,
-    fontFamily: FONTS.medium,
-    color: TEXT_PRIMARY,
-    textAlign: "center",
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  cardMetaRow: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontFamily: FONTS.bold,
-    color: TEXT_PRIMARY,
-  },
-  cardMetaSeparator: {
-    fontSize: 12,
-    fontFamily: FONTS.medium,
-    color: TEXT_MUTED,
-  },
-  cardDateInline: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: TEXT_MUTED,
+    color: COLORS.muted,
+    marginTop: 2
   },
   statusBadge: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
-    alignSelf: "flex-start",
+    borderRadius: 20
   },
-  statusActive: {
-    backgroundColor: ACCENT,
-  },
-  statusBlocked: {
-    backgroundColor: "#F4E7E7",
-  },
-  statusText: {
-    fontSize: 11,
+  statusTextWhite: {
     fontFamily: FONTS.bold,
-    color: TEXT_PRIMARY,
+    color: '#FFF',
+    fontSize: 12
   },
+
+  // Camera Zone
+  cameraContainer: {
+    height: 380,
+    backgroundColor: "#000",
+    position: 'relative'
+  },
+  cameraPreview: {
+    width: '100%',
+    height: '100%'
+  },
+  camOverlayFrame: {
+    flex: 1,
+    margin: 40,
+    borderWidth: 2,
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderColor: "rgba(255,255,255,0.3)",
+    borderRadius: 20,
+    borderStyle: 'dashed'
+  },
+  floatingSwitch: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  permissionState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: "#1E293B"
+  },
+  permText: {
+    color: COLORS.white,
+    fontFamily: FONTS.medium,
+    marginBottom: 12
+  },
+  permBtn: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20
+  },
+  permBtnText: {
+    color: COLORS.white,
+    fontFamily: FONTS.bold
+  },
+
+  // Controls
+  controlsArea: {
+    padding: 16,
+    backgroundColor: COLORS.white
+  },
+  rowControls: {
+    flexDirection: 'row',
+    gap: 12
+  },
+  btnPrimary: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 14,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8
+  },
+  btnTextPrimary: {
+    color: '#FFF',
+    fontFamily: FONTS.bold,
+    fontSize: 15
+  },
+  btnSecondary: {
+    flex: 0.4,
+    backgroundColor: "#F1F5F9",
+    paddingVertical: 14,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8
+  },
+  btnTextSecondary: {
+    color: COLORS.primary,
+    fontFamily: FONTS.bold,
+    fontSize: 14
+  },
+
+  // Big Capture Button
+  btnCaptureWrapper: {
+    borderRadius: 50, // More rounded (pill shape)
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: "#FCD34D", // Match gradient border
+    ...SHADOWS.medium,
+  },
+  btnCaptureGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  btnDisabled: {
+    opacity: 0.6
+  },
+  outerRing: {
+    width: 48, // Smaller
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 3,
+    borderColor: "rgba(255,255,255,0.8)",
+    padding: 3,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  innerRing: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 24,
+    backgroundColor: COLORS.white
+  },
+  captureTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 16, // Slightly smaller
+    color: "#78350F" // Dark brown text for contrast on yellow
+  },
+  captureSubtitle: {
+    fontFamily: FONTS.medium,
+    fontSize: 11,
+    color: "#92400E" // Lighter brown
+  },
+
+
+
+  // Inactive
+  inactiveCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 12
+  },
+  inactiveLeft: {
+    gap: 4
+  },
+  inactiveShift: {
+    fontFamily: FONTS.bold,
+    fontSize: 14,
+    color: COLORS.dark
+  },
+  inactiveDate: {
+    fontFamily: FONTS.medium,
+    fontSize: 12,
+    color: COLORS.muted
+  },
+  inactiveRight: {},
+  statusPill: {
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12
+  },
+  statusPillText: {
+    fontFamily: FONTS.bold,
+    fontSize: 11,
+    color: COLORS.muted
+  },
+
+  // History
+  historySection: {
+    marginTop: 24
+  },
+  // History New
+  historyList: {
+    gap: 12
+  },
+  historyCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.small,
+  },
+  historyCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12
+  },
+  historyDay: {
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+    color: COLORS.dark
+  },
+  historyDateFull: {
+    fontFamily: FONTS.medium,
+    fontSize: 12,
+    color: COLORS.muted,
+    marginTop: 2
+  },
+  historyStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12
+  },
+  historyStatusText: {
+    fontFamily: FONTS.bold,
+    fontSize: 11
+  },
+  historyDivider: {
+    height: 1,
+    backgroundColor: "#F1F5F9",
+    marginBottom: 12
+  },
+  historyTimeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  historyTimeCol: {
+    flex: 1,
+    alignItems: 'center'
+  },
+  historyVerticalLine: {
+    width: 1,
+    height: 30,
+    backgroundColor: COLORS.border
+  },
+  historyLabel: {
+    fontFamily: FONTS.medium,
+    fontSize: 11,
+    color: COLORS.muted,
+    marginBottom: 4
+  },
+  historyValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  historyValue: {
+    fontFamily: FONTS.bold,
+    fontSize: 14,
+    color: COLORS.dark
+  },
+
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 30,
+    backgroundColor: COLORS.white,
+    borderRadius: 20
+  },
+  emptyText: {
+    marginTop: 10,
+    fontFamily: FONTS.bold,
+    color: COLORS.muted
+  }
 });

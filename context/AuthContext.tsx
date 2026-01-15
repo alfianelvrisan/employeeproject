@@ -12,6 +12,49 @@ import * as Network from "expo-network";
 import * as Location from "expo-location";
 import * as FileSystem from "expo-file-system/legacy";
 
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { Buffer } from 'buffer';
+import 'react-native-get-random-values';
+import * as LocalAuthentication from 'expo-local-authentication';
+
+// AWS Configuration
+const S3_BUCKET = "laskarbuah-hrd";
+const S3_REGION = "ap-southeast-3";
+
+const s3Client = new S3Client({
+  region: S3_REGION,
+  credentials: {
+    accessKeyId: process.env.EXPO_PUBLIC_AWS_ACCESS_KEY_ID || "",
+    secretAccessKey: process.env.EXPO_PUBLIC_AWS_SECRET_ACCESS_KEY || "",
+  }
+});
+
+const uploadToS3 = async (photoUri: string, fileName: string): Promise<string> => {
+  const fileContent = await FileSystem.readAsStringAsync(photoUri, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  const buffer = Buffer.from(fileContent, 'base64');
+  const key = `absen/${fileName}`;
+
+  const command = new PutObjectCommand({
+    Bucket: S3_BUCKET,
+    Key: key,
+    Body: buffer,
+    ContentType: 'image/jpeg'
+  });
+
+  try {
+    await s3Client.send(command);
+    // Construct public URL manually as requested
+    const publicUrl = `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/${key}`;
+    console.log("S3 Upload Success:", publicUrl);
+    return publicUrl;
+  } catch (error) {
+    console.error("S3 Upload Error:", error);
+    throw new Error("Gagal upload ke S3");
+  }
+};
+
 const API_BASE_URL = (process.env.EXPO_PUBLIC_BASE_URL ?? "").trim();
 const buildApiUrl = (path: string) => {
   if (!API_BASE_URL) {
@@ -87,10 +130,28 @@ type AuthContextType = {
   login: (nik: string, password: string) => Promise<void>;
   refreshSession: () => Promise<void>;
   logout: () => void;
+  enableBiometric: () => Promise<boolean>;
+  disableBiometric: () => Promise<boolean>;
+  loginWithBiometric: () => Promise<boolean>;
+  isBiometricEnabled: boolean;
+  storedNik: string | null; // NIK that was last used
   register: (whatsapp: string, pin: string, kode: string, option: string) => Promise<void>;
   fetchProfile: (options?: { force?: boolean }) => Promise<any | null>;
   fetchAbsensiJadwal: () => Promise<any | null>;
-  saveAbsensi: (photoUri: string, scheduleId: number | string) => Promise<any | null>;
+  saveAbsensi: (
+    photoUri: string,
+    scheduleId: number | string,
+    map: string,
+    alasan: string,
+    iduniq: string
+  ) => Promise<any | null>;
+  saveAbsensiLembur: (
+    photoUri: string,
+    scheduleId: number | string,
+    map: string,
+    alasan: string,
+    iduniq: string
+  ) => Promise<any | null>;
   fetchProfileJadwal: () => Promise<any | null>;
   fetchPayrollSlip: (options?: {
     period?: string;
@@ -122,8 +183,10 @@ export const AuthContext = createContext<AuthContextType | undefined>(
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userToken, setUserToken] = useState<string | null>(null);
+  const [storedNik, setStoredNik] = useState<string | null>(null); // Store NIK
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [ipt, setIp] = useState("");
+  const [isBiometricEnabled, setIsBiometricEnabled] = useState(false); // State for biometric
   const refreshPromiseRef = useRef<Promise<string> | null>(null);
   const profileCacheRef = useRef<{ data: any; ts: number } | null>(null);
   const navigationCacheRef = useRef<{
@@ -167,8 +230,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const clearTokens = async () => {
     await SecureStore.deleteItemAsync("authToken");
-    await SecureStore.deleteItemAsync("refreshToken");
+    // We DO NOT delete 'refreshToken' automatically here if we want to keep Biometric session active.
+    // However, if the user explicitly wants to "Forget Device" or fully logout, we should clear it.
+    // For now, based on request: "ketika logout hapus access token saja", we keep refresh token.
+    // But we should probably have a way to FULLY logout.
+    // Let's modify 'logout' function instead of 'clearTokens' helper if we want nuance.
+    // Standard clearTokens usually clears everything. Let's keep it as is and handle logic in logout().
+    await SecureStore.deleteItemAsync("refreshToken"); // Original behavior
   };
+
+  const clearAccessTokenOnly = async () => {
+    await SecureStore.deleteItemAsync("authToken");
+  }
 
   const refreshAccessToken = async () => {
     console.log("[auth] refreshAccessToken: start");
@@ -237,22 +310,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const loadToken = async () => {
       try {
         const token = await getStoredAccessToken();
-        console.log("[auth] loadToken: accessToken exists?", Boolean(token));
-        if (token) {
-          if (isActive) setUserToken(token);
-          return;
-        }
-
         const refreshToken = await getStoredRefreshToken();
-        console.log("[auth] loadToken: refreshToken exists?", Boolean(refreshToken));
-        if (refreshToken) {
-          try {
-            await refreshAccessTokenOnce();
-            return;
-          } catch {
-            console.log("[auth] loadToken: refresh failed, clearing tokens");
-            await clearTokens();
-          }
+        const bioEnabled = await SecureStore.getItemAsync("isBiometricEnabled");
+
+        setIsBiometricEnabled(bioEnabled === "true");
+        console.log("[auth] loadToken: accessToken?", Boolean(token), "refreshToken?", Boolean(refreshToken), "bioEnabled?", bioEnabled);
+        // Always load stored NIK if available
+        const savedNik = await SecureStore.getItemAsync("storedNik");
+        if (savedNik && isActive) setStoredNik(savedNik);
+
+        if (token) {
+          console.log("[auth] loadToken: Valid session found");
+          if (isActive) setUserToken(token);
+        } else {
+          console.log("[auth] loadToken: No active session (authToken missing). Waiting for login.");
+          if (isActive) setUserToken(null);
         }
       } catch (e) {
         console.log("[auth] loadToken: error", e);
@@ -449,32 +521,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return payload ?? null;
   };
 
-  const saveAbsensi = async (photoUri: string, scheduleId: number | string) => {
-    if (!photoUri) {
-      throw new Error("Foto absensi belum tersedia.");
-    }
-    if (scheduleId === null || scheduleId === undefined || scheduleId === "") {
-      throw new Error("Jadwal absensi belum tersedia.");
+  const saveAbsensi = async (
+    photoUri: string,
+    scheduleId: number | string,
+    map: string,
+    alasan: string,
+    iduniq: string
+  ) => {
+    if (!photoUri) throw new Error("Foto absensi belum tersedia.");
+    if (!scheduleId) throw new Error("Jadwal absensi belum tersedia.");
+
+    // 1. Upload to AWS S3 first
+    const timestamp = Date.now();
+    const fileNameClean = `ABSEN${timestamp}`; // Name without extension for Backend
+    const fileNameS3 = `${fileNameClean}.jpg`; // Name with extension for S3 Storage
+
+    let publicUrl = "";
+    try {
+      publicUrl = await uploadToS3(photoUri, fileNameS3);
+    } catch (e) {
+      throw new Error("Gagal mengupload foto ke server penyimpanan.");
     }
 
-    const isPng = photoUri.toLowerCase().includes(".png");
-    const mimeType = isPng ? "image/png" : "image/jpeg";
-    const fileName = isPng ? "absensi.png" : "absensi.jpg";
-    const base64 = photoUri.startsWith("data:")
-      ? photoUri.split(",")[1] ?? ""
-      : await FileSystem.readAsStringAsync(photoUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-    if (!base64) {
-      throw new Error("Gagal membaca foto absensi.");
-    }
-
+    // 2. Submit URL to Backend
+    // Backend seems to prepend URL AND append extension.
+    // So we send CLEAN NAME.
     const requestBody = {
       id: scheduleId,
-      file: base64,
-      file_name: fileName,
-      mime_type: mimeType,
+      foto: fileNameClean,
+      map: map,
+      alasan: Number(alasan),
+      iduniq: iduniq,
     };
 
     const response = await fetchWithAuth(buildApiUrl("/absensi"), {
@@ -507,6 +584,70 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     const payload = json?.data ?? json;
     return payload ?? null;
+  };
+
+  const saveAbsensiLembur = async (
+    photoUri: string,
+    scheduleId: number | string,
+    map: string,
+    alasan: string,
+    iduniq: string
+  ) => {
+    if (!photoUri) throw new Error("Foto lembur belum tersedia.");
+    if (!scheduleId) throw new Error("ID Absensi tidak valid.");
+
+    // 1. Upload to AWS S3 first
+    const timestamp = Date.now();
+    const fileNameClean = `ABSEN${timestamp}`;
+    const fileNameS3 = `${fileNameClean}.jpg`;
+
+    let publicUrl = "";
+    try {
+      publicUrl = await uploadToS3(photoUri, fileNameS3);
+    } catch (e) {
+      throw new Error("Gagal mengupload foto ke server penyimpanan.");
+    }
+
+    const requestBody = {
+      id: scheduleId,
+      foto: fileNameClean,
+      map: map,
+      alasan: Number(alasan),
+      iduniq: iduniq,
+    };
+
+
+    const response = await fetchWithAuth(buildApiUrl("/absensi/lembur"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorPayload = await readResponseBody(response);
+      console.log("[auth] absensi lembur request failed", {
+        path: "/absensi/lembur",
+        method: "POST",
+        status: response.status,
+        body: errorPayload.text?.slice(0, 200),
+      });
+      throw new Error(
+        getErrorMessage(
+          errorPayload.json,
+          `Absensi request failed (${response.status}).`
+        )
+      );
+    }
+
+    try {
+      const json = await response.json();
+      const payload = json?.data ?? json;
+      return payload ?? null;
+    } catch {
+      return null;
+    }
   };
 
   const fetchProfileJadwal = async () => {
@@ -851,6 +992,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Token login tidak ditemukan.");
       }
       await saveTokens(accessToken, refreshToken);
+      await SecureStore.setItemAsync("storedNik", nik); // Save NIK
+      setStoredNik(nik);
       clearProfileCache();
       clearNavigationCache();
       setUserToken(accessToken);
@@ -904,26 +1047,89 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
-    try {
-      const refreshToken = await getStoredRefreshToken();
-      if (refreshToken) {
-        await fetch(buildApiUrl("/auth/logout"), {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ refresh_token: refreshToken }),
-        });
-      }
-    } catch (error) {
-      console.log("[auth] logout: server call failed", error);
-    } finally {
-      await clearTokens();
-      clearProfileCache();
-      clearNavigationCache();
-      setUserToken(null);
-    }
+    // Client-side only logout: clear tokens and state
+    // REQUEST: "ketika logout hapus access token saja" 
+    // This implies we KEEP the refresh token specifically to allow Biometric Login later.
+
+    await clearAccessTokenOnly(); // Only delete authToken
+    // We KEEP storedNik implicitly in SecureStore (we don't delete it) so it can be prefilled
+
+    clearProfileCache();
+    clearNavigationCache();
+    setUserToken(null);
   };
+
+  const enableBiometric = async () => {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+    if (!hasHardware || !isEnrolled) {
+      alert("Perangkat tidak mendukung Biometrik atau belum diatur.");
+      return false;
+    }
+
+    // Verify user identity first before enabling
+    // Verify user identity first before enabling
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Verifikasi untuk mengaktifkan',
+        cancelLabel: 'Batal',
+        fallbackLabel: 'Gunakan Password HP' // Explicit fallback option
+      });
+
+      if (result.success) {
+        await SecureStore.setItemAsync("isBiometricEnabled", "true");
+        setIsBiometricEnabled(true);
+        return true;
+      } else {
+        // If failed, 'error' field is available in the failure result type
+        if ('error' in result) {
+          alert(`Gagal verifikasi: ${result.error}`);
+        } else {
+          alert("Gagal verifikasi biometrik.");
+        }
+        return false;
+      }
+    } catch (e) {
+      alert("Terjadi kesalahan sistem biometrik: " + (e as Error).message);
+      return false;
+    }
+  }
+
+  const disableBiometric = async () => {
+    await SecureStore.deleteItemAsync("isBiometricEnabled");
+    setIsBiometricEnabled(false);
+    return true;
+  }
+
+  const loginWithBiometric = async () => {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    if (!hasHardware) return false;
+
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Login dengan Biometrik',
+        cancelLabel: 'Batal',
+        fallbackLabel: 'Gunakan Password HP'
+      });
+
+      if (result.success) {
+        // If success, we use the stored Refresh Token to get a new session
+        try {
+          await refreshAccessToken();
+          return true;
+        } catch (e) {
+          console.log("Biometric login failed to refresh token", e);
+          alert("Sesi login bimetrik kadaluarsa. Silakan login manual.");
+          return false;
+        }
+      }
+      return false;
+    } catch (e) {
+      console.log("Biometric error", e);
+      return false;
+    }
+  }
 
   async function handleRegister(
     whatsapp: string,
@@ -990,10 +1196,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login,
         refreshSession,
         logout,
+        enableBiometric, // Export new function
+        disableBiometric, // Export new function
+        loginWithBiometric, // Export new function
+        isBiometricEnabled, // Export new state
+        storedNik, // Export storedNik
         register,
         fetchProfile,
         fetchAbsensiJadwal,
         saveAbsensi,
+        saveAbsensiLembur,
         fetchProfileJadwal,
         fetchPayrollSlip,
         fetchQuran,
