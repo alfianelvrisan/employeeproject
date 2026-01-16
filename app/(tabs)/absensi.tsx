@@ -14,15 +14,22 @@ import {
   Linking
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
+import { CameraView, useCameraPermissions, CameraType } from "expo-camera";
+// Safe import for FaceDetector
+let FaceDetector: any;
+try {
+  FaceDetector = require("expo-face-detector");
+} catch (e) {
+  console.warn("FaceDetector module not found, falling back to manual capture.");
+}
 import * as ImageManipulator from "expo-image-manipulator";
 import * as Location from "expo-location";
 import * as Device from "expo-device";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter, useFocusEffect } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { FONTS, SIZES, SHADOWS } from "../../constants/theme";
 import { useAuth } from "../../context/AuthContext";
-import { useFocusEffect } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 
 const { width } = Dimensions.get("window");
 
@@ -110,6 +117,9 @@ const COLORS = {
 export default function AbsensiScreen() {
   const { fetchAbsensiJadwal, fetchProfileJadwal, saveAbsensi, saveAbsensiLembur } = useAuth();
 
+  // Check availability
+  const canDetectFaces = !!(FaceDetector && FaceDetector.detectFacesAsync);
+
   // State
   const [jadwal, setJadwal] = useState<JadwalItem[]>([]);
   const [reportItems, setReportItems] = useState<JadwalReportItem[]>([]);
@@ -124,6 +134,7 @@ export default function AbsensiScreen() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [processing, setProcessing] = useState(false);
   const [isActiveCamera, setIsActiveCamera] = useState(false);
+
 
   // --- Data Loading ---
 
@@ -164,6 +175,10 @@ export default function AbsensiScreen() {
 
   // --- Logic for Active Schedule ---
 
+  const [manualActiveId, setManualActiveId] = useState<number | null>(null);
+
+  // --- Logic for Active Schedule ---
+
   const { activeItem, otherItems } = useMemo(() => {
     // Sort logic: Active first.
     // Active means: blokabsen=1 AND (date_in is missing OR date_out is missing)
@@ -171,8 +186,9 @@ export default function AbsensiScreen() {
     // The one that needs action is paramount.
 
     // Sort logic: 
-    // 1. blokabsen == 1 && !date_out
-    // 2. date (today)
+    // 1. Manual override if exists
+    // 2. blokabsen == 1 && !date_out
+    // 3. date (today)
 
     // We want to verify if there is an item that IS active and ALLOWS attendance.
 
@@ -181,25 +197,36 @@ export default function AbsensiScreen() {
 
     const now = new Date();
 
-    // First, try to find an actionable item for today that hasn't completed cycle
-    const actionable = jadwal.find(item =>
-      item.blokabsen === 1 &&
-      (item.start_date ? new Date(item.start_date).toDateString() === now.toDateString() : true)
-    );
-
-    if (actionable) {
-      active = actionable;
-      // Filter out this one from others
-      jadwal.forEach(i => {
-        if (i !== actionable) others.push(i);
-      });
-    } else {
-      // If no actionable today, maybe just pick the first one or none
-      others.push(...jadwal);
+    // 0. Check manual override
+    let manualItem: JadwalItem | undefined;
+    if (manualActiveId) {
+      manualItem = jadwal.find(i => i.id === manualActiveId);
     }
 
+    if (manualItem) {
+      active = manualItem;
+    } else {
+      // First, try to find an actionable item for today that hasn't completed cycle
+      const actionable = jadwal.find(item =>
+        item.blokabsen === 1 &&
+        (item.start_date ? new Date(item.start_date).toDateString() === now.toDateString() : true)
+      );
+      if (actionable) active = actionable;
+    }
+
+    // "Other" Items now implies "All List Items" based on user request "tampilkan semua jadwal yang aktif di jadwal lainnya"
+    // So we just copy jadwal and sort it.
+    others.push(...jadwal);
+
+    // Sort others by start_date descending (Newest first)
+    others.sort((a, b) => {
+      const dateA = a.start_date ? new Date(a.start_date).getTime() : 0;
+      const dateB = b.start_date ? new Date(b.start_date).getTime() : 0;
+      return dateB - dateA;
+    });
+
     return { activeItem: active, otherItems: others };
-  }, [jadwal]);
+  }, [jadwal, manualActiveId]);
 
   // Init Camera/Location permissions when active item detected
   useEffect(() => {
@@ -217,6 +244,94 @@ export default function AbsensiScreen() {
     }
   }, [activeItem, isActiveCamera, cameraPermission]);
 
+  // --- Face Verification Loop (Burst Check) ---
+  useEffect(() => {
+    let loopTimeout: NodeJS.Timeout;
+    let isMounted = true;
+
+    const checkFace = async () => {
+      // Basic conditions
+      if (!isMounted || !activeItem || !isActiveCamera || capturedImage || processing || !cameraPermission?.granted || !cameraRef.current) return;
+
+      // If no detector, fallback to simple auto-timer (Blind Capture)
+      if (!canDetectFaces) {
+        try {
+          // Just take one photo and accept it
+          const photo = await cameraRef.current.takePictureAsync({ quality: 0.4, skipProcessing: true });
+          if (photo?.uri) {
+            let finalUri = photo.uri;
+            if (cameraFacing === 'front') {
+              const manip = await ImageManipulator.manipulateAsync(
+                photo.uri,
+                [{ flip: ImageManipulator.FlipType.Horizontal }],
+                { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+              );
+              finalUri = manip.uri;
+            }
+            if (isMounted) setCapturedImage(finalUri);
+          }
+        } catch (e) {
+          console.log("Blind capture error", e);
+        }
+        return; // Done
+      }
+
+      try {
+        // 1. Snapshot
+        const photo = await cameraRef.current.takePictureAsync({ quality: 0.4, skipProcessing: true });
+
+        if (photo?.uri) {
+          // 2. Detect
+          const detection = await FaceDetector.detectFacesAsync(photo.uri, {
+            mode: FaceDetector.FaceDetectorMode.fast,
+            detectLandmarks: FaceDetector.FaceDetectorLandmarks.all,
+            runClassifications: FaceDetector.FaceDetectorClassifications.all
+          });
+
+          if (detection.faces.length > 0) {
+            const face = detection.faces[0];
+            // Check eyes > 0.25 probability
+            const leftEye = face.leftEyeOpenProbability ?? 0.6;
+            const rightEye = face.rightEyeOpenProbability ?? 0.6;
+
+            if (leftEye > 0.25 && rightEye > 0.25) {
+              // Success
+              let finalUri = photo.uri;
+              if (cameraFacing === 'front') {
+                const manip = await ImageManipulator.manipulateAsync(
+                  photo.uri,
+                  [{ flip: ImageManipulator.FlipType.Horizontal }],
+                  { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+                );
+                finalUri = manip.uri;
+              }
+              if (isMounted) setCapturedImage(finalUri);
+              return; // Stop loop
+            }
+          }
+        }
+      } catch (e) {
+        console.log("Check face error", e);
+      }
+
+      // Retry in 1.2s
+      if (isMounted && !capturedImage) {
+        loopTimeout = setTimeout(checkFace, 1200);
+      }
+    };
+
+    if (activeItem && isActiveCamera && !capturedImage && cameraPermission?.granted) {
+      // If smart detection: fast loop. If blind: wait 2.5s to let user settle
+      const delay = canDetectFaces ? 800 : 2500;
+      loopTimeout = setTimeout(checkFace, delay);
+    }
+
+    return () => {
+      isMounted = false;
+      clearTimeout(loopTimeout);
+    };
+  }, [activeItem, isActiveCamera, capturedImage, processing, cameraPermission, cameraFacing, canDetectFaces]);
+
   // --- Handlers ---
 
   const takePicture = async () => {
@@ -226,7 +341,7 @@ export default function AbsensiScreen() {
         const photo = await cameraRef.current.takePictureAsync({ quality: 0.5, skipProcessing: true });
         if (photo?.uri) {
           let finalUri = photo.uri;
-          if (cameraFacing === 'front') {
+          if (cameraFacing === "front") {
             const manip = await ImageManipulator.manipulateAsync(
               photo.uri,
               [{ flip: ImageManipulator.FlipType.Horizontal }],
@@ -246,9 +361,9 @@ export default function AbsensiScreen() {
     setCapturedImage(null);
   };
 
-  const submitAbsensi = async () => {
-    if (!capturedImage || !activeItem || !location) {
-      Alert.alert("Error", "Data belum lengkap (Foto/Lokasi).");
+  const submitAbsensi = async (targetItem: JadwalItem) => {
+    if (!capturedImage || !location) {
+      Alert.alert("Error", "Foto atau Lokasi belum siap. Silakan tunggu verifikasi wajah.");
       return;
     }
 
@@ -258,25 +373,22 @@ export default function AbsensiScreen() {
       const fingerprint = getFingerprint();
       const alasan = "0";
 
-      const isLembur = activeItem.action !== 1; // 1 = Normal
+      const isLembur = targetItem.action !== 1; // 1 = Normal
 
       if (!isLembur) {
-        await saveAbsensi(capturedImage, activeItem.id!, mapString, alasan, fingerprint);
-        Alert.alert("Sukses", "Absensi Masuk/Pulang Berhasil!", [{
-          text: "OK", onPress: () => {
-            setCapturedImage(null);
-            loadData();
-          }
-        }]);
+        await saveAbsensi(capturedImage, targetItem.id!, mapString, alasan, fingerprint);
       } else {
-        await saveAbsensiLembur(capturedImage, activeItem.id!, mapString, alasan, fingerprint);
-        Alert.alert("Sukses", "Absensi Lembur Berhasil!", [{
-          text: "OK", onPress: () => {
-            setCapturedImage(null);
-            loadData();
-          }
-        }]);
+        await saveAbsensiLembur(capturedImage, targetItem.id!, mapString, alasan, fingerprint);
       }
+
+      Alert.alert("Sukses", "Absensi Berhasil!", [{
+        text: "OK", onPress: () => {
+          setCapturedImage(null);
+          setManualActiveId(null);
+          loadData();
+        }
+      }]);
+
     } catch (e: any) {
       Alert.alert("Gagal", e.message || "Gagal menyimpan absensi.");
     } finally {
@@ -290,21 +402,16 @@ export default function AbsensiScreen() {
     const isMasuk = !!item.date_in;
     const labelMain = isMasuk ? "Absen Pulang" : "Absen Masuk";
     const colorMain = isMasuk ? COLORS.warning : COLORS.primary;
-
-    // Check permissions state for UI feedback
     const waitingForPerms = !cameraPermission?.granted || !location;
 
     return (
       <View style={styles.activeCard}>
         <View style={styles.activeHeader}>
           <View>
-            <Text style={styles.activeTitle}>{item.shift || labelMain}</Text>
+            <Text style={styles.activeTitle}>Verifikasi Wajah</Text>
             <Text style={styles.activeSubtitle}>
-              {formatDate(item.start_date)} • {formatTime(item.start_date)} - {formatTime(item.end_date)}
+              {capturedImage ? "Foto berhasil diambil. Pilih jadwal di bawah untuk kirim." : (canDetectFaces ? "Arahkan wajah (2 mata terlihat) ke kamera" : "Mengambil foto otomatis...")}
             </Text>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: colorMain }]}>
-            <Text style={styles.statusTextWhite}>{labelMain}</Text>
           </View>
         </View>
 
@@ -321,7 +428,17 @@ export default function AbsensiScreen() {
                     style={styles.cameraPreview}
                     facing={cameraFacing}
                   />
-                  <View style={styles.camOverlayFrame} pointerEvents="none" />
+                  {canDetectFaces && (
+                    <>
+                      <View style={styles.camOverlayFrame} pointerEvents="none" />
+                      {/* Verification Text Overlay */}
+                      <View style={{ position: 'absolute', bottom: 20, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.6)', padding: 8, borderRadius: 8 }}>
+                        <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                          Mencari Wajah...
+                        </Text>
+                      </View>
+                    </>
+                  )}
                 </>
               ) : (
                 <View style={[styles.cameraPreview, { backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }]}>
@@ -337,55 +454,32 @@ export default function AbsensiScreen() {
               </View>
             )
           )}
-
-          {!capturedImage && cameraPermission?.granted && (
-            <TouchableOpacity
-              style={styles.floatingSwitch}
-              onPress={() => setCameraFacing(p => p === 'front' ? 'back' : 'front')}
-            >
-              <Ionicons name="camera-reverse" size={20} color="#FFF" />
-            </TouchableOpacity>
-          )}
         </View>
 
-        {/* Controls */}
+        {/* Controls: Only Retake here. Submit is now in the list. */}
         <View style={styles.controlsArea}>
           {capturedImage ? (
-            <View style={styles.rowControls}>
-              <TouchableOpacity style={styles.btnSecondary} onPress={retakePicture} disabled={processing}>
-                <Ionicons name="refresh" size={20} color={COLORS.primary} />
-                <Text style={styles.btnTextSecondary}>Ulangi</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.btnPrimary} onPress={submitAbsensi} disabled={processing}>
-                {processing ? <ActivityIndicator color="#FFF" /> : <Ionicons name="checkmark-circle" size={20} color="#FFF" />}
-                <Text style={styles.btnTextPrimary}>{processing ? "Mengirim..." : `Kirim ${labelMain}`}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ fontFamily: FONTS.medium, color: COLORS.secondary }}>Wajah Terverifikasi ✓</Text>
+              <TouchableOpacity style={[styles.btnSecondary, { flex: 0, paddingHorizontal: 20 }]} onPress={retakePicture} disabled={processing}>
+                <Ionicons name="refresh" size={18} color={COLORS.primary} />
+                <Text style={styles.btnTextSecondary}>Foto Ulang</Text>
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={takePicture}
-              disabled={waitingForPerms}
-              style={[
-                styles.btnCaptureWrapper,
-                waitingForPerms && styles.btnDisabled
-              ]}
-            >
-              <LinearGradient
-                colors={['#F59E0B', '#FDE68A']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.btnCaptureGradient}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.captureTitle}>{labelMain}</Text>
-                  <Text style={styles.captureSubtitle}>{waitingForPerms ? "Menunggu Lokasi/Izin..." : "Tap untuk ambil foto"}</Text>
-                </View>
-                <View style={styles.outerRing}>
-                  <View style={styles.innerRing} />
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
+            <View style={{ alignItems: 'center', padding: 10 }}>
+              {canDetectFaces ? (
+                <>
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                  <Text style={{ color: COLORS.muted, marginTop: 4 }}>Menganalisis wajah...</Text>
+                </>
+              ) : (
+                <>
+                  <ActivityIndicator size="small" color={COLORS.warning} />
+                  <Text style={{ color: COLORS.muted, marginTop: 4 }}>Mengambil foto otomatis...</Text>
+                </>
+              )}
+            </View>
           )}
         </View>
       </View>
@@ -395,17 +489,72 @@ export default function AbsensiScreen() {
   const renderInactiveCard = (item: JadwalItem, index: number) => {
     // For blocked or past schedules
     const isPulang = !!item.date_out;
+    const isSelesai = !!(item.date_in && item.date_out);
+
+    // User requested to keep button active even if "Selesai" to allow re-submission/correction.
+    const isAvailable = item.blokabsen === 1;
+
+    // If we have a captured image, the button becomes "Kirim"
+    const canSubmit = isAvailable && capturedImage;
+
     return (
       <View key={index} style={styles.inactiveCard}>
-        <View style={styles.inactiveLeft}>
-          <Text style={styles.inactiveShift}>{item.shift}</Text>
-          <Text style={styles.inactiveDate}>{formatDate(item.start_date)}</Text>
-        </View>
-        <View style={styles.inactiveRight}>
-          <View style={styles.statusPill}>
-            <Text style={styles.statusPillText}>
-              {isPulang ? "Selesai" : "Jadwal Lain"}
-            </Text>
+        <View style={styles.inactiveContent}>
+          <View style={styles.inactiveLeft}>
+            <Text style={styles.inactiveShift}>{item.shift}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="calendar-outline" size={14} color={COLORS.muted} />
+              <Text style={styles.inactiveDate}>
+                {formatDate(item.start_date)} • {formatTime(item.start_date)} - {formatTime(item.end_date)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.inactiveRight}>
+            {isAvailable ? (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  if (capturedImage) {
+                    // Submit immediately
+                    submitAbsensi(item);
+                  } else {
+                    // Activate camera for this item
+                    setManualActiveId(item.id);
+                  }
+                }}
+              >
+                <LinearGradient
+                  colors={canSubmit ? ['#F59E0B', '#D97706'] : ['#FBBF24', '#F59E0B']} // Always Yellow-ish. Darker for submit.
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{
+                    paddingHorizontal: 20,
+                    paddingVertical: 10,
+                    borderRadius: 30,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                    shadowColor: "#F59E0B",
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                    elevation: 6
+                  }}
+                >
+                  <Ionicons name={canSubmit ? "checkmark-circle" : "camera"} size={18} color="#FFF" />
+                  <Text style={{ fontFamily: FONTS.bold, color: '#FFF', fontSize: 13 }}>
+                    {canSubmit ? "Kirim Absen" : "Absen"}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.statusPill}>
+                <Text style={styles.statusPillText}>
+                  {isSelesai ? "Selesai" : "Belum Mulai"}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </View>
@@ -494,13 +643,19 @@ export default function AbsensiScreen() {
           <>
             {activeItem ? (
               <>
-
                 {renderActiveCard(activeItem)}
               </>
             ) : (
               <View style={styles.emptyState}>
                 <Ionicons name="checkmark-done-circle-outline" size={48} color={COLORS.secondary} />
                 <Text style={styles.emptyText}>Semua jadwal hari ini selesai!</Text>
+              </View>
+            )}
+
+            {/* Render Other Items (Jadwal List) */}
+            {otherItems.length > 0 && (
+              <View style={{ marginTop: 24 }}>
+                {otherItems.map((item, index) => renderInactiveCard(item, index))}
               </View>
             )}
 
@@ -751,39 +906,45 @@ const styles = StyleSheet.create({
 
   // Inactive
   inactiveCard: {
+    marginBottom: 16,
+    borderRadius: 20,
+    overflow: 'hidden',
+    ...SHADOWS.card,
+  },
+  inactiveContent: {
+    padding: 20,
+    backgroundColor: COLORS.white,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: 12
+    gap: 12
   },
   inactiveLeft: {
-    gap: 4
+    flex: 1,
+    gap: 6
   },
   inactiveShift: {
     fontFamily: FONTS.bold,
-    fontSize: 14,
+    fontSize: 16,
     color: COLORS.dark
   },
   inactiveDate: {
     fontFamily: FONTS.medium,
-    fontSize: 12,
+    fontSize: 13,
     color: COLORS.muted
   },
-  inactiveRight: {},
+  inactiveRight: {
+    alignItems: 'flex-end'
+  },
   statusPill: {
     backgroundColor: "#F1F5F9",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 12
   },
   statusPillText: {
     fontFamily: FONTS.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: COLORS.muted
   },
 
